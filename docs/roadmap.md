@@ -43,7 +43,7 @@ This document outlines the phased development plan for Nimbus. The goal is to bu
 *   Real-time Audio and MIDI recording to the timeline.
 *   Take management and basic comping.
 *   Automation envelopes (Volume, Pan, Plugin Parameters) with sample-accurate evaluation.
-*   Project System Serialization (Save/Load `.nimbusproj`).
+*   Project System Serialization (Save/Load `.nmbs`).
 *   Offline Export / Bounce to WAV.
 
 ---
