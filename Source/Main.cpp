@@ -1,5 +1,6 @@
 #include <JuceHeader.h>
 #include "UI/MainWindow.h"
+#include "Core/NimbusEngine.h"
 
 class NimbusApplication : public juce::JUCEApplication {
 public:
@@ -11,7 +12,8 @@ public:
 
     void initialise(const juce::String& /*commandLine*/) override {
         // This is where you initialize the app and spawn the main window
-        mainWindow.reset(new Nimbus::MainWindow(getApplicationName()));
+        engine.initialise();
+        mainWindow.reset(new Nimbus::MainWindow(getApplicationName(), engine));
     }
 
     void shutdown() override {
@@ -29,6 +31,7 @@ public:
     }
 
 private:
+    Nimbus::NimbusEngine engine;
     std::unique_ptr<Nimbus::MainWindow> mainWindow;
 };
 

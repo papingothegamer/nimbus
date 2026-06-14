@@ -12,7 +12,7 @@ include(FetchContent)
 FetchContent_Declare(
     juce
     GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-    GIT_TAG        master
+    GIT_TAG        8.0.1
 )
 FetchContent_MakeAvailable(juce)
 
@@ -22,10 +22,20 @@ juce_add_gui_app(Nimbus
     VERSION 0.1.0
 )
 
+juce_generate_juce_header(Nimbus)
+
 # Source files
 target_sources(Nimbus PRIVATE
     Source/Main.cpp
     Source/UI/MainWindow.cpp
+    Source/Core/NimbusEngine.cpp
+    Source/AudioEngine/AudioGraph.cpp
+    Source/AudioEngine/AudioDeviceManagerWrapper.cpp
+    Source/AudioEngine/Transport.cpp
+    Source/AudioEngine/TestToneNode.cpp
+    Source/AudioEngine/Track.cpp
+    Source/AudioEngine/Mixer.cpp
+    Source/DSP/GainNode.cpp
 )
 
 # Link JUCE modules
