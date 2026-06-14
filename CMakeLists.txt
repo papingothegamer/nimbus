@@ -27,13 +27,62 @@ target_compile_definitions(Nimbus PRIVATE
     JUCE_PLUGINHOST_AU=1
 )
 
+if (MSVC)
+    target_compile_options(Nimbus PRIVATE /FS)
+endif()
+
 juce_generate_juce_header(Nimbus)
+
+# Assets
+juce_add_binary_data(Nimbus_Assets
+    HEADER_NAME "BinaryData.h"
+    NAMESPACE "BinaryData"
+    SOURCES
+        Assets/Fonts/ChakraPetch-Bold.ttf
+        Assets/Fonts/ChakraPetch-Regular.ttf
+        Assets/Fonts/Inter-Bold.ttf
+        Assets/Fonts/Inter-Regular.ttf
+        Assets/Icons/play.svg
+        Assets/Icons/pause.svg
+        Assets/Icons/circle.svg
+        Assets/Icons/repeat.svg
+        Assets/Icons/search.svg
+        Assets/Icons/folder.svg
+        Assets/Icons/box.svg
+        Assets/Icons/panel-left.svg
+        Assets/Icons/panel-bottom.svg
+)
+target_link_libraries(Nimbus PRIVATE Nimbus_Assets)
 
 # Source files
 target_sources(Nimbus PRIVATE
     Source/Main.cpp
     Source/UI/MainWindow.cpp
+    Source/UI/MainWindow.h
     Source/UI/Timeline/TimelineComponent.cpp
+    Source/UI/Timeline/TimelineComponent.h
+    Source/UI/Timeline/TrackHeaderComponent.cpp
+    Source/UI/Timeline/TrackHeaderComponent.h
+    Source/UI/Timeline/TrackLaneComponent.cpp
+    Source/UI/Timeline/TrackLaneComponent.h
+    Source/UI/Timeline/ClipComponent.cpp
+    Source/UI/Timeline/ClipComponent.h
+    Source/UI/DesignSystem/Colors.h
+    Source/UI/DesignSystem/Typography.h
+    Source/UI/DesignSystem/NimbusLookAndFeel.cpp
+    Source/UI/DesignSystem/NimbusLookAndFeel.h
+    Source/UI/MainLayout/TopToolbarComponent.cpp
+    Source/UI/MainLayout/TopToolbarComponent.h
+    Source/UI/MainLayout/SideBrowserComponent.cpp
+    Source/UI/MainLayout/SideBrowserComponent.h
+    Source/UI/MainLayout/BottomMixerComponent.cpp
+    Source/UI/MainLayout/BottomMixerComponent.h
+    Source/UI/MainLayout/ChannelStripComponent.cpp
+    Source/UI/MainLayout/ChannelStripComponent.h
+    Source/UI/MainLayout/DetailViewComponent.cpp
+    Source/UI/MainLayout/DetailViewComponent.h
+    Source/UI/PluginWindow.cpp
+    Source/UI/PluginWindow.h
     Source/Core/NimbusEngine.cpp
     Source/AudioEngine/AudioGraph.cpp
     Source/AudioEngine/AudioDeviceManagerWrapper.cpp

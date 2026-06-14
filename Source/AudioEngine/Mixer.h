@@ -37,6 +37,10 @@ public:
     // Level Metering
     float getMasterPeakLevel() const { return meter.getPeakLevel(); }
     float getMasterRMSLevel() const { return meter.getRMSLevel(); }
+    float getTrackPeakLevel(int index) const {
+        if (index >= 0 && index < tracks.size()) return tracks[index]->getPeakLevel();
+        return 0.0f;
+    }
 
 private:
     std::vector<std::unique_ptr<Track>> tracks;

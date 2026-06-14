@@ -4,21 +4,34 @@
 
 class NimbusApplication : public juce::JUCEApplication {
 public:
-    NimbusApplication() = default;
+    NimbusApplication() {
+        auto logFile = juce::File::getSpecialLocation(juce::File::userDesktopDirectory).getChildFile("Nimbus_CrashLog.txt");
+        fileLogger = std::make_unique<juce::FileLogger>(logFile, "Nimbus Crash Log");
+        juce::Logger::setCurrentLogger(fileLogger.get());
+        juce::Logger::writeToLog("NimbusApplication constructed");
+    }
 
     const juce::String getApplicationName() override { return ProjectInfo::projectName; }
     const juce::String getApplicationVersion() override { return ProjectInfo::versionString; }
     bool moreThanOneInstanceAllowed() override { return true; }
 
     void initialise(const juce::String& /*commandLine*/) override {
-        // This is where you initialize the app and spawn the main window
-        engine.initialise();
-        mainWindow.reset(new Nimbus::MainWindow(getApplicationName(), engine));
+        juce::Logger::writeToLog("1. Creating Engine");
+        engine = std::make_unique<Nimbus::NimbusEngine>();
+        
+        juce::Logger::writeToLog("2. Initialising Engine");
+        engine->initialise();
+        
+        juce::Logger::writeToLog("3. Creating MainWindow");
+        mainWindow.reset(new Nimbus::MainWindow(getApplicationName(), *engine));
+        
+        juce::Logger::writeToLog("4. Initialise Complete");
     }
 
     void shutdown() override {
         // Shutdown logic, release audio devices, etc.
         mainWindow = nullptr;
+        engine = nullptr;
     }
 
     void systemRequestedQuit() override {
@@ -31,7 +44,8 @@ public:
     }
 
 private:
-    Nimbus::NimbusEngine engine;
+    std::unique_ptr<juce::FileLogger> fileLogger;
+    std::unique_ptr<Nimbus::NimbusEngine> engine;
     std::unique_ptr<Nimbus::MainWindow> mainWindow;
 };
 

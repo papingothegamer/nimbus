@@ -36,6 +36,11 @@ public:
     PluginManager& getPluginManager() { return pluginManager; }
     std::shared_ptr<PluginNode> getTestPluginNode() const { return testPluginNode; }
 
+    void addTrack(bool isMidi);
+
+    float getMasterPeakLevel() const;
+    float getTrackPeakLevel(int trackIndex) const;
+
 private:
     AudioGraph mainGraph; // The root graph executing on the audio thread
     Mixer* mixer = nullptr; // Raw pointer to the mixer owned by mainGraph

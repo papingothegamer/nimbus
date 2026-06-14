@@ -1,73 +1,127 @@
 #include "TimelineComponent.h"
+#include "TrackHeaderComponent.h"
+#include "TrackLaneComponent.h"
+#include "UI/DesignSystem/Colors.h"
 
 namespace Nimbus {
 
-TimelineComponent::TimelineComponent(NimbusEngine& e)
-    : engine(e), 
-      testThumbnail(512, e.getFormatManager(), e.getThumbnailCache()) 
+SeekingBarComponent::SeekingBarComponent() {}
+
+void SeekingBarComponent::paint(juce::Graphics& g) {
+    g.fillAll(DesignSystem::Colors::PanelBackground.brighter(0.05f));
+    g.setColour(DesignSystem::Colors::Divider);
+    g.fillRect(0, getHeight() - 1, getWidth(), 1);
+    
+    // Draw dummy tick marks
+    g.setColour(DesignSystem::Colors::TextSecondary);
+    for (int i = 0; i < getWidth(); i += 50) {
+        g.drawLine(i, getHeight() - 5, i, getHeight(), 1.0f);
+    }
+}
+
+void SeekingBarComponent::mouseDown(const juce::MouseEvent& event) {
+    // In a real implementation, we'd update Transport based on x position
+}
+
+void SeekingBarComponent::mouseDrag(const juce::MouseEvent& event) {
+    // Update playhead while dragging
+}
+
+TimelineComponent::TimelineComponent(NimbusEngine& e) 
+    : engine(e)
 {
-    // Load the test file
-    juce::File testFile(R"(C:\Users\Laptop\Desktop\X26\EAGLP\export_1726306721135.wav)");
-    if (testFile.existsAsFile()) {
-        testThumbnail.setSource(new juce::FileInputSource(testFile));
+    addAndMakeVisible(seekingBar);
+
+    // Register as listener
+    engine.getTimelineProject().addListener(this);
+
+    // Load existing tracks
+    for (int i = 0; i < engine.getTimelineProject().getNumTracks(); ++i) {
+        trackAdded(i, engine.getTimelineProject().getTrack(i));
     }
 
-    startTimerHz(60); // Repaint at 60Hz to keep playhead smooth
+    startTimerHz(60); // 60fps playhead updates
 }
 
 TimelineComponent::~TimelineComponent() {
-    stopTimer();
+    engine.getTimelineProject().removeListener(this);
 }
 
 void TimelineComponent::paint(juce::Graphics& g) {
-    // 1. Fill background with Panel Background color
-    g.fillAll(juce::Colour::fromString("#FF181A20"));
+    g.fillAll(DesignSystem::Colors::AppBackground);
 
-    auto bounds = getLocalBounds();
-
-    // Draw the audio clip thumbnail
-    auto trackArea = bounds.withHeight(100).withY(40); // Hardcode some space for the single test track
-
-    // Background for the track
-    g.setColour(juce::Colour::fromString("#FF22252D"));
-    g.fillRect(trackArea);
-
-    g.setColour(juce::Colour::fromString("#FF4A4E5A"));
-    g.drawRect(trackArea);
-
-    if (testThumbnail.getTotalLength() > 0.0) {
-        // Draw the waveform in a blue tint
-        g.setColour(juce::Colour::fromString("#FF4A90E2").withAlpha(0.6f));
-        // We map the full length of the audio file to the width of the component for this simple test
-        testThumbnail.drawChannels(g, trackArea, 0.0, testThumbnail.getTotalLength(), 1.0f);
-    }
-
-    // 3. Draw playhead
-    double sr = engine.getTransport().getSampleRate();
-    if (sr <= 0.0) sr = 44100.0;
-    double currentPositionSeconds = engine.getTransport().getCurrentPosition() / sr;
+    // Draw Arrangement View Grid
+    int headerWidth = 150;
+    int lanesWidth = getWidth() - headerWidth;
     
-    // Calculate X position. If the timeline represents 60 seconds across the screen:
-    double timelineLengthSeconds = 60.0;
-    if (testThumbnail.getTotalLength() > 0.0) {
-        timelineLengthSeconds = testThumbnail.getTotalLength();
+    g.setColour(DesignSystem::Colors::Divider.withAlpha(0.2f));
+    for (int i = 0; i < lanesWidth; i += 50) {
+        g.drawLine(i, 24, i, getHeight(), 1.0f);
     }
-    
-    float playheadX = static_cast<float>((currentPositionSeconds / timelineLengthSeconds) * bounds.getWidth());
+}
 
-    g.setColour(juce::Colours::white);
-    g.drawLine(playheadX, 0, playheadX, (float)bounds.getHeight(), 1.0f);
+void TimelineComponent::paintOverChildren(juce::Graphics& g) {
+    int headerWidth = 150;
+    int lanesWidth = getWidth() - headerWidth;
+
+    // Draw Playhead
+    double positionSamples = engine.getTransport().getCurrentPosition();
+    double sampleRate = engine.getTransport().getSampleRate();
+    if (sampleRate <= 0.0) sampleRate = 48000.0;
+    
+    double positionSeconds = positionSamples / sampleRate;
+    int playheadX = headerWidth + static_cast<int>(positionSeconds * 50.0);
+    
+    if (playheadX >= headerWidth && playheadX < getWidth()) {
+        g.setColour(DesignSystem::Colors::PrimaryAction);
+        g.drawLine(playheadX, 0, playheadX, getHeight(), 2.0f);
+        
+        // Playhead triangle
+        juce::Path p;
+        p.addTriangle(playheadX - 5, 0, playheadX + 5, 0, playheadX, 10);
+        g.fillPath(p);
+    }
+}
+
+void TimelineComponent::trackAdded(int trackIndex, const TrackModel& track) {
+    auto* lane = new Timeline::TrackLaneComponent(engine, trackIndex);
+    trackLanes.add(lane);
+    addAndMakeVisible(lane);
+
+    auto* header = new Timeline::TrackHeaderComponent(engine, trackIndex);
+    trackHeaders.add(header);
+    addAndMakeVisible(header);
+
+    resized();
+}
+
+void TimelineComponent::trackRemoved(int trackIndex) {
+    // Not implemented for Phase 4 MVP
 }
 
 void TimelineComponent::resized() {
-    // Layout logic will go here
+    auto bounds = getLocalBounds();
+    
+    // Seeking Bar at the top
+    seekingBar.setBounds(bounds.removeFromTop(24).withTrimmedRight(150)); // Avoid header area
+
+    int headerWidth = 150;
+    int trackHeight = 80;
+    
+    // Left side: Lanes
+    auto lanesArea = bounds.removeFromLeft(bounds.getWidth() - headerWidth);
+    
+    // Right side: Headers
+    auto headersArea = bounds;
+    
+    for (int i = 0; i < trackHeaders.size(); ++i) {
+        trackLanes[i]->setBounds(lanesArea.removeFromTop(trackHeight).reduced(0, 1));
+        trackHeaders[i]->setBounds(headersArea.removeFromTop(trackHeight).reduced(0, 1));
+    }
 }
 
 void TimelineComponent::timerCallback() {
-    // Repaint to update playhead position
-    if (engine.getTransport().isPlaying()) {
-        repaint();
-    }
+    repaint();
 }
 
 } // namespace Nimbus

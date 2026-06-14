@@ -3,32 +3,46 @@
 #include "AudioClip.h"
 #include <vector>
 #include <memory>
+#include <juce_events/juce_events.h>
 
 namespace Nimbus {
+
+struct TrackModel {
+    juce::String name;
+    bool isMidi;
+    bool isMuted = false;
+    bool isSoloed = false;
+};
 
 /**
  * The data model representing the tracks and clips in the arrangement view.
  */
 class TimelineProject {
 public:
+    class Listener {
+    public:
+        virtual ~Listener() = default;
+        virtual void trackAdded(int trackIndex, const TrackModel& track) {}
+        virtual void trackRemoved(int trackIndex) {}
+    };
+
     TimelineProject() = default;
     ~TimelineProject() = default;
 
-    /**
-     * Add a clip to a specific track index. (For now we just store clips linearly and associate them by some ID, 
-     * but we'll do a simple list per track).
-     */
-    void addClipToTrack(int trackIndex, std::shared_ptr<AudioClip> clip);
+    void addListener(Listener* listener) { listeners.add(listener); }
+    void removeListener(Listener* listener) { listeners.remove(listener); }
 
-    /**
-     * Get all clips on a specific track.
-     */
+    void addTrack(const TrackModel& track);
+    const TrackModel& getTrack(int index) const;
+    int getNumTracks() const;
+
+    void addClipToTrack(int trackIndex, std::shared_ptr<AudioClip> clip);
     std::vector<std::shared_ptr<AudioClip>> getClipsOnTrack(int trackIndex) const;
 
 private:
-    // Basic model: track index -> list of clips
-    // In a real DAW this would be more complex, but this suffices for Phase 4
+    std::vector<TrackModel> tracks;
     std::vector<std::vector<std::shared_ptr<AudioClip>>> trackClips;
+    juce::ListenerList<Listener> listeners;
 };
 
 } // namespace Nimbus
