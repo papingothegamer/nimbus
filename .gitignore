@@ -1,0 +1,20 @@
+# Build directories
+build/
+Builds/
+
+# IDE and OS
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.DS_Store
+
+# Catch2 and JUCE FetchContent
+_deps/
+
+# Project files
+*.nmbs.tmp
+.backup/
