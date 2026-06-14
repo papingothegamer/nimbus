@@ -17,6 +17,7 @@ public:
     
     void setPosition(double samplePosition) override;
     double getCurrentPosition() const override;
+    int getCurrentPositionSamples() const;
     
     bool isPlaying() const override;
     bool isRecording() const override;

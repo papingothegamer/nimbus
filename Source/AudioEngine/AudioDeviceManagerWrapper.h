@@ -2,6 +2,7 @@
 
 #include <juce_audio_devices/juce_audio_devices.h>
 #include "AudioGraph.h"
+#include "Transport.h"
 
 namespace Nimbus {
 
@@ -10,7 +11,7 @@ namespace Nimbus {
  */
 class AudioDeviceManagerWrapper : public juce::AudioIODeviceCallback {
 public:
-    AudioDeviceManagerWrapper(AudioGraph& mainGraph);
+    AudioDeviceManagerWrapper(AudioGraph& mainGraph, Transport& transport);
     ~AudioDeviceManagerWrapper() override;
 
     void initialise();
@@ -27,8 +28,9 @@ public:
     void audioDeviceStopped() override;
 
 private:
-    juce::AudioDeviceManager deviceManager;
     AudioGraph& graph;
+    Transport& globalTransport;
+    juce::AudioDeviceManager deviceManager;
     juce::AudioBuffer<float> processBuffer;
     juce::MidiBuffer dummyMidiBuffer;
 };

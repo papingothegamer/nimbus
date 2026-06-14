@@ -22,12 +22,18 @@ juce_add_gui_app(Nimbus
     VERSION 0.1.0
 )
 
+target_compile_definitions(Nimbus PRIVATE
+    JUCE_PLUGINHOST_VST3=1
+    JUCE_PLUGINHOST_AU=1
+)
+
 juce_generate_juce_header(Nimbus)
 
 # Source files
 target_sources(Nimbus PRIVATE
     Source/Main.cpp
     Source/UI/MainWindow.cpp
+    Source/UI/Timeline/TimelineComponent.cpp
     Source/Core/NimbusEngine.cpp
     Source/AudioEngine/AudioGraph.cpp
     Source/AudioEngine/AudioDeviceManagerWrapper.cpp
@@ -35,7 +41,14 @@ target_sources(Nimbus PRIVATE
     Source/AudioEngine/TestToneNode.cpp
     Source/AudioEngine/Track.cpp
     Source/AudioEngine/Mixer.cpp
+    Source/AudioEngine/AudioClipNode.cpp
+    Source/AudioEngine/DiskStreaming/DiskStreamer.cpp
     Source/DSP/GainNode.cpp
+    Source/DataModel/AudioClip.cpp
+    Source/DataModel/TimelineProject.cpp
+    Source/PluginHost/PluginManager.cpp
+    Source/AudioEngine/PluginNode.cpp
+    Source/UI/PluginWindow.cpp
 )
 
 # Link JUCE modules

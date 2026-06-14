@@ -26,6 +26,10 @@ double Transport::getCurrentPosition() const {
     return currentPosition.load(std::memory_order_relaxed);
 }
 
+int Transport::getCurrentPositionSamples() const {
+    return static_cast<int>(currentPosition.load(std::memory_order_relaxed));
+}
+
 bool Transport::isPlaying() const {
     return playing.load(std::memory_order_relaxed);
 }

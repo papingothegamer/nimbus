@@ -2,6 +2,8 @@
 
 #include <JuceHeader.h>
 #include "Core/NimbusEngine.h"
+#include "Timeline/TimelineComponent.h"
+#include "PluginWindow.h"
 
 namespace Nimbus {
 
@@ -12,11 +14,18 @@ public:
 
     void closeButtonPressed() override;
 
-    void resized() override;
-
 private:
-    NimbusEngine& engine;
-    juce::Slider volumeSlider;
+    class MainContentComponent : public juce::Component {
+    public:
+        MainContentComponent(NimbusEngine& engine);
+        void resized() override;
+    private:
+        TimelineComponent timelineComponent;
+    };
+
+    MainContentComponent mainContent;
+
+    std::unique_ptr<PluginWindow> pluginWindow;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainWindow)
 };

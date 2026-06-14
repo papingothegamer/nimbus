@@ -4,8 +4,8 @@
 
 namespace Nimbus {
 
-AudioDeviceManagerWrapper::AudioDeviceManagerWrapper(AudioGraph& mainGraph)
-    : graph(mainGraph)
+AudioDeviceManagerWrapper::AudioDeviceManagerWrapper(AudioGraph& mainGraph, Transport& transport)
+    : graph(mainGraph), globalTransport(transport)
 {
 }
 
@@ -31,6 +31,7 @@ void AudioDeviceManagerWrapper::audioDeviceAboutToStart(juce::AudioIODevice* dev
         // Ensure our pre-allocated process buffer is large enough
         processBuffer.setSize(2, blockSize);
         
+        globalTransport.setSampleRate(sampleRate);
         graph.prepareToPlay(sampleRate, blockSize);
     }
 }
@@ -51,6 +52,9 @@ void AudioDeviceManagerWrapper::audioDeviceIOCallbackWithContext(const float* co
 
     // The graph processes and writes into processBuffer
     graph.processBlock(processBuffer, dummyMidiBuffer);
+    
+    // Advance the transport
+    globalTransport.advancePosition(numSamples);
 
     // Copy the processed audio to the hardware output buffers
     for (int ch = 0; ch < numOutputChannels; ++ch) {
