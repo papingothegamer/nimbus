@@ -42,15 +42,38 @@ juce_add_binary_data(Nimbus_Assets
         Assets/Fonts/ChakraPetch-Regular.ttf
         Assets/Fonts/Inter-Bold.ttf
         Assets/Fonts/Inter-Regular.ttf
-        Assets/Icons/play.svg
-        Assets/Icons/pause.svg
-        Assets/Icons/circle.svg
-        Assets/Icons/repeat.svg
-        Assets/Icons/search.svg
-        Assets/Icons/folder.svg
-        Assets/Icons/box.svg
-        Assets/Icons/panel-left.svg
-        Assets/Icons/panel-bottom.svg
+        Assets/Fonts/MaterialSymbolsRounded.ttf
+        Assets/Icons/Nimbus/alert-outline.svg
+        Assets/Icons/Nimbus/arrow-right-thick.svg
+        Assets/Icons/Nimbus/chevron-down.svg
+        Assets/Icons/Nimbus/chevron-right.svg
+        Assets/Icons/Nimbus/chevron-up.svg
+        Assets/Icons/Nimbus/delete-outline.svg
+        Assets/Icons/Nimbus/link.svg
+        Assets/Icons/Nimbus/loop.svg
+        Assets/Icons/Nimbus/metronome-tick.svg
+        Assets/Icons/Nimbus/midi.svg
+        Assets/Icons/Nimbus/music-accidental-flat.svg
+        Assets/Icons/Nimbus/music-accidental-sharp.svg
+        Assets/Icons/Nimbus/mute.svg
+        Assets/Icons/Nimbus/pause.svg
+        Assets/Icons/Nimbus/pencil-outline.svg
+        Assets/Icons/Nimbus/piano-off.svg
+        Assets/Icons/Nimbus/piano.svg
+        Assets/Icons/Nimbus/play.svg
+        Assets/Icons/Nimbus/plugin-add.svg
+        Assets/Icons/Nimbus/plugin-config.svg
+        Assets/Icons/Nimbus/plugin-save.svg
+        Assets/Icons/Nimbus/record-arm-track.svg
+        Assets/Icons/Nimbus/record-global.svg
+        Assets/Icons/Nimbus/search.svg
+        Assets/Icons/Nimbus/settings.svg
+        Assets/Icons/Nimbus/sidebar-left.svg
+        Assets/Icons/Nimbus/solo.svg
+        Assets/Icons/Nimbus/stop.svg
+        Assets/Icons/Nimbus/tune-vertical.svg
+        Assets/Icons/Nimbus/tune.svg
+        Assets/Icons/Nimbus/view-bottom-panel.svg
 )
 target_link_libraries(Nimbus PRIVATE Nimbus_Assets)
 

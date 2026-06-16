@@ -44,6 +44,13 @@ public:
     float getMasterPeakLevel() const;
     float getTrackPeakLevel(int trackIndex) const;
 
+    struct PluginClipboard {
+        juce::PluginDescription description;
+        juce::MemoryBlock state;
+        bool hasData = false;
+    };
+    PluginClipboard& getPluginClipboard() { return clipboard; }
+
 private:
     AudioGraph mainGraph; // The root graph executing on the audio thread
     Mixer* mixer = nullptr; // Raw pointer to the mixer owned by mainGraph
@@ -60,6 +67,7 @@ private:
     // Temporary storage for our Phase 5 test plugin
     std::shared_ptr<PluginNode> testPluginNode;
     bool followPlayhead = true;
+    PluginClipboard clipboard;
 };
 
 } // namespace Nimbus

@@ -24,6 +24,11 @@ struct Typography {
         static auto typeface = juce::Typeface::createSystemTypefaceFor(BinaryData::InterBold_ttf, BinaryData::InterBold_ttfSize);
         return typeface;
     }
+    
+    static juce::Typeface::Ptr getMaterialIcons() {
+        static auto typeface = juce::Typeface::createSystemTypefaceFor(BinaryData::MaterialSymbolsRounded_ttf, BinaryData::MaterialSymbolsRounded_ttfSize);
+        return typeface;
+    }
 
     static juce::Font getGiantFont() {
         return juce::Font(getChakraPetchRegular()).withHeight(28.0f);
@@ -47,6 +52,10 @@ struct Typography {
     
     static juce::Font getMonospacedFont(float size) {
         return juce::Font(getInterRegular()).withHeight(size); 
+    }
+    
+    static juce::Font getIconFont(float size = 16.0f) {
+        return juce::Font(getMaterialIcons()).withHeight(size);
     }
 };
 

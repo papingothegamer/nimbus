@@ -17,16 +17,15 @@ public:
 private:
     NimbusEngine& engine;
     
-    juce::TextEditor searchBox;
-    juce::ListBox categoriesList;
-    juce::ListBox itemsList;
+    juce::TextButton pluginsTab{"Plugins"};
+    juce::TextButton samplesTab{"Samples"};
+    juce::TextButton filesTab{"Files"};
     
+    juce::TextEditor searchBox;
+    juce::ListBox itemsList;
     juce::TextButton scanButton{"Scan for VST3s"};
 
-    class CategoriesModel;
     class PluginItemsModel;
-    
-    std::unique_ptr<CategoriesModel> catModel;
     std::unique_ptr<PluginItemsModel> pluginModel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SideBrowserComponent)

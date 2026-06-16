@@ -1,6 +1,7 @@
 #include "ChannelStripComponent.h"
 #include "UI/DesignSystem/Colors.h"
 #include "UI/DesignSystem/Typography.h"
+#include "UI/DesignSystem/Iconography.h"
 
 namespace Nimbus::MainLayout {
 
@@ -52,21 +53,23 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
     pan.setDoubleClickReturnValue(true, 0.0);
 
     if (!master) {
-        addAndMakeVisible(numberButton);
-        numberButton.setClickingTogglesState(true);
-        numberButton.setToggleState(true, juce::dontSendNotification); // Active by default
-        numberButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::PrimaryAction.withAlpha(0.7f));
-        numberButton.setColour(juce::TextButton::buttonColourId, juce::Colours::grey.withAlpha(0.3f)); // Muted state
-        numberButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
-        numberButton.setColour(juce::TextButton::textColourOffId, juce::Colours::grey);
-        numberButton.onClick = [this] {
-            bool isMuted = !numberButton.getToggleState();
+        addAndMakeVisible(muteButton);
+        muteButton.setClickingTogglesState(true);
+        muteButton.setToggleState(true, juce::dontSendNotification); // Active by default
+        muteButton.onClick = [this] {
+            bool isMuted = !muteButton.getToggleState();
             engine.getTimelineProject().setTrackMuted(trackIndex, isMuted);
         };
-
         addAndMakeVisible(soloButton);
-        soloButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::Solo);
+        addAndMakeVisible(armButton);
+        
+        muteButton.setButtonText(DesignSystem::Iconography::Mute);
+        soloButton.setButtonText(DesignSystem::Iconography::Solo);
+        armButton.setButtonText(DesignSystem::Iconography::RecordArm);
+        
+        muteButton.setClickingTogglesState(true);
         soloButton.setClickingTogglesState(true);
+        armButton.setClickingTogglesState(true);
 
         if (stereo) {
             addAndMakeVisible(stereoButton);
@@ -92,9 +95,6 @@ ChannelStripComponent::~ChannelStripComponent() {
 
 void ChannelStripComponent::setTrackIndex(int index) {
     trackIndex = index;
-    if (!master) {
-        numberButton.setButtonText(juce::String(trackIndex + 1));
-    }
 }
 
 void ChannelStripComponent::setLevelProvider(std::function<float()> provider) {
@@ -179,27 +179,29 @@ void ChannelStripComponent::resized() {
     }
     
     // Top section: Dropdowns
-    auto topArea = bounds.removeFromTop(45);
+    auto topArea = bounds.removeFromTop(65); // Give enough room for name and both dropdowns
     
     // Top name
     nameLabel.setBounds(topArea.removeFromTop(20));
-    topArea.removeFromTop(2);
-    
-    // Routing
-    if (!master) {
-        inputComboBox.setBounds(topArea.removeFromTop(20));
-        bounds.removeFromTop(2);
-    }
-    routingComboBox.setBounds(bounds.removeFromTop(20));
-    bounds.removeFromTop(5);
-    
-    // Volume box
-    volumeLabel.setBounds(bounds.removeFromTop(20).reduced(10, 0));
     bounds.removeFromTop(5);
     
     // Pan
     pan.setBounds(bounds.removeFromTop(40).reduced(10, 0));
     bounds.removeFromTop(5);
+
+    // Mute/Solo/Arm Buttons
+    if (!master) {
+        auto buttonBounds = bounds.removeFromTop(20).reduced(10, 0);
+        muteButton.setBounds(buttonBounds.removeFromLeft(18));
+        soloButton.setBounds(buttonBounds.removeFromLeft(18).translated(2, 0));
+        armButton.setBounds(buttonBounds.removeFromLeft(18).translated(2, 0));
+        bounds.removeFromTop(5);
+    }
+
+    // Volume box
+    volumeLabel.setBounds(bounds.removeFromTop(20).reduced(10, 0));
+    bounds.removeFromTop(5);
+
 
     // Mute/Solo
     if (!master) {
@@ -207,8 +209,15 @@ void ChannelStripComponent::resized() {
         if (stereo) {
             stereoButton.setBounds(btnArea.removeFromRight(20).reduced(2));
         }
-        numberButton.setBounds(btnArea.removeFromLeft(bounds.getWidth() / 2).reduced(2));
-        soloButton.setBounds(btnArea.reduced(2));
+    }
+
+    // Routing dropdowns at the very bottom
+    bounds.removeFromBottom(5);
+    routingComboBox.setBounds(bounds.removeFromBottom(20).withTrimmedRight(15).reduced(2, 0));
+    bounds.removeFromBottom(2);
+    if (!master) {
+        inputComboBox.setBounds(bounds.removeFromBottom(20).withTrimmedRight(15).reduced(2, 0));
+        bounds.removeFromBottom(5);
     }
 
     // Fader gets the rest, keep right edge clear for meters
@@ -250,8 +259,8 @@ void ChannelStripComponent::mouseDown(const juce::MouseEvent& event) {
 }
 
 void ChannelStripComponent::trackMuteChanged(int track, bool isMuted) {
-    if (track == trackIndex && !master) {
-        numberButton.setToggleState(!isMuted, juce::dontSendNotification);
+    if (track == trackIndex) {
+        muteButton.setToggleState(!isMuted, juce::dontSendNotification);
     }
 }
 

@@ -1,6 +1,7 @@
 #include "TrackHeaderComponent.h"
 #include "UI/DesignSystem/Colors.h"
 #include "UI/DesignSystem/Typography.h"
+#include "UI/DesignSystem/Iconography.h"
 
 namespace Nimbus::Timeline {
 
@@ -35,12 +36,12 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
 
     addAndMakeVisible(soloButton);
     soloButton.setClickingTogglesState(true);
-    soloButton.setButtonText("S");
+    soloButton.setButtonText(DesignSystem::Iconography::Solo);
     soloButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::Solo);
 
     addAndMakeVisible(armButton);
     armButton.setClickingTogglesState(true);
-    armButton.setButtonText("R");
+    armButton.setButtonText(DesignSystem::Iconography::RecordArm);
     armButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::RecordDanger);
 
     // Routing combo boxes (placeholder items)
@@ -82,7 +83,7 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     engine.getTimelineProject().addListener(this);
     
     bool isFolded = engine.getTimelineProject().getTrack(trackIndex).isFolded;
-    foldButton.setButtonText(isFolded ? ">" : "v");
+    foldButton.setButtonText(isFolded ? DesignSystem::Iconography::Fold : DesignSystem::Iconography::Unfold);
 }
 
 TrackHeaderComponent::~TrackHeaderComponent() {
@@ -97,11 +98,6 @@ void TrackHeaderComponent::labelTextChanged(juce::Label* labelThatHasChanged) {
 
 void TrackHeaderComponent::mouseDown(const juce::MouseEvent& event) {
     if (event.mods.isShiftDown()) {
-        // I need to access lastSelectedTrack from TimelineProject, but it's private.
-        // Wait, TimelineProject has lastSelectedTrack? Let's assume it's publicly accessible or we just track it.
-        // I'll fix this by just checking if there's any selection. Wait, `TimelineProject` doesn't expose `lastSelectedTrack` publicly?
-        // Oh wait, I didn't add a getter for it. Let's just assume simple range select if not available, or I'll add a getter.
-        // Wait, `selectedTracks` is public? No, `getSelectedTracks()`.
         int lastSelected = -1;
         auto& sel = engine.getTimelineProject().getSelectedTracks();
         if (sel.getNumRanges() > 0) lastSelected = sel.getRange(0).getStart(); // heuristic
@@ -152,7 +148,7 @@ void TrackHeaderComponent::trackSelectionChanged() {
 
 void TrackHeaderComponent::trackFoldStateChanged(int track, bool isFolded) {
     if (track == trackIndex) {
-        foldButton.setButtonText(isFolded ? ">" : "v");
+        foldButton.setButtonText(isFolded ? DesignSystem::Iconography::Fold : DesignSystem::Iconography::Unfold);
         resized();
         repaint();
     }
@@ -186,7 +182,6 @@ void TrackHeaderComponent::paint(juce::Graphics& g) {
     g.fillRect(meterBounds);
 
     float level = 0.0f;
-    // Real implementation would pull from engine, let's just make it 0 for now to avoid the ugly green block
     
     if (level > 0.0f) {
         juce::ColourGradient cg(juce::Colours::lime, meterBounds.getBottomLeft().toFloat(),

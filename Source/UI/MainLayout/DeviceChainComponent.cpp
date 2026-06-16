@@ -1,13 +1,13 @@
 #include "DeviceChainComponent.h"
 #include "UI/DesignSystem/Typography.h"
 #include "UI/PluginWindow.h"
-#include "UI/DesignSystem/Typography.h"
+#include "UI/DesignSystem/Iconography.h"
 
 namespace Nimbus::MainLayout {
 
 class DeviceChainComponent::PluginBox : public juce::Component {
 public:
-    PluginBox(PluginNode* pNode, Track* pTrack) : node(pNode), track(pTrack) {
+    PluginBox(PluginNode* pNode, Track* pTrack, NimbusEngine& e) : node(pNode), track(pTrack), engine(e) {
         if (node && node->getPluginInstance()) {
             name = node->getPluginInstance()->getName();
         }
@@ -21,26 +21,91 @@ public:
         g.setColour(DesignSystem::Colors::Divider);
         g.drawRoundedRectangle(bounds.toFloat(), 5.0f, 1.0f);
         
+        auto iconBounds = bounds.removeFromTop(40).reduced(10);
+        int iconDataSize = 0;
+        if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::Device.toUTF8(), iconDataSize)) {
+            if (auto drawable = juce::Drawable::createFromImageData(data, iconDataSize)) {
+                drawable->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
+                drawable->drawWithin(g, iconBounds.toFloat(), juce::RectanglePlacement::centred, 1.0f);
+            }
+        }
+
+        // Plugin Name
         g.setColour(DesignSystem::Colors::TextPrimary);
-        g.setFont(14.0f);
-        g.drawText(name, bounds, juce::Justification::centred, true);
+        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(13.0f));
+        g.drawText(name, bounds.removeFromTop(20), juce::Justification::centred, true);
+        
+        auto bottomBounds = getLocalBounds().reduced(4).removeFromBottom(30).reduced(5);
+        int delDataSize = 0;
+        if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::Delete.toUTF8(), delDataSize)) {
+            if (auto drawable = juce::Drawable::createFromImageData(data, delDataSize)) {
+                drawable->replaceColour(juce::Colours::black, DesignSystem::Colors::PrimaryAction);
+                drawable->drawWithin(g, bottomBounds.toFloat(), juce::RectanglePlacement::centred, 1.0f);
+            }
+        }
     }
     
     void mouseDown(const juce::MouseEvent& e) override {
         if (e.mods.isPopupMenu()) {
             juce::PopupMenu menu;
-            // menu.addItem(1, "Copy"); // Deferred
-            // menu.addItem(2, "Duplicate"); // Deferred
-            menu.addItem(3, "Delete");
+            menu.addItem(1, "Copy");
+            menu.addItem(2, "Paste", engine.getPluginClipboard().hasData);
+            menu.addItem(3, "Duplicate");
+            menu.addSeparator();
+            menu.addItem(4, "Delete");
             
             menu.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
-                if (result == 3 && track != nullptr) {
+                if (result == 1) { // Copy
+                    if (node && node->getPluginInstance()) {
+                        auto& cb = engine.getPluginClipboard();
+                        cb.description = node->getPluginInstance()->getPluginDescription();
+                        node->getPluginInstance()->getStateInformation(cb.state);
+                        cb.hasData = true;
+                    }
+                } else if (result == 2) { // Paste
+                    auto& cb = engine.getPluginClipboard();
+                    if (cb.hasData && track) {
+                        juce::String err;
+                        auto newInstance = engine.getPluginManager().loadPlugin(cb.description.fileOrIdentifier, err);
+                        if (newInstance) {
+                            newInstance->setStateInformation(cb.state.getData(), (int)cb.state.getSize());
+                            auto newNode = std::make_unique<PluginNode>(std::move(newInstance));
+                            track->addInsertPlugin(std::move(newNode));
+                        }
+                    }
+                } else if (result == 3) { // Duplicate
+                    if (node && node->getPluginInstance() && track) {
+                        juce::MemoryBlock state;
+                        node->getPluginInstance()->getStateInformation(state);
+                        juce::String err;
+                        auto newInstance = engine.getPluginManager().loadPlugin(node->getPluginInstance()->getPluginDescription().fileOrIdentifier, err);
+                        if (newInstance) {
+                            newInstance->setStateInformation(state.getData(), (int)state.getSize());
+                            auto newNode = std::make_unique<PluginNode>(std::move(newInstance));
+                            track->addInsertPlugin(std::move(newNode));
+                        }
+                    }
+                } else if (result == 4 && track != nullptr) {
                     track->removeInsertPlugin(node);
                     if (window != nullptr) {
                         window->closeButtonPressed();
                     }
                 }
             });
+        }
+    }
+    
+    void mouseUp(const juce::MouseEvent& e) override {
+        if (e.mods.isPopupMenu()) return;
+        
+        auto bottomArea = getLocalBounds().reduced(4).removeFromBottom(30);
+        if (bottomArea.contains(e.getPosition())) {
+            if (track != nullptr) {
+                track->removeInsertPlugin(node);
+                if (window != nullptr) {
+                    window->closeButtonPressed();
+                }
+            }
         }
     }
     
@@ -55,6 +120,7 @@ public:
 private:
     PluginNode* node;
     Track* track;
+    NimbusEngine& engine;
     juce::String name;
     juce::Component::SafePointer<PluginWindow> window;
 };
@@ -78,6 +144,30 @@ void DeviceChainComponent::paint(juce::Graphics& g) {
         g.setColour(DesignSystem::Colors::TextSecondary);
         g.setFont(DesignSystem::Typography::getPrimaryFont());
         g.drawText("Drop Audio Effects Here", getLocalBounds(), juce::Justification::centred, true);
+    }
+}
+
+void DeviceChainComponent::mouseDown(const juce::MouseEvent& e) {
+    if (e.mods.isPopupMenu() && currentTrackIndex != -1) {
+        juce::PopupMenu menu;
+        menu.addItem(1, "Paste", engine.getPluginClipboard().hasData);
+        menu.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
+            if (result == 1) {
+                auto& cb = engine.getPluginClipboard();
+                if (cb.hasData) {
+                    auto track = engine.getMixer()->getTrack(currentTrackIndex);
+                    if (track) {
+                        juce::String err;
+                        auto newInstance = engine.getPluginManager().loadPlugin(cb.description.fileOrIdentifier, err);
+                        if (newInstance) {
+                            newInstance->setStateInformation(cb.state.getData(), (int)cb.state.getSize());
+                            auto newNode = std::make_unique<PluginNode>(std::move(newInstance));
+                            track->addInsertPlugin(std::move(newNode));
+                        }
+                    }
+                }
+            }
+        });
     }
 }
 
@@ -117,7 +207,7 @@ void DeviceChainComponent::updateChain() {
     
     for (auto& n : nodes) {
         if (auto* pluginNode = dynamic_cast<PluginNode*>(n.get())) {
-            auto box = std::make_unique<PluginBox>(pluginNode, track);
+            auto box = std::make_unique<PluginBox>(pluginNode, track, engine);
             addAndMakeVisible(box.get());
             pluginBoxes.push_back(std::move(box));
         }

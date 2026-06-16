@@ -121,7 +121,7 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
             double samplesPer16th = secondsPer16th * sampleRate;
             
             int gridWidth = getWidth() - keyWidth;
-            double timeInClip = (static_cast<double>(x - keyWidth) / gridWidth) * clipSamples;
+            double timeInClip = (static_cast<double>(x) / gridWidth) * clipSamples;
             if (timeInClip < 0.0) timeInClip = 0.0;            
             // Delete if exists
             bool deletedNote = false;

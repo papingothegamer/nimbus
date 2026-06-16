@@ -1,6 +1,8 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <map>
+#include <memory>
 
 namespace Nimbus::DesignSystem {
 
@@ -17,8 +19,12 @@ public:
                               bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
                               
     void drawButtonText(juce::Graphics&, juce::TextButton&, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
+    juce::Font getTextButtonFont(juce::TextButton&, int buttonHeight) override;
 
 private:
+    juce::Drawable* getOrCacheSvg(const juce::String& resourceName);
+    std::map<juce::String, std::unique_ptr<juce::Drawable>> svgCache;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NimbusLookAndFeel)
 };
 

@@ -4,6 +4,14 @@ namespace Nimbus {
 
 PluginManager::PluginManager() {
     formatManager.addDefaultFormats();
+    
+    // Load cached plugins
+    juce::File appData = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("Nimbus").getChildFile("Plugins.xml");
+    if (appData.existsAsFile()) {
+        if (auto xml = juce::XmlDocument::parse(appData)) {
+            knownPluginList.recreateFromXml(*xml);
+        }
+    }
 }
 
 PluginManager::~PluginManager() {
@@ -19,6 +27,10 @@ PluginManager::ScannerThread::~ScannerThread() {
 }
 
 void PluginManager::ScannerThread::run() {
+#if JUCE_WINDOWS
+    juce::ScopedJuceInitialiser_GUI guiInit; // Many Windows VSTs require GUI thread environment
+#endif
+
     for (int i = 0; i < owner.formatManager.getNumFormats(); ++i) {
         if (threadShouldExit()) break;
         
@@ -37,6 +49,15 @@ void PluginManager::ScannerThread::run() {
             while (scanner.scanNextFile(true, name)) {
                 if (threadShouldExit()) break;
             }
+        }
+    }
+    
+    // Save cached plugins
+    if (!threadShouldExit()) {
+        if (auto xml = owner.knownPluginList.createXml()) {
+            juce::File appData = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("Nimbus");
+            appData.createDirectory();
+            xml->writeTo(appData.getChildFile("Plugins.xml"));
         }
     }
 }

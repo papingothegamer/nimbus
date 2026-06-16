@@ -68,27 +68,57 @@ void NimbusLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& bu
     auto cornerSize = 2.0f; // sharp, technical corners
 
     auto baseColour = backgroundColour;
-    if (shouldDrawButtonAsDown || button.getToggleState()) {
-        baseColour = Colors::PrimaryAction;
+    bool isActive = shouldDrawButtonAsDown || button.getToggleState();
+    
+    if (isActive) {
+        baseColour = Colors::PrimaryAction.withAlpha(0.8f);
     } else if (shouldDrawButtonAsHighlighted) {
-        baseColour = baseColour.brighter(0.1f); // subtle instant hover
+        baseColour = Colors::TextSecondary.withAlpha(0.2f); // subtle instant hover
     }
 
-    g.setColour(baseColour);
-    g.fillRoundedRectangle(bounds, cornerSize);
+    bool isIconOnly = button.getButtonText().endsWith("_svg");
 
-    g.setColour(Colors::ComponentBorder);
-    g.drawRoundedRectangle(bounds.reduced(0.5f), cornerSize, 1.0f);
+    if (baseColour.isOpaque() || baseColour.getAlpha() > 0.0f) {
+        g.setColour(baseColour);
+        g.fillRoundedRectangle(bounds, cornerSize);
+    }
+
+    if (!isIconOnly) {
+        g.setColour(Colors::ComponentBorder);
+        g.drawRoundedRectangle(bounds.reduced(0.5f), cornerSize, 1.0f);
+    }
 }
 
 void NimbusLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& button, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) {
-    juce::Font font = Typography::getPrimaryFont();
-    g.setFont(font);
-    g.setColour(button.findColour(button.getToggleState() ? juce::TextButton::textColourOnId : juce::TextButton::textColourOffId));
+    juce::String text = button.getButtonText();
+    juce::Colour textColour = button.findColour(button.getToggleState() ? juce::TextButton::textColourOnId : juce::TextButton::textColourOffId);
     
+    if (text.endsWith("_svg")) {
+        if (auto* svg = getOrCacheSvg(text)) {
+            std::unique_ptr<juce::Drawable> clone(svg->createCopy());
+            // When toggled on, we make the icon white to contrast against the bright PrimaryAction background.
+            // Otherwise, we use TextPrimary.
+            juce::Colour iconColor = button.getToggleState() ? Colors::TextPrimary : Colors::TextSecondary;
+            clone->replaceColour(juce::Colours::black, iconColor);
+            clone->replaceColour(juce::Colours::white, iconColor);
+            
+            // Adjust bounds to allow icons to be large, but not cramped.
+            auto iconBounds = button.getLocalBounds().toFloat();
+            
+            // If the button is larger than standard 24x24, we don't want the icon to scale too massively
+            float maxSize = 18.0f;
+            float w = juce::jmin(iconBounds.getWidth() - 4.0f, maxSize);
+            float h = juce::jmin(iconBounds.getHeight() - 4.0f, maxSize);
+            auto drawBounds = juce::Rectangle<float>(0, 0, w, h).withCentre(iconBounds.getCentre());
+            
+            clone->drawWithin(g, drawBounds, juce::RectanglePlacement::centred, 1.0f);
+            return;
+        }
+    }
+
     auto yIndent = juce::jmin(4, button.proportionOfHeight(0.3f));
     auto cornerSize = juce::jmin(button.getHeight(), button.getWidth()) / 2;
-    auto fontHeight = juce::roundToInt(font.getHeight() * 0.6f);
+    auto fontHeight = juce::roundToInt(Typography::getPrimaryFont().getHeight() * 0.6f);
     auto leftIndent = juce::jmin(fontHeight, 2 + cornerSize / (button.isConnectedOnLeft() ? 4 : 2));
     auto rightIndent = juce::jmin(fontHeight, 2 + cornerSize / (button.isConnectedOnRight() ? 4 : 2));
     auto textBounds = button.getLocalBounds().withTrimmedLeft(leftIndent)
@@ -96,7 +126,31 @@ void NimbusLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& butt
                                              .withTrimmedTop(yIndent)
                                              .withTrimmedBottom(yIndent);
 
-    g.drawFittedText(button.getButtonText(), textBounds, juce::Justification::centred, 2);
+    juce::Font font = Typography::getPrimaryFont();
+    g.setFont(font);
+    g.setColour(textColour);
+    g.drawText(text, textBounds, juce::Justification::centred);
+}
+
+juce::Font NimbusLookAndFeel::getTextButtonFont(juce::TextButton& button, int buttonHeight) {
+    return Typography::getPrimaryFont();
+}
+
+juce::Drawable* NimbusLookAndFeel::getOrCacheSvg(const juce::String& resourceName) {
+    if (svgCache.find(resourceName) != svgCache.end()) {
+        return svgCache[resourceName].get();
+    }
+    
+    int size = 0;
+    if (auto* data = BinaryData::getNamedResource(resourceName.toRawUTF8(), size)) {
+        auto drawable = juce::Drawable::createFromImageData(data, size);
+        if (drawable) {
+            auto* raw = drawable.get();
+            svgCache[resourceName] = std::move(drawable);
+            return raw;
+        }
+    }
+    return nullptr;
 }
 
 } // namespace Nimbus::DesignSystem

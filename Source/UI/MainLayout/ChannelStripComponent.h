@@ -38,8 +38,9 @@ private:
     juce::Label volumeLabel;
     juce::Slider fader;
 
-    juce::TextButton numberButton; // Mute switch
+    juce::TextButton muteButton{"M"};
     juce::TextButton soloButton{"S"};
+    juce::TextButton armButton{"O"};
     juce::TextButton stereoButton{"O"}; // Mock stereo link icon
 
     int trackIndex = -1;

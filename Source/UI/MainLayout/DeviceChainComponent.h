@@ -13,6 +13,7 @@ public:
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    void mouseDown(const juce::MouseEvent& e) override;
     
     // Updates the view based on the currently selected track
     void updateChain();

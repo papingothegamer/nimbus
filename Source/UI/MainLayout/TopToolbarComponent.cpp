@@ -1,27 +1,32 @@
 #include "TopToolbarComponent.h"
 #include "UI/DesignSystem/Colors.h"
 #include "UI/DesignSystem/Typography.h"
+#include "UI/DesignSystem/Iconography.h"
 #include "BinaryData.h"
 
 namespace Nimbus::MainLayout {
 
 TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
-    auto setupButton = [](juce::DrawableButton& btn, const char* svgData, int svgSize) {
-        if (svgData != nullptr) {
-            juce::String svgStr(svgData, svgSize);
-            svgStr = svgStr.replace("currentColor", "#000000");
-            std::unique_ptr<juce::XmlElement> xml = juce::XmlDocument::parse(svgStr);
-            if (xml != nullptr) {
-                if (auto svg = juce::Drawable::createFromSVG(*xml)) {
-                    svg->replaceColour(juce::Colours::black, DesignSystem::Colors::TextPrimary);
-                    btn.setImages(svg.get());
-                }
-            }
-        }
-        btn.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
-        btn.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colours::transparentBlack);
-        btn.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
+    auto setupButton = [](juce::TextButton& btn) {
+        btn.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+        btn.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::PrimaryAction);
     };
+
+    setupButton(playButton);
+    setupButton(stopButton);
+    setupButton(arrRecordButton);
+    setupButton(loopButton);
+    setupButton(metronomeToggle);
+    setupButton(followPlayheadToggle);
+
+    playButton.setButtonText(DesignSystem::Iconography::Play);
+    stopButton.setButtonText(DesignSystem::Iconography::Stop);
+    arrRecordButton.setButtonText(DesignSystem::Iconography::RecordGlobal);
+    loopButton.setButtonText(DesignSystem::Iconography::Loop);
+    metronomeToggle.setButtonText(DesignSystem::Iconography::Metronome);
+    metronomeToggle.setClickingTogglesState(true);
+    followPlayheadToggle.setButtonText(DesignSystem::Iconography::Follow);
+    followPlayheadToggle.setClickingTogglesState(true);
 
     auto setupTextButton = [](juce::TextButton& btn) {
         btn.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
@@ -37,16 +42,23 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     setupTextButton(tapTempoButton);
     setupTextButton(nudgeDownButton);
     setupTextButton(nudgeUpButton);
-    setupTextButton(followPlayheadToggle);
-    followPlayheadToggle.setClickingTogglesState(true);
 
-    setupButton(playButton, BinaryData::play_svg, BinaryData::play_svgSize);
+    autoArmButton.setButtonText(DesignSystem::Iconography::Tune);
+    reenableAutoButton.setButtonText(DesignSystem::Iconography::RightFold);
+    sessionRecordButton.setButtonText(DesignSystem::Iconography::Save);
+    captureMidiButton.setButtonText(DesignSystem::Iconography::PianoOff);
+    punchInButton.setButtonText(DesignSystem::Iconography::Fold);
+    punchOutButton.setButtonText(DesignSystem::Iconography::Unfold);
+
+    browserToggleButton.setButtonText(DesignSystem::Iconography::Sidebar);
+    detailToggleButton.setButtonText(DesignSystem::Iconography::DetailView);
+
+    nudgeDownButton.setButtonText("<");
+    nudgeUpButton.setButtonText(">");
+    tapTempoButton.setButtonText("TAP");
+    
     playButton.setClickingTogglesState(true);
     playButton.setColour(juce::DrawableButton::backgroundOnColourId, DesignSystem::Colors::PrimaryAction.withAlpha(0.3f));
-    
-    setupButton(stopButton, BinaryData::box_svg, BinaryData::box_svgSize);
-    setupButton(arrRecordButton, BinaryData::circle_svg, BinaryData::circle_svgSize);
-    setupButton(loopButton, BinaryData::repeat_svg, BinaryData::repeat_svgSize);
 
     addAndMakeVisible(linkToggle);
     addAndMakeVisible(tapTempoButton);
@@ -64,27 +76,22 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     quantizeBox.setSelectedId(1);
 
     addAndMakeVisible(punchOutButton);
-    
     addAndMakeVisible(followPlayheadToggle);
-
-    addAndMakeVisible(linkToggle);
-    addAndMakeVisible(tapTempoButton);
     addAndMakeVisible(autoArmButton);
     addAndMakeVisible(reenableAutoButton);
     addAndMakeVisible(sessionRecordButton);
     addAndMakeVisible(captureMidiButton);
+
+    setupButton(browserToggleButton);
+    setupButton(detailToggleButton);
+    browserToggleButton.setClickingTogglesState(true);
+    detailToggleButton.setClickingTogglesState(true);
 
     addAndMakeVisible(playButton);
     addAndMakeVisible(stopButton);
     addAndMakeVisible(arrRecordButton);
-    addAndMakeVisible(autoArmButton);
-    addAndMakeVisible(reenableAutoButton);
-    addAndMakeVisible(sessionRecordButton);
-    addAndMakeVisible(captureMidiButton);
-
     addAndMakeVisible(loopButton);
     addAndMakeVisible(punchInButton);
-    addAndMakeVisible(punchOutButton);
     addAndMakeVisible(loopStartLabel);
     loopStartLabel.setText("1. 1. 1", juce::dontSendNotification);
     addAndMakeVisible(loopLengthLabel);
@@ -95,21 +102,27 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     addAndMakeVisible(keyMapToggle);
     addAndMakeVisible(midiMapToggle);
     
-    auto setupToggle = [](juce::ToggleButton& t) {
-        t.setColour(juce::ToggleButton::tickColourId, juce::Colours::transparentBlack);
-        t.setColour(juce::ToggleButton::tickDisabledColourId, juce::Colours::transparentBlack);
-    };
-    setupToggle(linkToggle);
-    setupToggle(metronomeToggle);
-    setupToggle(drawModeToggle);
-    setupToggle(compMidiToggle);
-    setupToggle(keyMapToggle);
-    setupToggle(midiMapToggle);
+    linkToggle.setButtonText(DesignSystem::Iconography::Stereo);
+    drawModeToggle.setButtonText(DesignSystem::Iconography::Pencil);
+    compMidiToggle.setButtonText(DesignSystem::Iconography::Flat);
+    keyMapToggle.setButtonText(DesignSystem::Iconography::Piano);
+    midiMapToggle.setButtonText(DesignSystem::Iconography::Midi);
+
+    linkToggle.setClickingTogglesState(true);
+    drawModeToggle.setClickingTogglesState(true);
+    compMidiToggle.setClickingTogglesState(true);
+    keyMapToggle.setClickingTogglesState(true);
+    midiMapToggle.setClickingTogglesState(true);
+
+    setupTextButton(linkToggle);
+    setupTextButton(drawModeToggle);
+    setupTextButton(compMidiToggle);
+    setupTextButton(keyMapToggle);
+    setupTextButton(midiMapToggle);
+    
     addAndMakeVisible(cpuLabel);
     cpuLabel.setText("0%", juce::dontSendNotification);
 
-    setupButton(browserToggleButton, BinaryData::panelleft_svg, BinaryData::panelleft_svgSize);
-    setupButton(detailToggleButton, BinaryData::panelbottom_svg, BinaryData::panelbottom_svgSize);
     addAndMakeVisible(browserToggleButton);
     addAndMakeVisible(detailToggleButton);
 
@@ -151,7 +164,7 @@ void TopToolbarComponent::resized() {
     auto bounds = getLocalBounds().reduced(5);
     
     int blockSpacing = 20;
-    int btnW = 20;
+    int btnW = 24;
     int h = 24;
 
     // Left Block
@@ -174,9 +187,9 @@ void TopToolbarComponent::resized() {
     bounds.removeFromLeft(blockSpacing);
 
     // Center Block (Transport)
-    playButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h).reduced(2));
-    stopButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h).reduced(2));
-    arrRecordButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h).reduced(2));
+    playButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
+    stopButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
+    arrRecordButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
     bounds.removeFromLeft(5);
     autoArmButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
     reenableAutoButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
@@ -187,12 +200,12 @@ void TopToolbarComponent::resized() {
     bounds.removeFromLeft(blockSpacing);
 
     // Right Block 1 (Loop)
-    loopButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h).reduced(2));
+    loopButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
     punchInButton.setBounds(bounds.removeFromLeft(15).withHeight(h));    
-    loopStartLabel.setBounds(bounds.removeFromLeft(30).reduced(2));
-    loopLengthLabel.setBounds(bounds.removeFromLeft(30).reduced(2));
+    loopStartLabel.setBounds(bounds.removeFromLeft(30));
+    loopLengthLabel.setBounds(bounds.removeFromLeft(30));
     
-    followPlayheadToggle.setBounds(bounds.removeFromLeft(40).reduced(2));
+    followPlayheadToggle.setBounds(bounds.removeFromLeft(40));
 
     // Far Right Block (Misc)
     auto rightBounds = bounds.removeFromRight(200);
@@ -203,8 +216,8 @@ void TopToolbarComponent::resized() {
     drawModeToggle.setBounds(rightBounds.removeFromRight(40).withHeight(h));
 
     // Place toggles at the far edges
-    browserToggleButton.setBounds(getLocalBounds().removeFromLeft(20).withHeight(20).reduced(2));
-    detailToggleButton.setBounds(getLocalBounds().removeFromRight(20).withHeight(20).reduced(2));
+    browserToggleButton.setBounds(getLocalBounds().removeFromLeft(20).withHeight(20));
+    detailToggleButton.setBounds(getLocalBounds().removeFromRight(20).withHeight(20));
 }
 
 } // namespace Nimbus::MainLayout

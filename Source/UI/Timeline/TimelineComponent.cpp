@@ -34,18 +34,20 @@ void SeekingBarComponent::paint(juce::Graphics& g) {
         resolution = 16.0; // Draw 16th notes
     }
 
-    int startPixel = -static_cast<int>(scrollOffsetX) % static_cast<int>(juce::jmax(1.0, pixelsPerBar));
+    double startPixel = -std::fmod(scrollOffsetX, pixelsPerBar);
     double firstBarNumber = std::floor(scrollOffsetX / pixelsPerBar);
     
-    for (int i = startPixel, barCount = 0; i < getWidth(); i += static_cast<int>(pixelsPerBeat), ++barCount) {
-        if (i < 0) continue;
+    int barCount = 0;
+    for (double i = startPixel; i < getWidth(); i += pixelsPerBeat, ++barCount) {
+        int x = static_cast<int>(std::round(i));
+        if (x < 0) continue;
         
         double currentBeatRaw = firstBarNumber * 4.0 + barCount;
-        int barNum = static_cast<int>(currentBeatRaw / 4.0) + 1;
+        int barNum = static_cast<int>(std::floor(currentBeatRaw / 4.0)) + 1;
         int beatNum = static_cast<int>(std::fmod(currentBeatRaw, 4.0)) + 1;
         
         if (beatNum == 1) { // It's a bar line
-            g.drawLine(i, getHeight() - 10, i, getHeight(), 1.0f);
+            g.drawLine(x, getHeight() - 10, x, getHeight(), 1.0f);
             
             int barInterval = 1;
             if (pixelsPerBar < 10.0) barInterval = 16;
@@ -56,13 +58,13 @@ void SeekingBarComponent::paint(juce::Graphics& g) {
             if (barNum == 1 || barNum % barInterval == 0) {
                 // If zoomed in far enough, display full format (e.g., 1.1.0 or just 1)
                 juce::String text = (pixelsPerBar > 200.0) ? juce::String(barNum) + ".1.0" : juce::String(barNum);
-                g.drawText(text, i + 2, 2, 50, 10, juce::Justification::topLeft, false);
+                g.drawText(text, x + 2, 2, 50, 10, juce::Justification::topLeft, false);
             }
         } else if (resolution >= 4.0) { // It's a beat line
-            g.drawLine(i, getHeight() - 5, i, getHeight(), 1.0f);
+            g.drawLine(x, getHeight() - 5, x, getHeight(), 1.0f);
             if (pixelsPerBar > 100.0) { // Only draw beat text if zoomed in enough
                 juce::String text = (pixelsPerBar > 200.0) ? juce::String(barNum) + "." + juce::String(beatNum) + ".0" : juce::String(barNum) + "." + juce::String(beatNum);
-                g.drawText(text, i + 2, 8, 40, 10, juce::Justification::topLeft, false);
+                g.drawText(text, x + 2, 8, 40, 10, juce::Justification::topLeft, false);
             }
         }
     }
@@ -118,11 +120,13 @@ void TimelineComponent::paint(juce::Graphics& g) {
     
     // Grid spacing based on zoom
     double pixelsPerBeat = pixelsPerSecond * (60.0 / engine.getTransport().getTempo());
-    int gridSpacing = juce::jmax(10, static_cast<int>(pixelsPerBeat));
     
-    int startX = -(static_cast<int>(scrollOffsetX) % gridSpacing);
-    for (int i = startX; i < lanesWidth; i += gridSpacing) {
-        g.drawLine(i, 24, i, getHeight(), 1.0f);
+    double startX = -std::fmod(scrollOffsetX, pixelsPerBeat);
+    for (double i = startX; i < lanesWidth; i += pixelsPerBeat) {
+        int x = static_cast<int>(std::round(i));
+        if (x >= 0) {
+            g.drawLine(x, 24, x, getHeight(), 1.0f);
+        }
     }
 }
 
@@ -286,10 +290,14 @@ void TimelineComponent::timerCallback() {
         int lanesWidth = getWidth() - headerWidth;
         
         int playheadScreenX = playheadAbsoluteX - static_cast<int>(scrollOffsetX);
-        if (playheadScreenX >= lanesWidth) {
-            scrollOffsetX += lanesWidth;
-        } else if (playheadScreenX < 0) { // If playhead jumped back manually
-            scrollOffsetX = playheadAbsoluteX;
+        
+        // Continuous scroll: keep playhead at 1/3 of the screen width
+        int targetPlayheadScreenX = lanesWidth / 3;
+        
+        if (playheadAbsoluteX > targetPlayheadScreenX) {
+            scrollOffsetX = playheadAbsoluteX - targetPlayheadScreenX;
+        } else {
+            scrollOffsetX = 0.0;
         }
     }
     repaint();

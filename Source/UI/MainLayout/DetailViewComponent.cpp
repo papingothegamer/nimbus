@@ -124,9 +124,12 @@ void DetailViewComponent::trackSelectionChanged() {
 
 void DetailViewComponent::selectedClipChanged() {
     auto clip = engine.getTimelineProject().getSelectedClip();
+    bool hasValidClip = false;
+    
     if (std::holds_alternative<std::shared_ptr<MidiClip>>(clip)) {
         auto midiClip = std::get<std::shared_ptr<MidiClip>>(clip);
         if (midiClip) {
+            hasValidClip = true;
             placeholderLabel.setVisible(false);
             clipProperties.setVisible(true);
             clipProperties.setMidiMode(true);
@@ -143,6 +146,7 @@ void DetailViewComponent::selectedClipChanged() {
     } else if (std::holds_alternative<std::shared_ptr<AudioClip>>(clip)) {
         auto audioClip = std::get<std::shared_ptr<AudioClip>>(clip);
         if (audioClip) {
+            hasValidClip = true;
             pianoRoll.setVisible(false);
             pianoRollTimeline.setVisible(false);
             notesPanel.setVisible(false);
@@ -153,6 +157,18 @@ void DetailViewComponent::selectedClipChanged() {
             placeholderLabel.setVisible(true);
             placeholderLabel.setText("Audio Clip Viewer (TODO)", juce::dontSendNotification);
         }
+    }
+    
+    if (!hasValidClip) {
+        pianoRoll.setMidiClip(nullptr);
+        pianoRollTimeline.setMidiClip(nullptr);
+        pianoRoll.setVisible(false);
+        pianoRollTimeline.setVisible(false);
+        notesPanel.setVisible(false);
+        clipProperties.setVisible(false);
+        
+        placeholderLabel.setVisible(true);
+        trackSelectionChanged(); // Restores placeholder text based on track selection
     }
 }
 
