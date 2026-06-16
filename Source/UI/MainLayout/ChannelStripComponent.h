@@ -2,11 +2,13 @@
 
 #include <JuceHeader.h>
 
+#include "Core/NimbusEngine.h"
+
 namespace Nimbus::MainLayout {
 
-class ChannelStripComponent : public juce::Component, private juce::Timer {
+class ChannelStripComponent : public juce::Component, private juce::Timer, public TimelineProject::Listener {
 public:
-    ChannelStripComponent(const juce::String& name, bool isStereo = false, bool isMaster = false);
+    ChannelStripComponent(NimbusEngine& engine, const juce::String& name, bool isStereo, bool isMaster);
     ~ChannelStripComponent() override;
 
     void paint(juce::Graphics& g) override;
@@ -18,26 +20,40 @@ public:
     // Callbacks for interactivity
     std::function<void()> onSelected;
 
+    void setTrackIndex(int index);
+
 private:
+    NimbusEngine& engine;
     juce::String channelName;
     bool stereo;
     bool master;
     bool selected = false;
 
     juce::Label nameLabel;
-    juce::Slider fader{juce::Slider::LinearVertical, juce::Slider::TextBoxBelow};
-    juce::Slider pan{juce::Slider::RotaryHorizontalVerticalDrag, juce::Slider::NoTextBox};
-    juce::TextButton muteButton{"M"};
+    
+    juce::ComboBox inputComboBox;
+    juce::ComboBox routingComboBox;
+    juce::Slider pan;
+    juce::Label volumeLabel;
+    juce::Slider fader;
+
+    juce::TextButton numberButton; // Mute switch
     juce::TextButton soloButton{"S"};
-    juce::TextButton stereoButton{"OO"}; // Mock stereo link icon
+    juce::TextButton stereoButton{"O"}; // Mock stereo link icon
+
+    int trackIndex = -1;
 
     // Helper for rendering meter
     void drawMeter(juce::Graphics& g, juce::Rectangle<int> bounds, float level);
 
     std::function<float()> levelProvider;
-    float currentLevel = 0.0f;
-
     void mouseDown(const juce::MouseEvent& event) override;
+
+    // TimelineProject::Listener
+    void trackMuteChanged(int track, bool isMuted) override;
+    void trackSelectionChanged() override;
+    
+    float currentLevel = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChannelStripComponent)
 };

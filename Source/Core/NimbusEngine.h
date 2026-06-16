@@ -34,7 +34,10 @@ public:
     juce::AudioThumbnailCache& getThumbnailCache() { return thumbnailCache; }
     TimelineProject& getTimelineProject() { return timelineProject; }
     PluginManager& getPluginManager() { return pluginManager; }
-    std::shared_ptr<PluginNode> getTestPluginNode() const { return testPluginNode; }
+    PluginNode* getTestPluginNode() const { return testPluginNode.get(); }
+
+    bool isFollowPlayheadEnabled() const { return followPlayhead; }
+    void setFollowPlayheadEnabled(bool enabled) { followPlayhead = enabled; }
 
     void addTrack(bool isMidi);
 
@@ -56,6 +59,7 @@ private:
 
     // Temporary storage for our Phase 5 test plugin
     std::shared_ptr<PluginNode> testPluginNode;
+    bool followPlayhead = true;
 };
 
 } // namespace Nimbus

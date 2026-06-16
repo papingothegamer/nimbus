@@ -12,6 +12,19 @@
 
 namespace Nimbus {
 
+class MixerResizerBar : public juce::Component {
+public:
+    MixerResizerBar();
+    void paint(juce::Graphics& g) override;
+    void mouseDown(const juce::MouseEvent& e) override;
+    void mouseDrag(const juce::MouseEvent& e) override;
+    
+    int mixerHeight = 300;
+    std::function<void()> onHeightChanged;
+private:
+    int dragStartH = 300;
+};
+
 class MainWindow : public juce::DocumentWindow {
 public:
     class MainContentComponent : public juce::Component {
@@ -19,6 +32,7 @@ public:
         MainContentComponent(NimbusEngine& engine);
         void resized() override;
         void paint(juce::Graphics& g) override;
+        void mouseDown(const juce::MouseEvent& event) override;
 
         void toggleBrowser();
         void toggleDetailView();
@@ -36,8 +50,7 @@ public:
         bool isBrowserVisible = true;
         bool isDetailViewVisible = false;
 
-        juce::StretchableLayoutManager verticalLayout;
-        juce::StretchableLayoutManager horizontalLayout;
+        MixerResizerBar mixerResizerBar;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainContentComponent)
     };

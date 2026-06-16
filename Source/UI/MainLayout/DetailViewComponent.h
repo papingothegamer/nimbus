@@ -5,13 +5,18 @@
 
 namespace Nimbus::MainLayout {
 
-class DetailViewComponent : public juce::Component {
+class DetailViewComponent : public juce::Component, public TimelineProject::Listener {
 public:
     DetailViewComponent(NimbusEngine& engine);
     ~DetailViewComponent() override;
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+
+    // TimelineProject::Listener
+    void trackAdded(int trackIndex, const TrackModel& track) override;
+    void trackRemoved(int trackIndex) override;
+    void trackSelectionChanged() override;
 
 private:
     NimbusEngine& engine;

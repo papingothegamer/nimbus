@@ -28,32 +28,10 @@ void NimbusEngine::initialise() {
     juce::File testFile(R"(C:\Users\Laptop\Desktop\X26\EAGLP\export_1726306721135.wav)");
     mainStreamer = std::make_shared<DiskStreamer>(testFile, formatManager);
 
-    juce::Logger::writeToLog("Engine: Creating AudioClipNode");
-    // 3. Create a clip and the AudioClipNode
-    auto clip = std::make_shared<AudioClip>(testFile, 0, 48000 * 60); // 60 seconds long max
-    auto clipNode = std::make_unique<AudioClipNode>(clip, mainStreamer, transport);
-
-    juce::Logger::writeToLog("Engine: Adding Track to Mixer");
-    // 4. Create a track and add the AudioClipNode as source
-    auto track = std::make_unique<Track>();
-    track->setSourceNode(std::move(clipNode));
-    
-    // Add the track to the mixer
-    mixer->addTrack(std::move(track));
-
-    juce::Logger::writeToLog("Engine: Adding Clip to TimelineProject");
-    // Add clip to the data model
-    timelineProject.addClipToTrack(0, clip);
-
-
-
     juce::Logger::writeToLog("Engine: Initialising Device Manager");
     // 6. Initialize the audio device manager, which will start pulling audio from the graph
     deviceManagerWrapper.initialise();
 
-    juce::Logger::writeToLog("Engine: Starting transport");
-    // 7. Start transport immediately for testing Phase 4
-    transport.play();
     juce::Logger::writeToLog("Engine: Initialise Complete");
 }
 

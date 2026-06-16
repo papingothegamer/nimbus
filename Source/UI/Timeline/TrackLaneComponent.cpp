@@ -38,4 +38,8 @@ void TrackLaneComponent::updateClips() {
     resized();
 }
 
+void TrackLaneComponent::setTrackIndex(int newIndex) {
+    trackIndex = newIndex;
+}
+
 } // namespace Nimbus::Timeline

@@ -20,49 +20,88 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         }
         btn.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
         btn.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colours::transparentBlack);
+        btn.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
     };
 
+    auto setupTextButton = [](juce::TextButton& btn) {
+        btn.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+        btn.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::PrimaryAction);
+    };
+
+    setupTextButton(autoArmButton);
+    setupTextButton(reenableAutoButton);
+    setupTextButton(sessionRecordButton);
+    setupTextButton(captureMidiButton);
+    setupTextButton(punchInButton);
+    setupTextButton(punchOutButton);
+    setupTextButton(tapTempoButton);
+    setupTextButton(nudgeDownButton);
+    setupTextButton(nudgeUpButton);
+
     setupButton(playButton, BinaryData::play_svg, BinaryData::play_svgSize);
-    setupButton(pauseButton, BinaryData::pause_svg, BinaryData::pause_svgSize);
-    setupButton(recordButton, BinaryData::circle_svg, BinaryData::circle_svgSize);
+    setupButton(stopButton, BinaryData::box_svg, BinaryData::box_svgSize);
+    setupButton(arrRecordButton, BinaryData::circle_svg, BinaryData::circle_svgSize);
     setupButton(loopButton, BinaryData::repeat_svg, BinaryData::repeat_svgSize);
-    setupButton(browserToggleButton, BinaryData::panelleft_svg, BinaryData::panelleft_svgSize);
-    setupButton(detailToggleButton, BinaryData::panelbottom_svg, BinaryData::panelbottom_svgSize);
+
+    addAndMakeVisible(linkToggle);
+    addAndMakeVisible(tapTempoButton);
+    addAndMakeVisible(tempoLabel);
+    tempoLabel.setText("120.00", juce::dontSendNotification);
+    addAndMakeVisible(nudgeDownButton);
+    addAndMakeVisible(nudgeUpButton);
+    addAndMakeVisible(timeSigNumLabel);
+    timeSigNumLabel.setText("4", juce::dontSendNotification);
+    addAndMakeVisible(timeSigDenLabel);
+    timeSigDenLabel.setText("4", juce::dontSendNotification);
+    addAndMakeVisible(metronomeToggle);
+    addAndMakeVisible(quantizeBox);
+    quantizeBox.addItem("1 Bar", 1);
+    quantizeBox.setSelectedId(1);
 
     addAndMakeVisible(playButton);
-    addAndMakeVisible(pauseButton);
-    addAndMakeVisible(recordButton);
-    addAndMakeVisible(loopButton);
-    
-    addAndMakeVisible(browserToggleButton);
-    browserToggleButton.onClick = [this] { if (onBrowserToggle) onBrowserToggle(); };
+    addAndMakeVisible(stopButton);
+    addAndMakeVisible(arrRecordButton);
+    addAndMakeVisible(autoArmButton);
+    addAndMakeVisible(reenableAutoButton);
+    addAndMakeVisible(sessionRecordButton);
+    addAndMakeVisible(captureMidiButton);
 
+    addAndMakeVisible(loopButton);
+    addAndMakeVisible(punchInButton);
+    addAndMakeVisible(punchOutButton);
+    addAndMakeVisible(loopStartLabel);
+    loopStartLabel.setText("1. 1. 1", juce::dontSendNotification);
+    addAndMakeVisible(loopLengthLabel);
+    loopLengthLabel.setText("4. 0. 0", juce::dontSendNotification);
+
+    addAndMakeVisible(drawModeToggle);
+    addAndMakeVisible(compMidiToggle);
+    addAndMakeVisible(keyMapToggle);
+    addAndMakeVisible(midiMapToggle);
+    
+    auto setupToggle = [](juce::ToggleButton& t) {
+        t.setColour(juce::ToggleButton::tickColourId, juce::Colours::transparentBlack);
+        t.setColour(juce::ToggleButton::tickDisabledColourId, juce::Colours::transparentBlack);
+    };
+    setupToggle(linkToggle);
+    setupToggle(metronomeToggle);
+    setupToggle(drawModeToggle);
+    setupToggle(compMidiToggle);
+    setupToggle(keyMapToggle);
+    setupToggle(midiMapToggle);
+    addAndMakeVisible(cpuLabel);
+    cpuLabel.setText("0%", juce::dontSendNotification);
+
+    setupButton(browserToggleButton, BinaryData::panelleft_svg, BinaryData::panelleft_svgSize);
+    setupButton(detailToggleButton, BinaryData::panelbottom_svg, BinaryData::panelbottom_svgSize);
+    addAndMakeVisible(browserToggleButton);
     addAndMakeVisible(detailToggleButton);
+
+    browserToggleButton.onClick = [this] { if (onBrowserToggle) onBrowserToggle(); };
     detailToggleButton.onClick = [this] { if (onDetailToggle) onDetailToggle(); };
 
-    addAndMakeVisible(tempoLabel);
-    tempoLabel.setFont(DesignSystem::Typography::getPrimaryFont());
-    tempoLabel.setJustificationType(juce::Justification::centred);
-    tempoLabel.setText("120.0 BPM", juce::dontSendNotification);
-    tempoLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
-
-    addAndMakeVisible(tapTempoButton);
-    tapTempoButton.setColour(juce::TextButton::buttonColourId, DesignSystem::Colors::PanelBackground.brighter(0.05f));
-
-    addAndMakeVisible(timeSignatureLabel);
-    timeSignatureLabel.setFont(DesignSystem::Typography::getPrimaryFont());
-    timeSignatureLabel.setJustificationType(juce::Justification::centred);
-    timeSignatureLabel.setText("4 / 4", juce::dontSendNotification);
-    timeSignatureLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
-
-    addAndMakeVisible(metronomeToggle);
-    addAndMakeVisible(snapToggle);
-
     playButton.onClick = [this] { engine.getTransport().play(); };
-    pauseButton.onClick = [this] { engine.getTransport().stop(); };
-    recordButton.onClick = [this] { /* To be implemented */ };
-    loopButton.onClick = [this] { /* To be implemented */ };
-    tapTempoButton.onClick = [this] { /* To be implemented */ };
+    stopButton.onClick = [this] { engine.getTransport().stop(); };
 }
 
 TopToolbarComponent::~TopToolbarComponent() = default;
@@ -78,33 +117,60 @@ void TopToolbarComponent::paint(juce::Graphics& g) {
 void TopToolbarComponent::resized() {
     auto bounds = getLocalBounds().reduced(5);
     
-    // Toggles left
-    browserToggleButton.setBounds(bounds.removeFromLeft(30));
-    bounds.removeFromLeft(10);
-    detailToggleButton.setBounds(bounds.removeFromLeft(30));
+    int blockSpacing = 20;
+    int btnW = 20;
+    int h = 24;
 
-    // Global right
+    // Left Block
+    linkToggle.setBounds(bounds.removeFromLeft(40).withHeight(h));
+    bounds.removeFromLeft(5);
+    tapTempoButton.setBounds(bounds.removeFromLeft(30).withHeight(h));
+    bounds.removeFromLeft(5);
+    tempoLabel.setBounds(bounds.removeFromLeft(50).withHeight(h));
+    bounds.removeFromLeft(5);
+    nudgeDownButton.setBounds(bounds.removeFromLeft(15).withHeight(h));
+    nudgeUpButton.setBounds(bounds.removeFromLeft(15).withHeight(h));
+    bounds.removeFromLeft(5);
+    timeSigNumLabel.setBounds(bounds.removeFromLeft(20).withHeight(h));
+    timeSigDenLabel.setBounds(bounds.removeFromLeft(20).withHeight(h));
+    bounds.removeFromLeft(5);
+    metronomeToggle.setBounds(bounds.removeFromLeft(30).withHeight(h));
+    bounds.removeFromLeft(5);
+    quantizeBox.setBounds(bounds.removeFromLeft(60).withHeight(h));
+
+    bounds.removeFromLeft(blockSpacing);
+
+    // Center Block (Transport)
+    playButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h).reduced(2));
+    stopButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h).reduced(2));
+    arrRecordButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h).reduced(2));
+    bounds.removeFromLeft(5);
+    autoArmButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
+    reenableAutoButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
+    bounds.removeFromLeft(5);
+    sessionRecordButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
+    captureMidiButton.setBounds(bounds.removeFromLeft(30).withHeight(h));
+
+    bounds.removeFromLeft(blockSpacing);
+
+    // Right Block 1 (Loop)
+    loopButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h).reduced(2));
+    punchInButton.setBounds(bounds.removeFromLeft(15).withHeight(h));
+    loopStartLabel.setBounds(bounds.removeFromLeft(50).withHeight(h));
+    loopLengthLabel.setBounds(bounds.removeFromLeft(50).withHeight(h));
+    punchOutButton.setBounds(bounds.removeFromLeft(15).withHeight(h));
+
+    // Far Right Block (Misc)
     auto rightBounds = bounds.removeFromRight(200);
-    snapToggle.setBounds(rightBounds.removeFromRight(80));
-    // Center
-    juce::FlexBox fb;
-    fb.justifyContent = juce::FlexBox::JustifyContent::center;
-    fb.alignContent = juce::FlexBox::AlignContent::center;
-    fb.alignItems = juce::FlexBox::AlignItems::center;
+    cpuLabel.setBounds(rightBounds.removeFromRight(40).withHeight(h));
+    midiMapToggle.setBounds(rightBounds.removeFromRight(40).withHeight(h));
+    keyMapToggle.setBounds(rightBounds.removeFromRight(40).withHeight(h));
+    compMidiToggle.setBounds(rightBounds.removeFromRight(40).withHeight(h));
+    drawModeToggle.setBounds(rightBounds.removeFromRight(40).withHeight(h));
 
-    auto addFlexItem = [&](juce::Component& c, float width) {
-        fb.items.add(juce::FlexItem(c).withWidth(width).withHeight(30).withMargin(juce::FlexItem::Margin(0, 5, 0, 5)));
-    };
-
-    addFlexItem(playButton, 60);
-    addFlexItem(pauseButton, 60);
-    addFlexItem(recordButton, 60);
-    addFlexItem(loopButton, 60);
-    addFlexItem(tempoLabel, 100);
-    addFlexItem(tapTempoButton, 50);
-    addFlexItem(timeSignatureLabel, 60);
-
-    fb.performLayout(bounds);
+    // Place toggles at the far edges
+    browserToggleButton.setBounds(getLocalBounds().removeFromLeft(20).withHeight(20).reduced(2));
+    detailToggleButton.setBounds(getLocalBounds().removeFromRight(20).withHeight(20).reduced(2));
 }
 
 } // namespace Nimbus::MainLayout

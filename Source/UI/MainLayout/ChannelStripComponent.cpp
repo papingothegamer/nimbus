@@ -4,52 +4,95 @@
 
 namespace Nimbus::MainLayout {
 
-ChannelStripComponent::ChannelStripComponent(const juce::String& name, bool isStereo, bool isMaster)
-    : channelName(name), stereo(isStereo), master(isMaster)
+ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String& name, bool isStereo, bool isMaster)
+    : engine(e), channelName(name), stereo(isStereo), master(isMaster)
 {
     addAndMakeVisible(nameLabel);
     nameLabel.setText(name, juce::dontSendNotification);
     nameLabel.setFont(DesignSystem::Typography::getPrimaryFont());
     nameLabel.setJustificationType(juce::Justification::centred);
 
+    addAndMakeVisible(inputComboBox);
+    inputComboBox.addItem(stereo ? "Ext. In" : "All Ins", 1);
+    inputComboBox.addItem("Resampling", 2);
+    inputComboBox.setSelectedId(1, juce::dontSendNotification);
+    inputComboBox.setJustificationType(juce::Justification::centred);
+
+    addAndMakeVisible(routingComboBox);
+    routingComboBox.addItem("Master", 1);
+    routingComboBox.addItem(stereo ? "Ext. Out" : "Synth Plugin", 2);
+    routingComboBox.setSelectedId(1, juce::dontSendNotification);
+    routingComboBox.setJustificationType(juce::Justification::centred);
+    routingComboBox.onChange = [this]() {
+        // TODO: Update track routing
+        juce::Logger::writeToLog("Routing changed to: " + routingComboBox.getText());
+    };
+
+    addAndMakeVisible(volumeLabel);
+    volumeLabel.setText("-Inf", juce::dontSendNotification);
+    volumeLabel.setFont(juce::Font(12.0f, juce::Font::bold));
+    volumeLabel.setJustificationType(juce::Justification::centred);
+    volumeLabel.setColour(juce::Label::backgroundColourId, juce::Colours::black.withAlpha(0.3f));
+    volumeLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
+
     addAndMakeVisible(fader);
     fader.setSliderStyle(juce::Slider::LinearVertical);
-    fader.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 15);
+    fader.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
     fader.setRange(0.0, 1.0, 0.01);
     fader.setValue(0.75);
     fader.setColour(juce::Slider::thumbColourId, DesignSystem::Colors::PrimaryAction);
-    fader.setColour(juce::Slider::trackColourId, DesignSystem::Colors::ModuleBackground);
+    fader.setColour(juce::Slider::trackColourId, juce::Colours::transparentBlack);
 
     addAndMakeVisible(pan);
     pan.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     pan.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
     pan.setRange(-1.0, 1.0, 0.01);
     pan.setValue(0.0);
-    pan.setColour(juce::Slider::rotarySliderFillColourId, DesignSystem::Colors::PrimaryAction);
+    pan.getProperties().set("isPan", true);
+    pan.setDoubleClickReturnValue(true, 0.0);
 
     if (!master) {
-        addAndMakeVisible(muteButton);
-        muteButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::Mute);
-        muteButton.setClickingTogglesState(true);
+        addAndMakeVisible(numberButton);
+        numberButton.setClickingTogglesState(true);
+        numberButton.setToggleState(true, juce::dontSendNotification); // Active by default
+        numberButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::PrimaryAction.withAlpha(0.7f));
+        numberButton.setColour(juce::TextButton::buttonColourId, juce::Colours::grey.withAlpha(0.3f)); // Muted state
+        numberButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+        numberButton.setColour(juce::TextButton::textColourOffId, juce::Colours::grey);
+        numberButton.onClick = [this] {
+            bool isMuted = !numberButton.getToggleState();
+            engine.getTimelineProject().setTrackMuted(trackIndex, isMuted);
+        };
 
         addAndMakeVisible(soloButton);
         soloButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::Solo);
         soloButton.setClickingTogglesState(true);
 
-        addAndMakeVisible(stereoButton);
-        stereoButton.setClickingTogglesState(true);
-        stereoButton.setToggleState(stereo, juce::dontSendNotification);
-        stereoButton.onClick = [this]() {
-            stereo = stereoButton.getToggleState();
-            repaint();
-        };
+        if (stereo) {
+            addAndMakeVisible(stereoButton);
+            stereoButton.setClickingTogglesState(true);
+            stereoButton.setToggleState(stereo, juce::dontSendNotification);
+            stereoButton.onClick = [this]() {
+                stereo = stereoButton.getToggleState();
+                repaint();
+            };
+        }
     }
 
     startTimerHz(30); // 30fps meter updates
+    engine.getTimelineProject().addListener(this);
 }
 
 ChannelStripComponent::~ChannelStripComponent() {
+    engine.getTimelineProject().removeListener(this);
     stopTimer();
+}
+
+void ChannelStripComponent::setTrackIndex(int index) {
+    trackIndex = index;
+    if (!master) {
+        numberButton.setButtonText(juce::String(trackIndex + 1));
+    }
 }
 
 void ChannelStripComponent::setLevelProvider(std::function<float()> provider) {
@@ -111,28 +154,82 @@ void ChannelStripComponent::drawMeter(juce::Graphics& g, juce::Rectangle<int> bo
 void ChannelStripComponent::resized() {
     auto bounds = getLocalBounds().reduced(2);
     
+    // Top name
     nameLabel.setBounds(bounds.removeFromTop(20));
+    bounds.removeFromTop(2);
     
+    // Routing
     if (!master) {
-        auto btnArea = bounds.removeFromTop(20);
-        stereoButton.setBounds(btnArea.removeFromRight(20).reduced(2));
-        muteButton.setBounds(btnArea.removeFromLeft(bounds.getWidth() / 2).reduced(2));
+        inputComboBox.setBounds(bounds.removeFromTop(20));
+        bounds.removeFromTop(2);
+    }
+    routingComboBox.setBounds(bounds.removeFromTop(20));
+    bounds.removeFromTop(5);
+    
+    // Volume box
+    volumeLabel.setBounds(bounds.removeFromTop(20).reduced(10, 0));
+    bounds.removeFromTop(5);
+    
+    // Pan
+    pan.setBounds(bounds.removeFromTop(40).reduced(10, 0));
+    bounds.removeFromTop(5);
+
+    // Mute/Solo
+    if (!master) {
+        auto btnArea = bounds.removeFromBottom(20);
+        if (stereo) {
+            stereoButton.setBounds(btnArea.removeFromRight(20).reduced(2));
+        }
+        numberButton.setBounds(btnArea.removeFromLeft(bounds.getWidth() / 2).reduced(2));
         soloButton.setBounds(btnArea.reduced(2));
-    } else {
-        bounds.removeFromTop(20); // spacer
     }
 
-    pan.setBounds(bounds.removeFromTop(50).reduced(4));
-    
-    // Fader gets the rest, but keep right edge clear for meters
-    fader.setBounds(bounds.withTrimmedRight(15).reduced(4));
+    // Fader gets the rest, keep right edge clear for meters
+    fader.setBounds(bounds.withTrimmedRight(15).reduced(4, 0));
 }
 
-void ChannelStripComponent::mouseDown(const juce::MouseEvent&) {
-    selected = true;
-    repaint();
+void ChannelStripComponent::mouseDown(const juce::MouseEvent& event) {
+    if (!master) {
+        if (event.mods.isShiftDown()) {
+            int lastSelected = engine.getTimelineProject().getLastSelectedTrack();
+            if (lastSelected != -1) {
+                engine.getTimelineProject().selectTrackRange(lastSelected, trackIndex);
+            } else {
+                engine.getTimelineProject().setTrackSelected(trackIndex, true);
+            }
+        } else if (event.mods.isCtrlDown() || event.mods.isCommandDown()) {
+            engine.getTimelineProject().toggleTrackSelection(trackIndex);
+        } else if (!event.mods.isPopupMenu()) {
+            engine.getTimelineProject().setTrackSelected(trackIndex, true);
+        }
+    }
     if (onSelected) {
         onSelected();
+    }
+
+    if (event.mods.isPopupMenu() && !master) {
+        juce::PopupMenu m;
+        m.addItem(1, "Delete Track");
+        m.addItem(2, "Group Tracks");
+        
+        m.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
+            if (result == 1) {
+                engine.getTimelineProject().removeTrack(trackIndex);
+            }
+        });
+    }
+}
+
+void ChannelStripComponent::trackMuteChanged(int track, bool isMuted) {
+    if (track == trackIndex && !master) {
+        numberButton.setToggleState(!isMuted, juce::dontSendNotification);
+    }
+}
+
+void ChannelStripComponent::trackSelectionChanged() {
+    if (!master) {
+        selected = engine.getTimelineProject().isTrackSelected(trackIndex);
+        repaint();
     }
 }
 

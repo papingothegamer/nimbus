@@ -81,6 +81,8 @@ target_sources(Nimbus PRIVATE
     Source/UI/MainLayout/ChannelStripComponent.h
     Source/UI/MainLayout/DetailViewComponent.cpp
     Source/UI/MainLayout/DetailViewComponent.h
+    Source/UI/DetailView/PianoRollComponent.cpp
+    Source/UI/DetailView/AudioClipViewComponent.cpp
     Source/UI/PluginWindow.cpp
     Source/UI/PluginWindow.h
     Source/Core/NimbusEngine.cpp
@@ -94,6 +96,8 @@ target_sources(Nimbus PRIVATE
     Source/AudioEngine/DiskStreaming/DiskStreamer.cpp
     Source/DSP/GainNode.cpp
     Source/DataModel/AudioClip.cpp
+    Source/DataModel/MidiClip.cpp
+    Source/AudioEngine/MidiClipNode.cpp
     Source/DataModel/TimelineProject.cpp
     Source/PluginHost/PluginManager.cpp
     Source/AudioEngine/PluginNode.cpp

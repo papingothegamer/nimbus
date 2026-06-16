@@ -21,18 +21,39 @@ private:
 
     // Transport controls
     juce::DrawableButton playButton{"Play", juce::DrawableButton::ImageFitted};
-    juce::DrawableButton pauseButton{"Pause", juce::DrawableButton::ImageFitted};
-    juce::DrawableButton recordButton{"Record", juce::DrawableButton::ImageFitted};
-    juce::DrawableButton loopButton{"Loop", juce::DrawableButton::ImageFitted};
+    juce::DrawableButton stopButton{"Stop", juce::DrawableButton::ImageFitted};
+    juce::DrawableButton arrRecordButton{"ArrRecord", juce::DrawableButton::ImageFitted};
+    juce::TextButton autoArmButton{"A"};
+    juce::TextButton reenableAutoButton{"<-"};
+    juce::TextButton sessionRecordButton{"O"};
+    juce::TextButton captureMidiButton{"[C]"};
     
+    juce::DrawableButton loopButton{"Loop", juce::DrawableButton::ImageFitted};
+    juce::TextButton punchInButton{"<"};
+    juce::TextButton punchOutButton{">"};
+    
+    juce::Label loopStartLabel;
+    juce::Label loopLengthLabel;
+    
+    juce::ToggleButton linkToggle{"Link"};
+    juce::TextButton tapTempoButton{"Tap"};
+    juce::Label tempoLabel;
+    juce::TextButton nudgeDownButton{"<"};
+    juce::TextButton nudgeUpButton{">"};
+    juce::Label timeSigNumLabel;
+    juce::Label timeSigDenLabel;
+    
+    juce::ToggleButton metronomeToggle{"O O"};
+    juce::ComboBox quantizeBox;
+
+    juce::ToggleButton drawModeToggle{"Draw"};
+    juce::ToggleButton compMidiToggle{"Keyb"};
+    juce::ToggleButton keyMapToggle{"KEY"};
+    juce::ToggleButton midiMapToggle{"MIDI"};
+    juce::Label cpuLabel;
+
     juce::DrawableButton browserToggleButton{"Browser", juce::DrawableButton::ImageFitted};
     juce::DrawableButton detailToggleButton{"Detail", juce::DrawableButton::ImageFitted};
-
-    juce::Label tempoLabel;
-    juce::TextButton tapTempoButton{"Tap"};
-    juce::Label timeSignatureLabel;
-    juce::ToggleButton metronomeToggle{"Metronome"};
-    juce::ToggleButton snapToggle{"Snap"};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TopToolbarComponent)
 };

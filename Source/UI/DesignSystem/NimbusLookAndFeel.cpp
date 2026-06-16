@@ -27,31 +27,38 @@ void NimbusLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int wi
     auto radius = (float)juce::jmin(width / 2, height / 2) - 4.0f;
     auto centreX = (float)x + (float)width * 0.5f;
     auto centreY = (float)y + (float)height * 0.5f;
-    auto rx = centreX - radius;
-    auto ry = centreY - radius;
-    auto rw = radius * 2.0f;
     auto angle = rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
-    
-    // Background track
-    g.setColour(Colors::ComponentBackground);
-    g.fillEllipse(rx, ry, rw, rw);
-    g.setColour(Colors::ComponentBorder);
-    g.drawEllipse(rx, ry, rw, rw, 1.0f);
 
-    // Fill arc
-    juce::Path filledArc;
-    filledArc.addPieSegment(rx, ry, rw, rw, rotaryStartAngle, angle, 0.0f);
-    g.setColour(Colors::PrimaryAction);
-    g.fillPath(filledArc);
+    // Draw flat background arc
+    juce::Path backgroundArc;
+    backgroundArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, rotaryStartAngle, rotaryEndAngle, true);
+    g.setColour(Colors::TextSecondary.withAlpha(0.2f));
+    g.strokePath(backgroundArc, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-    // Indicator line
-    juce::Path pointer;
+    // Draw filled arc
+    if (sliderPosProportional > 0.0f) {
+        juce::Path filledArc;
+        float startArc = (slider.getProperties().contains("isPan")) ? (rotaryStartAngle + rotaryEndAngle) * 0.5f : rotaryStartAngle;
+        if (slider.getProperties().contains("isPan")) {
+            if (sliderPosProportional < 0.5f) {
+                filledArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, angle, startArc, true);
+            } else {
+                filledArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, startArc, angle, true);
+            }
+        } else {
+            filledArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, rotaryStartAngle, angle, true);
+        }
+        g.setColour(Colors::PrimaryAction);
+        g.strokePath(filledArc, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+
+    // Draw pointer
+    juce::Path p;
     auto pointerLength = radius * 0.8f;
-    auto pointerThickness = 2.0f;
-    pointer.addRectangle(-pointerThickness * 0.5f, -radius, pointerThickness, pointerLength);
-    pointer.applyTransform(juce::AffineTransform::rotation(angle).translated(centreX, centreY));
+    p.addRectangle(-1.0f, -radius, 2.0f, pointerLength);
+    p.applyTransform(juce::AffineTransform::rotation(angle).translated(centreX, centreY));
     g.setColour(Colors::TextPrimary);
-    g.fillPath(pointer);
+    g.fillPath(p);
 }
 
 void NimbusLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,

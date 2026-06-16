@@ -3,6 +3,20 @@
 
 namespace Nimbus {
 
+MixerResizerBar::MixerResizerBar() {
+    setMouseCursor(juce::MouseCursor::UpDownResizeCursor);
+}
+void MixerResizerBar::paint(juce::Graphics& g) {
+    g.fillAll(DesignSystem::Colors::Divider);
+}
+void MixerResizerBar::mouseDown(const juce::MouseEvent& e) {
+    dragStartH = mixerHeight;
+}
+void MixerResizerBar::mouseDrag(const juce::MouseEvent& e) {
+    mixerHeight = juce::jlimit(150, 600, dragStartH - e.getDistanceFromDragStartY());
+    if (onHeightChanged) onHeightChanged();
+}
+
 MainWindow::MainContentComponent::MainContentComponent(NimbusEngine& e)
     : engine(e), topToolbar(e), sideBrowser(e), bottomMixer(e), detailView(e), timelineComponent(e) {
     
@@ -12,8 +26,11 @@ MainWindow::MainContentComponent::MainContentComponent(NimbusEngine& e)
     addAndMakeVisible(topToolbar);
     addAndMakeVisible(sideBrowser);
     addAndMakeVisible(bottomMixer);
+    addAndMakeVisible(mixerResizerBar);
     addChildComponent(detailView); // Hidden by default
     addAndMakeVisible(timelineComponent);
+    
+    mixerResizerBar.onHeightChanged = [this]() { resized(); };
 }
 
 void MainWindow::MainContentComponent::paint(juce::Graphics& g) {
@@ -27,10 +44,15 @@ void MainWindow::MainContentComponent::resized() {
     topToolbar.setBounds(bounds.removeFromTop(40));
     
     // Bottom Section
+    int h = mixerResizerBar.mixerHeight;
+    mixerResizerBar.setBounds(bounds.removeFromBottom(4));
+    
     if (isDetailViewVisible) {
-        detailView.setBounds(bounds.removeFromBottom(250));
+        auto bottomArea = bounds.removeFromBottom(h);
+        detailView.setBounds(bottomArea.removeFromLeft(bottomArea.getWidth() / 2));
+        bottomMixer.setBounds(bottomArea);
     } else {
-        bottomMixer.setBounds(bounds.removeFromBottom(250));
+        bottomMixer.setBounds(bounds.removeFromBottom(h));
     }
     
     // Side Browser
@@ -51,8 +73,28 @@ void MainWindow::MainContentComponent::toggleBrowser() {
 void MainWindow::MainContentComponent::toggleDetailView() {
     isDetailViewVisible = !isDetailViewVisible;
     detailView.setVisible(isDetailViewVisible);
-    bottomMixer.setVisible(!isDetailViewVisible);
+    bottomMixer.setVisible(true); // Mixer is always visible
     resized();
+}
+
+void MainWindow::MainContentComponent::mouseDown(const juce::MouseEvent& event) {
+    if (event.mods.isPopupMenu()) {
+        juce::PopupMenu menu;
+        menu.addItem(1, "Insert Audio Track (CMD+T)");
+        menu.addItem(2, "Insert MIDI Track (CMD+SHIFT+T)");
+        menu.addSeparator();
+        menu.addItem(3, "Delete Selected Track (Backspace)");
+        
+        menu.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
+            if (result == 1) {
+                engine.addTrack(false);
+            } else if (result == 2) {
+                engine.addTrack(true);
+            } else if (result == 3) {
+                juce::Logger::writeToLog("Shortcut: Delete Selection");
+            }
+        });
+    }
 }
 
 MainWindow::MainWindow(juce::String name, NimbusEngine& engineToUse)
@@ -75,7 +117,7 @@ MainWindow::MainWindow(juce::String name, NimbusEngine& engineToUse)
     setVisible(true);
 
     if (auto testPluginNode = engineToUse.getTestPluginNode()) {
-        pluginWindow = std::make_unique<PluginWindow>("Test Plugin", testPluginNode.get());
+        pluginWindow = std::make_unique<PluginWindow>("Test Plugin", testPluginNode);
     }
 }
 
@@ -88,27 +130,42 @@ void MainWindow::closeButtonPressed() {
 }
 
 bool MainWindow::keyPressed(const juce::KeyPress& key) {
-    if (key.getModifiers().isCommandDown()) {
-        if (key.getKeyCode() == 'T') {
+    if (key.getKeyCode() == 't' || key.getKeyCode() == 'T') {
+        if (key.getModifiers().isCommandDown() || key.getModifiers().isCtrlDown()) {
             if (key.getModifiers().isShiftDown()) {
+                juce::Logger::writeToLog("Shortcut: Add MIDI Track");
                 mainContent.getEngine().addTrack(true);
-                return true;
             } else {
+                juce::Logger::writeToLog("Shortcut: Add Audio Track");
                 mainContent.getEngine().addTrack(false);
-                return true;
             }
-        } else if (key.getKeyCode() == 'E') {
+            return true;
+        }
+    } else if (key.getKeyCode() == 'e' || key.getKeyCode() == 'E') {
+        if (key.getModifiers().isCommandDown() || key.getModifiers().isCtrlDown()) {
             juce::Logger::writeToLog("Shortcut: Split Clip");
             return true;
-        } else if (key.getKeyCode() == 'D') {
+        }
+    } else if (key.getKeyCode() == 'd' || key.getKeyCode() == 'D') {
+        if (key.getModifiers().isCommandDown() || key.getModifiers().isCtrlDown()) {
             juce::Logger::writeToLog("Shortcut: Duplicate");
             return true;
-        } else if (key.getKeyCode() == 'Z') {
+        }
+    } else if (key.getKeyCode() == 'z' || key.getKeyCode() == 'Z') {
+        if (key.getModifiers().isCommandDown() || key.getModifiers().isCtrlDown()) {
             juce::Logger::writeToLog("Shortcut: Undo");
             return true;
         }
     } else if (key.getKeyCode() == juce::KeyPress::deleteKey || key.getKeyCode() == juce::KeyPress::backspaceKey) {
         juce::Logger::writeToLog("Shortcut: Delete Selection");
+        // TODO: Delete selected track
+        return true;
+    } else if (key.getKeyCode() == juce::KeyPress::spaceKey) {
+        if (mainContent.getEngine().getTransport().isPlaying()) {
+            mainContent.getEngine().getTransport().stop();
+        } else {
+            mainContent.getEngine().getTransport().play();
+        }
         return true;
     }
     return false;

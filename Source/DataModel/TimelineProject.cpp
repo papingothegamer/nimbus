@@ -8,12 +8,131 @@ void TimelineProject::addTrack(const TrackModel& track) {
     listeners.call(&Listener::trackAdded, tracks.size() - 1, track);
 }
 
+void TimelineProject::insertTrack(int index, const TrackModel& track) {
+    if (index < 0 || index > tracks.size()) return;
+    tracks.insert(tracks.begin() + index, track);
+    trackClips.insert(trackClips.begin() + index, {});
+    listeners.call(&Listener::trackAdded, index, track);
+}
+
 const TrackModel& TimelineProject::getTrack(int index) const {
     return tracks[index];
 }
 
 int TimelineProject::getNumTracks() const {
     return tracks.size();
+}
+
+void TimelineProject::removeTrack(int index) {
+    if (index >= 0 && index < tracks.size()) {
+        tracks.erase(tracks.begin() + index);
+        trackClips.erase(trackClips.begin() + index);
+        
+        juce::SparseSet<int> newSelection;
+        for (int i = 0; i < selectedTracks.getNumRanges(); ++i) {
+            auto range = selectedTracks.getRange(i);
+            for (int r = range.getStart(); r < range.getEnd(); ++r) {
+                if (r < index) newSelection.addRange(juce::Range<int>(r, r + 1));
+                else if (r > index) newSelection.addRange(juce::Range<int>(r - 1, r));
+            }
+        }
+        selectedTracks = newSelection;
+        
+        listeners.call(&Listener::trackRemoved, index);
+        listeners.call(&Listener::trackSelectionChanged);
+    }
+}
+
+void TimelineProject::groupTracks(const juce::SparseSet<int>& trackIndices) {
+    if (trackIndices.isEmpty()) return;
+    
+    int firstIndex = trackIndices.getRange(0).getStart();
+    
+    TrackModel groupTrack;
+    groupTrack.id = juce::Uuid();
+    groupTrack.name = "Group Track";
+    groupTrack.isGroup = true;
+    groupTrack.isMidi = false;
+    
+    // Set parent IDs before insertion (since indices will shift)
+    for (int i = 0; i < trackIndices.getNumRanges(); ++i) {
+        auto range = trackIndices.getRange(i);
+        for (int r = range.getStart(); r < range.getEnd(); ++r) {
+            tracks[r].parentGroupId = groupTrack.id;
+        }
+    }
+    
+    insertTrack(firstIndex, groupTrack);
+    listeners.call(&Listener::tracksGrouped);
+}
+
+void TimelineProject::ungroupTracks(int groupTrackIndex) {
+    if (groupTrackIndex >= 0 && groupTrackIndex < tracks.size() && tracks[groupTrackIndex].isGroup) {
+        juce::Uuid groupId = tracks[groupTrackIndex].id;
+        for (auto& track : tracks) {
+            if (track.parentGroupId == groupId) {
+                track.parentGroupId = juce::Uuid::null();
+            }
+        }
+        removeTrack(groupTrackIndex);
+        listeners.call(&Listener::tracksGrouped);
+    }
+}
+
+void TimelineProject::setTrackFolded(int trackIndex, bool isFolded) {
+    if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        tracks[trackIndex].isFolded = isFolded;
+        listeners.call(&Listener::trackFoldStateChanged, trackIndex, isFolded);
+    }
+}
+
+void TimelineProject::setTrackMuted(int trackIndex, bool isMuted) {
+    if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        tracks[trackIndex].isMuted = isMuted;
+        listeners.call(&Listener::trackMuteChanged, trackIndex, isMuted);
+    }
+}
+
+bool TimelineProject::isTrackMuted(int trackIndex) const {
+    if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        return tracks[trackIndex].isMuted;
+    }
+    return false;
+}
+
+void TimelineProject::setTrackSelected(int trackIndex, bool clearExisting) {
+    if (clearExisting) selectedTracks.clear();
+    
+    if (trackIndex >= 0) {
+        selectedTracks.addRange(juce::Range<int>(trackIndex, trackIndex + 1));
+        lastSelectedTrack = trackIndex;
+    }
+    listeners.call(&Listener::trackSelectionChanged);
+}
+
+void TimelineProject::toggleTrackSelection(int trackIndex) {
+    if (trackIndex >= 0) {
+        if (selectedTracks.contains(trackIndex)) {
+            selectedTracks.removeRange(juce::Range<int>(trackIndex, trackIndex + 1));
+        } else {
+            selectedTracks.addRange(juce::Range<int>(trackIndex, trackIndex + 1));
+            lastSelectedTrack = trackIndex;
+        }
+        listeners.call(&Listener::trackSelectionChanged);
+    }
+}
+
+void TimelineProject::selectTrackRange(int fromIndex, int toIndex) {
+    int start = std::min(fromIndex, toIndex);
+    int end = std::max(fromIndex, toIndex) + 1;
+    selectedTracks.clear();
+    selectedTracks.addRange(juce::Range<int>(start, end));
+    lastSelectedTrack = toIndex;
+    listeners.call(&Listener::trackSelectionChanged);
+}
+
+bool TimelineProject::isTrackSelected(int trackIndex) const {
+    return selectedTracks.contains(trackIndex);
 }
 
 void TimelineProject::addClipToTrack(int trackIndex, std::shared_ptr<AudioClip> clip) {

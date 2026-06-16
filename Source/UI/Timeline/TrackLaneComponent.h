@@ -15,6 +15,7 @@ public:
     void resized() override;
     
     void updateClips();
+    void setTrackIndex(int newIndex);
 
 private:
     NimbusEngine& engine;
