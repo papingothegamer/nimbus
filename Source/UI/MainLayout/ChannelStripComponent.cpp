@@ -81,6 +81,8 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
 
     startTimerHz(30); // 30fps meter updates
     engine.getTimelineProject().addListener(this);
+    
+    addAndMakeVisible(groupIndicator);
 }
 
 ChannelStripComponent::~ChannelStripComponent() {
@@ -110,10 +112,19 @@ void ChannelStripComponent::timerCallback() {
 }
 
 void ChannelStripComponent::paint(juce::Graphics& g) {
-    if (selected) {
-        g.fillAll(DesignSystem::Colors::PanelBackground.brighter(0.05f));
+    bool isSelected = false;
+    bool isGroup = false;
+    if (trackIndex != -1) {
+        isSelected = engine.getTimelineProject().isTrackSelected(trackIndex);
+        isGroup = engine.getTimelineProject().getTrack(trackIndex).isGroup;
     }
-
+    
+    if (isSelected) {
+        g.fillAll(DesignSystem::Colors::PanelBackground.brighter(0.1f));
+    } else {
+        g.fillAll(isGroup ? DesignSystem::Colors::PanelBackground.brighter(0.05f) : DesignSystem::Colors::ModuleBackground);
+    }
+    
     // Border
     g.setColour(DesignSystem::Colors::Divider);
     g.drawRect(getLocalBounds(), 1);
@@ -154,13 +165,29 @@ void ChannelStripComponent::drawMeter(juce::Graphics& g, juce::Rectangle<int> bo
 void ChannelStripComponent::resized() {
     auto bounds = getLocalBounds().reduced(2);
     
+    if (trackIndex != -1) {
+        const auto& track = engine.getTimelineProject().getTrack(trackIndex);
+        if (!track.parentGroupId.isNull()) {
+            groupIndicator.setVisible(true);
+            groupIndicator.setBounds(bounds.removeFromBottom(10));
+            // In mixer, indicator at bottom is cool. We don't have isLast logic here unless set by parent.
+        } else {
+            groupIndicator.setVisible(false);
+        }
+    } else {
+        groupIndicator.setVisible(false);
+    }
+    
+    // Top section: Dropdowns
+    auto topArea = bounds.removeFromTop(45);
+    
     // Top name
-    nameLabel.setBounds(bounds.removeFromTop(20));
-    bounds.removeFromTop(2);
+    nameLabel.setBounds(topArea.removeFromTop(20));
+    topArea.removeFromTop(2);
     
     // Routing
     if (!master) {
-        inputComboBox.setBounds(bounds.removeFromTop(20));
+        inputComboBox.setBounds(topArea.removeFromTop(20));
         bounds.removeFromTop(2);
     }
     routingComboBox.setBounds(bounds.removeFromTop(20));

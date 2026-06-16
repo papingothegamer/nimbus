@@ -37,8 +37,13 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     setupTextButton(tapTempoButton);
     setupTextButton(nudgeDownButton);
     setupTextButton(nudgeUpButton);
+    setupTextButton(followPlayheadToggle);
+    followPlayheadToggle.setClickingTogglesState(true);
 
     setupButton(playButton, BinaryData::play_svg, BinaryData::play_svgSize);
+    playButton.setClickingTogglesState(true);
+    playButton.setColour(juce::DrawableButton::backgroundOnColourId, DesignSystem::Colors::PrimaryAction.withAlpha(0.3f));
+    
     setupButton(stopButton, BinaryData::box_svg, BinaryData::box_svgSize);
     setupButton(arrRecordButton, BinaryData::circle_svg, BinaryData::circle_svgSize);
     setupButton(loopButton, BinaryData::repeat_svg, BinaryData::repeat_svgSize);
@@ -57,6 +62,17 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     addAndMakeVisible(quantizeBox);
     quantizeBox.addItem("1 Bar", 1);
     quantizeBox.setSelectedId(1);
+
+    addAndMakeVisible(punchOutButton);
+    
+    addAndMakeVisible(followPlayheadToggle);
+
+    addAndMakeVisible(linkToggle);
+    addAndMakeVisible(tapTempoButton);
+    addAndMakeVisible(autoArmButton);
+    addAndMakeVisible(reenableAutoButton);
+    addAndMakeVisible(sessionRecordButton);
+    addAndMakeVisible(captureMidiButton);
 
     addAndMakeVisible(playButton);
     addAndMakeVisible(stopButton);
@@ -100,8 +116,20 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     browserToggleButton.onClick = [this] { if (onBrowserToggle) onBrowserToggle(); };
     detailToggleButton.onClick = [this] { if (onDetailToggle) onDetailToggle(); };
 
-    playButton.onClick = [this] { engine.getTransport().play(); };
-    stopButton.onClick = [this] { engine.getTransport().stop(); };
+    playButton.onClick = [this] { 
+        engine.getTransport().play(); 
+        playButton.setToggleState(engine.getTransport().isPlaying(), juce::dontSendNotification);
+    };
+    stopButton.onClick = [this] { 
+        engine.getTransport().stop(); 
+        playButton.setToggleState(false, juce::dontSendNotification);
+    };
+    
+    followPlayheadToggle.onClick = [this] {
+        engine.setFollowPlayheadEnabled(followPlayheadToggle.getToggleState());
+    };
+    
+    startTimerHz(20);
 }
 
 TopToolbarComponent::~TopToolbarComponent() = default;
@@ -112,6 +140,11 @@ void TopToolbarComponent::paint(juce::Graphics& g) {
     // Bottom border
     g.setColour(DesignSystem::Colors::Divider);
     g.fillRect(0, getHeight() - 1, getWidth(), 1);
+}
+
+void TopToolbarComponent::timerCallback() {
+    playButton.setToggleState(engine.getTransport().isPlaying(), juce::dontSendNotification);
+    followPlayheadToggle.setToggleState(engine.isFollowPlayheadEnabled(), juce::dontSendNotification);
 }
 
 void TopToolbarComponent::resized() {
@@ -155,10 +188,11 @@ void TopToolbarComponent::resized() {
 
     // Right Block 1 (Loop)
     loopButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h).reduced(2));
-    punchInButton.setBounds(bounds.removeFromLeft(15).withHeight(h));
-    loopStartLabel.setBounds(bounds.removeFromLeft(50).withHeight(h));
-    loopLengthLabel.setBounds(bounds.removeFromLeft(50).withHeight(h));
-    punchOutButton.setBounds(bounds.removeFromLeft(15).withHeight(h));
+    punchInButton.setBounds(bounds.removeFromLeft(15).withHeight(h));    
+    loopStartLabel.setBounds(bounds.removeFromLeft(30).reduced(2));
+    loopLengthLabel.setBounds(bounds.removeFromLeft(30).reduced(2));
+    
+    followPlayheadToggle.setBounds(bounds.removeFromLeft(40).reduced(2));
 
     // Far Right Block (Misc)
     auto rightBounds = bounds.removeFromRight(200);

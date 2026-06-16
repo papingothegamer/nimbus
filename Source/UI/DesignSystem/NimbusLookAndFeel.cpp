@@ -36,10 +36,11 @@ void NimbusLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int wi
     g.strokePath(backgroundArc, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     // Draw filled arc
-    if (sliderPosProportional > 0.0f) {
+    bool isPan = slider.getProperties().contains("isPan");
+    if (isPan ? std::abs(sliderPosProportional - 0.5f) > 0.001f : sliderPosProportional > 0.0f) {
         juce::Path filledArc;
-        float startArc = (slider.getProperties().contains("isPan")) ? (rotaryStartAngle + rotaryEndAngle) * 0.5f : rotaryStartAngle;
-        if (slider.getProperties().contains("isPan")) {
+        float startArc = isPan ? (rotaryStartAngle + rotaryEndAngle) * 0.5f : rotaryStartAngle;
+        if (isPan) {
             if (sliderPosProportional < 0.5f) {
                 filledArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, angle, startArc, true);
             } else {

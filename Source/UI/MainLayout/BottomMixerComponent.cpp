@@ -11,11 +11,6 @@ BottomMixerComponent::BottomMixerComponent(NimbusEngine& e) : engine(e) {
 
     engine.getTimelineProject().addListener(this);
 
-    // Initial tracks
-    for (int i = 0; i < engine.getTimelineProject().getNumTracks(); ++i) {
-        trackAdded(i, engine.getTimelineProject().getTrack(i));
-    }
-
     // Master strip
     masterStrip = std::make_unique<ChannelStripComponent>(engine, "Master", true, true);
     masterStrip->setLevelProvider([this]() { return engine.getMasterPeakLevel(); });
@@ -35,21 +30,37 @@ void BottomMixerComponent::trackAdded(int trackIndex, const TrackModel& track) {
     auto* strip = new ChannelStripComponent(engine, track.name, !track.isMidi, false);
     strip->setTrackIndex(trackIndex);
     strip->setLevelProvider([this, trackIndex]() { return engine.getTrackPeakLevel(trackIndex); });
-    trackStrips.add(strip);
+    trackStrips.insert(trackIndex, strip);
+    
+    for (int i = trackIndex + 1; i < trackStrips.size(); ++i) {
+        trackStrips[i]->setTrackIndex(i);
+    }
+    
     addAndMakeVisible(strip);
     resized();
 }
 
 void BottomMixerComponent::trackRemoved(int trackIndex) {
     if (trackIndex >= 0 && trackIndex < trackStrips.size()) {
-        auto* strip = trackStrips.removeAndReturn(trackIndex);
-        delete strip;
+        trackStrips.remove(trackIndex);
         
         for (int i = trackIndex; i < trackStrips.size(); ++i) {
             trackStrips[i]->setTrackIndex(i);
         }
         resized();
     }
+}
+
+void BottomMixerComponent::tracksGrouped() {
+    trackStrips.clear();
+    for (int i = 0; i < engine.getTimelineProject().getNumTracks(); ++i) {
+        auto* strip = new ChannelStripComponent(engine, engine.getTimelineProject().getTrack(i).name, !engine.getTimelineProject().getTrack(i).isMidi, false);
+        strip->setTrackIndex(i);
+        strip->setLevelProvider([this, i]() { return engine.getTrackPeakLevel(i); });
+        trackStrips.add(strip);
+        addAndMakeVisible(strip);
+    }
+    resized();
 }
 
 void BottomMixerComponent::paint(juce::Graphics& g) {

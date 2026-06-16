@@ -1,11 +1,15 @@
 #pragma once
 
 #include "AudioClip.h"
+#include "MidiClip.h"
 #include <vector>
 #include <memory>
+#include <variant>
 #include <juce_events/juce_events.h>
 
 namespace Nimbus {
+
+using AnyClipPtr = std::variant<std::shared_ptr<AudioClip>, std::shared_ptr<MidiClip>>;
 
 struct TrackModel {
     juce::Uuid id;
@@ -34,6 +38,8 @@ public:
         virtual void trackSelectionChanged() {}
         virtual void trackFoldStateChanged(int trackIndex, bool isFolded) {}
         virtual void tracksGrouped() {}
+        virtual void trackClipsChanged(int trackIndex) {}
+        virtual void selectedClipChanged() {}
     };
 
     TimelineProject() = default;
@@ -63,15 +69,21 @@ public:
     const juce::SparseSet<int>& getSelectedTracks() const { return selectedTracks; }
     int getLastSelectedTrack() const { return lastSelectedTrack; }
 
-    void addClipToTrack(int trackIndex, std::shared_ptr<AudioClip> clip);
-    std::vector<std::shared_ptr<AudioClip>> getClipsOnTrack(int trackIndex) const;
+    void addClipToTrack(int trackIndex, AnyClipPtr clip);
+    std::vector<AnyClipPtr> getClipsOnTrack(int trackIndex) const;
+    
+    void setSelectedClip(AnyClipPtr clip);
+    AnyClipPtr getSelectedClip() const;
+    
+    void notifyClipModified();
 
 private:
     std::vector<TrackModel> tracks;
-    std::vector<std::vector<std::shared_ptr<AudioClip>>> trackClips;
+    std::vector<std::vector<AnyClipPtr>> trackClips;
     juce::ListenerList<Listener> listeners;
     juce::SparseSet<int> selectedTracks;
     int lastSelectedTrack = -1; // For shift-select logic
+    AnyClipPtr currentSelectedClip;
 };
 
 } // namespace Nimbus

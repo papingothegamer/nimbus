@@ -2,6 +2,7 @@
 
 #include <JuceHeader.h>
 #include "Core/NimbusEngine.h"
+#include "UI/Mixer/GroupIndicatorComponent.h"
 
 namespace Nimbus::Timeline {
 
@@ -13,6 +14,8 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
     
+    void setTrackIndex(int newIndex);
+    
     void labelTextChanged(juce::Label* labelThatHasChanged) override;
     void mouseDown(const juce::MouseEvent& event) override;
 
@@ -22,7 +25,9 @@ public:
 
     void trackFoldStateChanged(int track, bool isFolded) override;
 
-    void setTrackIndex(int newIndex);
+    UI::GroupIndicatorComponent groupIndicator;
+
+    void updateSelectionState();
 
 private:
     NimbusEngine& engine;
@@ -34,15 +39,14 @@ private:
     juce::TextButton soloButton{"S"};
     juce::TextButton armButton{"O"};
     
-    juce::ComboBox inTypeComboBox;
-    juce::ComboBox inChannelComboBox;
+    juce::Label sourceLabel{"", "Audio From"};
+    juce::ComboBox sourceBox;
+    juce::Label destLabel{"", "Audio To"};
+    juce::ComboBox destBox;
     
     juce::TextButton monitorInButton{"In"};
     juce::TextButton monitorAutoButton{"Auto"};
     juce::TextButton monitorOffButton{"Off"};
-
-    juce::ComboBox outTypeComboBox;
-    juce::ComboBox outChannelComboBox;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackHeaderComponent)
 };

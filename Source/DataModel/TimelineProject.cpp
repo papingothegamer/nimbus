@@ -25,6 +25,21 @@ int TimelineProject::getNumTracks() const {
 
 void TimelineProject::removeTrack(int index) {
     if (index >= 0 && index < tracks.size()) {
+        // Clear selection if the current selected clip belongs to this track
+        bool hasSelection = std::visit([](auto&& ptr) { return ptr != nullptr; }, currentSelectedClip);
+        if (hasSelection) {
+            bool found = false;
+            for (auto& clip : trackClips[index]) {
+                if (clip == currentSelectedClip) {
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                setSelectedClip(std::shared_ptr<AudioClip>{nullptr});
+            }
+        }
+        
         tracks.erase(tracks.begin() + index);
         trackClips.erase(trackClips.begin() + index);
         
@@ -54,15 +69,18 @@ void TimelineProject::groupTracks(const juce::SparseSet<int>& trackIndices) {
     groupTrack.isGroup = true;
     groupTrack.isMidi = false;
     
-    // Set parent IDs before insertion (since indices will shift)
+    insertTrack(firstIndex, groupTrack);
+    
+    // Set parent IDs after insertion (since indices shift)
     for (int i = 0; i < trackIndices.getNumRanges(); ++i) {
         auto range = trackIndices.getRange(i);
+        // The original tracks have shifted by +1 if they were at or after firstIndex
         for (int r = range.getStart(); r < range.getEnd(); ++r) {
-            tracks[r].parentGroupId = groupTrack.id;
+            int newIndex = (r >= firstIndex) ? r + 1 : r;
+            tracks[newIndex].parentGroupId = groupTrack.id;
         }
     }
     
-    insertTrack(firstIndex, groupTrack);
     listeners.call(&Listener::tracksGrouped);
 }
 
@@ -135,19 +153,34 @@ bool TimelineProject::isTrackSelected(int trackIndex) const {
     return selectedTracks.contains(trackIndex);
 }
 
-void TimelineProject::addClipToTrack(int trackIndex, std::shared_ptr<AudioClip> clip) {
+void TimelineProject::addClipToTrack(int trackIndex, AnyClipPtr clip) {
     if (trackIndex >= trackClips.size()) {
         trackClips.resize(trackIndex + 1);
         tracks.resize(trackIndex + 1);
     }
     trackClips[trackIndex].push_back(std::move(clip));
+    listeners.call(&Listener::trackClipsChanged, trackIndex);
 }
 
-std::vector<std::shared_ptr<AudioClip>> TimelineProject::getClipsOnTrack(int trackIndex) const {
+std::vector<AnyClipPtr> TimelineProject::getClipsOnTrack(int trackIndex) const {
     if (trackIndex >= 0 && trackIndex < trackClips.size()) {
         return trackClips[trackIndex];
     }
     return {};
 }
 
+void TimelineProject::setSelectedClip(AnyClipPtr clip) {
+    currentSelectedClip = clip;
+    listeners.call(&Listener::selectedClipChanged);
+}
+
+AnyClipPtr TimelineProject::getSelectedClip() const {
+    return currentSelectedClip;
+}
+
+void TimelineProject::notifyClipModified() {
+    listeners.call(&Listener::trackClipsChanged, -1);
+}
+
+// Force rebuild
 } // namespace Nimbus

@@ -63,6 +63,8 @@ target_sources(Nimbus PRIVATE
     Source/UI/Timeline/TimelineComponent.h
     Source/UI/Timeline/TrackHeaderComponent.cpp
     Source/UI/Timeline/TrackHeaderComponent.h
+    Source/UI/Timeline/GroupTrackHeaderComponent.cpp
+    Source/UI/Timeline/GroupTrackHeaderComponent.h
     Source/UI/Timeline/TrackLaneComponent.cpp
     Source/UI/Timeline/TrackLaneComponent.h
     Source/UI/Timeline/ClipComponent.cpp
@@ -81,8 +83,16 @@ target_sources(Nimbus PRIVATE
     Source/UI/MainLayout/ChannelStripComponent.h
     Source/UI/MainLayout/DetailViewComponent.cpp
     Source/UI/MainLayout/DetailViewComponent.h
+    Source/UI/Mixer/GroupIndicatorComponent.cpp
+    Source/UI/Mixer/GroupIndicatorComponent.h
     Source/UI/DetailView/PianoRollComponent.cpp
     Source/UI/DetailView/AudioClipViewComponent.cpp
+    Source/UI/DetailView/ClipPropertiesComponent.cpp
+    Source/UI/DetailView/ClipPropertiesComponent.h
+    Source/UI/DetailView/NotesPanelComponent.cpp
+    Source/UI/DetailView/NotesPanelComponent.h
+    Source/UI/DetailView/PianoRollTimelineComponent.cpp
+    Source/UI/DetailView/PianoRollTimelineComponent.h
     Source/UI/PluginWindow.cpp
     Source/UI/PluginWindow.h
     Source/Core/NimbusEngine.cpp

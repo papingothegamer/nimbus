@@ -19,10 +19,12 @@ void MixerResizerBar::mouseDrag(const juce::MouseEvent& e) {
 
 MainWindow::MainContentComponent::MainContentComponent(NimbusEngine& e)
     : engine(e), topToolbar(e), sideBrowser(e), bottomMixer(e), detailView(e), timelineComponent(e) {
+    juce::Logger::writeToLog("MainContentComponent constructed");
     
     topToolbar.onBrowserToggle = [this]() { toggleBrowser(); };
     topToolbar.onDetailToggle = [this]() { toggleDetailView(); };
 
+    juce::Logger::writeToLog("Adding children to MainContentComponent");
     addAndMakeVisible(topToolbar);
     addAndMakeVisible(sideBrowser);
     addAndMakeVisible(bottomMixer);
@@ -30,6 +32,7 @@ MainWindow::MainContentComponent::MainContentComponent(NimbusEngine& e)
     addChildComponent(detailView); // Hidden by default
     addAndMakeVisible(timelineComponent);
     
+    juce::Logger::writeToLog("MainContentComponent finished adding children");
     mixerResizerBar.onHeightChanged = [this]() { resized(); };
 }
 
@@ -151,6 +154,28 @@ bool MainWindow::keyPressed(const juce::KeyPress& key) {
             juce::Logger::writeToLog("Shortcut: Duplicate");
             return true;
         }
+    } else if (key.getKeyCode() == 'g' || key.getKeyCode() == 'G') {
+        if (key.getModifiers().isCommandDown() || key.getModifiers().isCtrlDown()) {
+            if (key.getModifiers().isShiftDown()) {
+                juce::Logger::writeToLog("Shortcut: Ungroup Tracks");
+                // Find selected group track
+                auto selected = mainContent.getEngine().getTimelineProject().getSelectedTracks();
+                if (!selected.isEmpty()) {
+                    mainContent.getEngine().getTimelineProject().ungroupTracks(selected[0]);
+                }
+            } else {
+                juce::Logger::writeToLog("Shortcut: Group Tracks");
+                mainContent.getEngine().getTimelineProject().groupTracks(mainContent.getEngine().getTimelineProject().getSelectedTracks());
+            }
+            return true;
+        }
+    } else if (key.getKeyCode() == juce::KeyPress::backspaceKey || key.getKeyCode() == juce::KeyPress::deleteKey) {
+        juce::Logger::writeToLog("Shortcut: Delete");
+        auto selected = mainContent.getEngine().getTimelineProject().getSelectedTracks();
+        for (int i = selected.size() - 1; i >= 0; --i) {
+            mainContent.getEngine().getTimelineProject().removeTrack(selected[i]);
+        }
+        return true;
     } else if (key.getKeyCode() == 'z' || key.getKeyCode() == 'Z') {
         if (key.getModifiers().isCommandDown() || key.getModifiers().isCtrlDown()) {
             juce::Logger::writeToLog("Shortcut: Undo");

@@ -17,6 +17,7 @@ public:
     // TimelineProject::Listener
     void trackAdded(int trackIndex, const TrackModel& track) override;
     void trackRemoved(int trackIndex) override;
+    void tracksGrouped() override;
 
 private:
     NimbusEngine& engine;

@@ -9,12 +9,17 @@ namespace Nimbus {
 
 class SeekingBarComponent : public juce::Component {
 public:
-    SeekingBarComponent();
+    SeekingBarComponent(NimbusEngine& engine, double& pps, double& scrollX);
     void paint(juce::Graphics& g) override;
     void mouseDown(const juce::MouseEvent& event) override;
     void mouseDrag(const juce::MouseEvent& event) override;
     
     std::function<void(float)> onSeek;
+    
+private:
+    NimbusEngine& engine;
+    double& pixelsPerSecond;
+    double& scrollOffsetX;
 };
 
 class TimelineComponent : public juce::Component, 
@@ -32,21 +37,24 @@ public:
     void trackAdded(int trackIndex, const TrackModel& track) override;
     void trackRemoved(int trackIndex) override;
     void trackFoldStateChanged(int trackIndex, bool isFolded) override;
+    void tracksGrouped() override;
 
     void paintOverChildren(juce::Graphics& g) override;
-    
     void mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) override;
+    
+    double getPixelsPerSecond() const { return pixelsPerSecond; }
+    double getScrollOffsetX() const { return scrollOffsetX; }
 
 private:
     NimbusEngine& engine;
 
-    juce::OwnedArray<Timeline::TrackHeaderComponent> trackHeaders;
+    juce::OwnedArray<juce::Component> trackHeaders;
     juce::OwnedArray<Timeline::TrackLaneComponent> trackLanes;
     
-    SeekingBarComponent seekingBar;
-
     double pixelsPerSecond = 50.0;
     double scrollOffsetX = 0.0;
+    
+    SeekingBarComponent seekingBar{engine, pixelsPerSecond, scrollOffsetX};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimelineComponent)
 };

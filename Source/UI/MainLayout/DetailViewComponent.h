@@ -2,6 +2,11 @@
 
 #include <JuceHeader.h>
 #include "Core/NimbusEngine.h"
+#include "UI/DetailView/PianoRollComponent.h"
+#include "UI/DetailView/AudioClipViewComponent.h"
+#include "UI/DetailView/ClipPropertiesComponent.h"
+#include "UI/DetailView/NotesPanelComponent.h"
+#include "UI/DetailView/PianoRollTimelineComponent.h"
 
 namespace Nimbus::MainLayout {
 
@@ -17,10 +22,18 @@ public:
     void trackAdded(int trackIndex, const TrackModel& track) override;
     void trackRemoved(int trackIndex) override;
     void trackSelectionChanged() override;
+    void selectedClipChanged() override;
 
 private:
     NimbusEngine& engine;
     juce::Label placeholderLabel{"Detail", "Select a track to view devices or clips."};
+    
+    DetailView::PianoRollComponent pianoRoll;
+    juce::Viewport pianoRollViewport;
+    DetailView::PianoRollTimelineComponent pianoRollTimeline;
+    DetailView::ClipPropertiesComponent clipProperties;
+    DetailView::NotesPanelComponent notesPanel;
+    // DetailView::AudioClipViewComponent audioClipView;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DetailViewComponent)
 };

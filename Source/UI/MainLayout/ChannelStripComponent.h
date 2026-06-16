@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 
 #include "Core/NimbusEngine.h"
+#include "UI/Mixer/GroupIndicatorComponent.h"
 
 namespace Nimbus::MainLayout {
 
@@ -13,14 +14,14 @@ public:
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    
+    void setTrackIndex(int newIndex);
     void timerCallback() override;
 
     void setLevelProvider(std::function<float()> provider);
 
     // Callbacks for interactivity
     std::function<void()> onSelected;
-
-    void setTrackIndex(int index);
 
 private:
     NimbusEngine& engine;
@@ -54,6 +55,8 @@ private:
     void trackSelectionChanged() override;
     
     float currentLevel = 0.0f;
+    
+    UI::GroupIndicatorComponent groupIndicator;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChannelStripComponent)
 };

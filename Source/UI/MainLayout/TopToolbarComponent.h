@@ -5,13 +5,14 @@
 
 namespace Nimbus::MainLayout {
 
-class TopToolbarComponent : public juce::Component {
+class TopToolbarComponent : public juce::Component, public juce::Timer {
 public:
     TopToolbarComponent(NimbusEngine& engine);
     ~TopToolbarComponent() override;
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    void timerCallback() override;
 
     std::function<void()> onBrowserToggle;
     std::function<void()> onDetailToggle;
@@ -36,6 +37,7 @@ private:
     juce::Label loopLengthLabel;
     
     juce::ToggleButton linkToggle{"Link"};
+    juce::TextButton followPlayheadToggle{"Follow"};
     juce::TextButton tapTempoButton{"Tap"};
     juce::Label tempoLabel;
     juce::TextButton nudgeDownButton{"<"};
