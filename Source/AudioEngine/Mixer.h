@@ -41,6 +41,11 @@ public:
         if (index >= 0 && index < tracks.size()) return tracks[index]->getPeakLevel();
         return 0.0f;
     }
+    
+    Track* getTrack(int index) const {
+        if (index >= 0 && index < tracks.size()) return tracks[index].get();
+        return nullptr;
+    }
 
 private:
     std::vector<std::unique_ptr<Track>> tracks;

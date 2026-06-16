@@ -30,12 +30,17 @@ public:
      * vector by the audio thread on the next process callback.
      */
     void addNode(std::unique_ptr<IAudioNode> newNode);
+    void removeNode(IAudioNode* nodeToRemove);
+    
+    // Returns the current active nodes in the graph
+    const std::vector<std::unique_ptr<IAudioNode>>& getNodes() const { return nodes; }
 
 private:
     std::vector<std::unique_ptr<IAudioNode>> nodes;
     
     // Queue for adding nodes safely from the UI thread
     LockFreeQueue<std::unique_ptr<IAudioNode>> nodeAddQueue;
+    LockFreeQueue<IAudioNode*> nodeRemoveQueue;
 
     double currentSampleRate = 44100.0;
     int currentBlockSize = 512;

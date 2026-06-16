@@ -7,6 +7,7 @@
 #include "UI/DetailView/ClipPropertiesComponent.h"
 #include "UI/DetailView/NotesPanelComponent.h"
 #include "UI/DetailView/PianoRollTimelineComponent.h"
+#include "UI/MainLayout/DeviceChainComponent.h"
 
 namespace Nimbus::MainLayout {
 
@@ -34,6 +35,12 @@ private:
     DetailView::ClipPropertiesComponent clipProperties;
     DetailView::NotesPanelComponent notesPanel;
     // DetailView::AudioClipViewComponent audioClipView;
+    DeviceChainComponent deviceChain;
+    
+    juce::TextButton clipTabButton{"Clip"};
+    juce::TextButton deviceTabButton{"Device"};
+    
+    bool showDeviceView = true;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DetailViewComponent)
 };

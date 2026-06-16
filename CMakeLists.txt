@@ -83,6 +83,7 @@ target_sources(Nimbus PRIVATE
     Source/UI/MainLayout/ChannelStripComponent.h
     Source/UI/MainLayout/DetailViewComponent.cpp
     Source/UI/MainLayout/DetailViewComponent.h
+    Source/UI/MainLayout/DeviceChainComponent.cpp
     Source/UI/Mixer/GroupIndicatorComponent.cpp
     Source/UI/Mixer/GroupIndicatorComponent.h
     Source/UI/DetailView/PianoRollComponent.cpp

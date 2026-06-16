@@ -2,10 +2,7 @@
 
 namespace Nimbus {
 
-AudioGraph::AudioGraph()
-    : nodeAddQueue(128) // Capacity for pending nodes
-{
-}
+AudioGraph::AudioGraph() : nodeAddQueue(128), nodeRemoveQueue(128) {}
 
 AudioGraph::~AudioGraph() = default;
 
@@ -25,28 +22,45 @@ void AudioGraph::releaseResources() {
 }
 
 void AudioGraph::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
-    // 1. Process pending nodes from the queue (Lock-free)
+    // 1. Drain the add queue and add new nodes to our vector
     std::unique_ptr<IAudioNode> pendingNode;
     while (nodeAddQueue.pop(pendingNode)) {
         if (pendingNode) {
-            // Must prepare it on the audio thread if it was added during playback
-            // (In a real DAW, you'd double buffer the graph to do this on a background thread,
-            // but this is safe as long as prepareToPlay in TestToneNode doesn't allocate)
-            pendingNode->prepareToPlay(currentSampleRate, currentBlockSize);
+            if (currentSampleRate > 0) {
+                pendingNode->prepareToPlay(currentSampleRate, currentBlockSize);
+            }
             nodes.push_back(std::move(pendingNode));
         }
     }
+    
+    // 2. Drain the remove queue
+    IAudioNode* pendingRemove = nullptr;
+    while (nodeRemoveQueue.pop(pendingRemove)) {
+        if (pendingRemove) {
+            auto it = std::remove_if(nodes.begin(), nodes.end(),
+                [pendingRemove](const std::unique_ptr<IAudioNode>& ptr) {
+                    return ptr.get() == pendingRemove;
+                });
+            nodes.erase(it, nodes.end());
+        }
+    }
 
-    // 2. Process all nodes sequentially
+    // 3. Process all active nodes
     for (auto& node : nodes) {
         node->processBlock(buffer, midiMessages);
     }
 }
 
 void AudioGraph::addNode(std::unique_ptr<IAudioNode> newNode) {
-    // Push the node into the lock-free queue so the audio thread picks it up
-    bool success = nodeAddQueue.push(std::move(newNode));
-    jassert(success && "Node add queue is full!");
+    if (newNode) {
+        nodeAddQueue.push(std::move(newNode));
+    }
+}
+
+void AudioGraph::removeNode(IAudioNode* nodeToRemove) {
+    if (nodeToRemove) {
+        nodeRemoveQueue.push(nodeToRemove);
+    }
 }
 
 } // namespace Nimbus

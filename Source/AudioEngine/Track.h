@@ -32,6 +32,9 @@ public:
      * Add an insert plugin to this track's chain.
      */
     void addInsertPlugin(std::unique_ptr<IAudioNode> pluginNode);
+    void removeInsertPlugin(IAudioNode* pluginNode);
+    
+    const AudioGraph& getInsertGraph() const { return insertGraph; }
 
     // Fader Controls
     void setVolume(float gainLinear);

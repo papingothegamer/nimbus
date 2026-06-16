@@ -4,13 +4,27 @@
 
 namespace Nimbus::MainLayout {
 
-DetailViewComponent::DetailViewComponent(NimbusEngine& e) : engine(e), pianoRoll(e), pianoRollTimeline(e), clipProperties(e), notesPanel(e) {
+DetailViewComponent::DetailViewComponent(NimbusEngine& e) : engine(e), pianoRoll(e), pianoRollTimeline(e), clipProperties(e), notesPanel(e), deviceChain(e) {
     juce::Logger::writeToLog("DetailViewComponent constructor start");
     addChildComponent(placeholderLabel);
     addChildComponent(clipProperties);
     addChildComponent(notesPanel);
     addChildComponent(pianoRollTimeline);
     addChildComponent(pianoRoll);
+    addChildComponent(deviceChain);
+    
+    addAndMakeVisible(clipTabButton);
+    addAndMakeVisible(deviceTabButton);
+    
+    clipTabButton.setClickingTogglesState(true);
+    clipTabButton.setRadioGroupId(1);
+    deviceTabButton.setClickingTogglesState(true);
+    deviceTabButton.setRadioGroupId(1);
+    
+    deviceTabButton.setToggleState(true, juce::dontSendNotification);
+    
+    clipTabButton.onClick = [this] { showDeviceView = false; resized(); };
+    deviceTabButton.onClick = [this] { showDeviceView = true; resized(); };
     
     placeholderLabel.setFont(DesignSystem::Typography::getPrimaryFont());
     placeholderLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextSecondary);
@@ -36,22 +50,46 @@ void DetailViewComponent::paint(juce::Graphics& g) {
 
 void DetailViewComponent::resized() {
     auto area = getLocalBounds();
+    
+    auto tabsArea = area.removeFromBottom(25);
+    deviceTabButton.setBounds(tabsArea.removeFromRight(80).reduced(2));
+    clipTabButton.setBounds(tabsArea.removeFromRight(80).reduced(2));
+    
     placeholderLabel.setBounds(area);
     
-    int propsWidth = 120;
-    int notesWidth = 120;
-    clipProperties.setBounds(area.removeFromLeft(propsWidth));
-    notesPanel.setBounds(area.removeFromLeft(notesWidth));
-    
-    auto timelineArea = area.removeFromTop(20);
-    pianoRollTimeline.setBounds(timelineArea);
-    pianoRoll.setBounds(area);
+    if (showDeviceView) {
+        pianoRoll.setVisible(false);
+        pianoRollTimeline.setVisible(false);
+        clipProperties.setVisible(false);
+        notesPanel.setVisible(false);
+        
+        deviceChain.setVisible(true);
+        deviceChain.setBounds(area);
+    } else {
+        deviceChain.setVisible(false);
+        
+        int propsWidth = 120;
+        int notesWidth = 120;
+        clipProperties.setBounds(area.removeFromLeft(propsWidth));
+        notesPanel.setBounds(area.removeFromLeft(notesWidth));
+        
+        auto timelineArea = area.removeFromTop(20);
+        pianoRollTimeline.setBounds(timelineArea);
+        pianoRoll.setBounds(area);
+        
+        trackSelectionChanged(); // Restore clip view visibility logic
+    }
 }
 
 void DetailViewComponent::trackAdded(int trackIndex, const TrackModel& track) {}
 void DetailViewComponent::trackRemoved(int trackIndex) {}
 
 void DetailViewComponent::trackSelectionChanged() {
+    if (showDeviceView) {
+        placeholderLabel.setVisible(false);
+        return;
+    }
+    
     if (engine.getTimelineProject().getSelectedClip().valueless_by_exception() || 
         (std::holds_alternative<std::shared_ptr<AudioClip>>(engine.getTimelineProject().getSelectedClip()) && std::get<std::shared_ptr<AudioClip>>(engine.getTimelineProject().getSelectedClip()) == nullptr) ||
         (std::holds_alternative<std::shared_ptr<MidiClip>>(engine.getTimelineProject().getSelectedClip()) && std::get<std::shared_ptr<MidiClip>>(engine.getTimelineProject().getSelectedClip()) == nullptr)) {
@@ -60,6 +98,7 @@ void DetailViewComponent::trackSelectionChanged() {
         pianoRollTimeline.setVisible(false);
         clipProperties.setVisible(false);
         notesPanel.setVisible(false);
+        
         placeholderLabel.setVisible(true);
         
         auto& sel = engine.getTimelineProject().getSelectedTracks();

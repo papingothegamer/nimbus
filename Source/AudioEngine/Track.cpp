@@ -64,6 +64,10 @@ void Track::addInsertPlugin(std::unique_ptr<IAudioNode> pluginNode) {
     insertGraph.addNode(std::move(pluginNode));
 }
 
+void Track::removeInsertPlugin(IAudioNode* pluginNode) {
+    insertGraph.removeNode(pluginNode);
+}
+
 void Track::setVolume(float gainLinear) {
     fader.setGainLinear(gainLinear);
 }

@@ -6,7 +6,57 @@ PluginManager::PluginManager() {
     formatManager.addDefaultFormats();
 }
 
-PluginManager::~PluginManager() = default;
+PluginManager::~PluginManager() {
+    stopScanning();
+}
+
+PluginManager::ScannerThread::ScannerThread(PluginManager& owner) 
+    : juce::Thread("PluginScannerThread"), owner(owner) {
+}
+
+PluginManager::ScannerThread::~ScannerThread() {
+    stopThread(2000);
+}
+
+void PluginManager::ScannerThread::run() {
+    for (int i = 0; i < owner.formatManager.getNumFormats(); ++i) {
+        if (threadShouldExit()) break;
+        
+        auto* format = owner.formatManager.getFormat(i);
+        if (format) {
+            juce::PluginDirectoryScanner scanner(
+                owner.knownPluginList, 
+                *format,
+                format->getDefaultLocationsToSearch(),
+                true,
+                juce::File(),
+                true
+            );
+            
+            juce::String name;
+            while (scanner.scanNextFile(true, name)) {
+                if (threadShouldExit()) break;
+            }
+        }
+    }
+}
+
+void PluginManager::startScanning() {
+    if (scannerThread != nullptr && scannerThread->isThreadRunning()) return;
+    scannerThread = std::make_unique<ScannerThread>(*this);
+    scannerThread->startThread();
+}
+
+void PluginManager::stopScanning() {
+    if (scannerThread != nullptr) {
+        scannerThread->stopThread(2000);
+        scannerThread.reset();
+    }
+}
+
+bool PluginManager::isScanning() const {
+    return scannerThread != nullptr && scannerThread->isThreadRunning();
+}
 
 std::unique_ptr<juce::AudioPluginInstance> PluginManager::loadPlugin(const juce::String& pluginPath, juce::String& errorMessage) {
     juce::File pluginFile(pluginPath);
