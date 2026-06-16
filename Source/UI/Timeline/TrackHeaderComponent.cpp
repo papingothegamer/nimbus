@@ -185,13 +185,24 @@ void TrackHeaderComponent::resized() {
         bounds.removeFromLeft(15);
     }
 
-    auto topRow = bounds.removeFromTop(20);
-    foldButton.setBounds(topRow.removeFromLeft(20).reduced(2));
-    numberButton.setBounds(topRow.removeFromLeft(20).reduced(2));
-    nameLabel.setBounds(topRow);
-    
     bool isFolded = engine.getTimelineProject().getTrack(trackIndex).isFolded;
     bool isGroup = engine.getTimelineProject().getTrack(trackIndex).isGroup;
+    
+    // Top Row logic
+    auto topRow = bounds.removeFromTop(24);
+    if (isGroup) {
+        foldButton.setBounds(topRow.removeFromLeft(20).reduced(2));
+    } else {
+        topRow.removeFromLeft(20); // Spacing if not group
+    }
+    
+    numberButton.setBounds(topRow.removeFromLeft(20).reduced(2));
+    nameLabel.setBounds(topRow.removeFromLeft(80));
+    
+    if (!isGroup && !isFolded) {
+        soloButton.setBounds(topRow.removeFromLeft(20).reduced(2));
+        armButton.setBounds(topRow.removeFromLeft(20).reduced(2));
+    }
     
     if (isFolded || isGroup) {
         soloButton.setVisible(false);
@@ -214,25 +225,28 @@ void TrackHeaderComponent::resized() {
         outTypeComboBox.setVisible(true);
         outChannelComboBox.setVisible(true);
 
-        auto buttonsArea = bounds.removeFromTop(20);
-        buttonsArea.removeFromLeft(40); // Align with name
-        soloButton.setBounds(buttonsArea.removeFromLeft(20).reduced(1));
-        armButton.setBounds(buttonsArea.removeFromLeft(20).reduced(1));
-
-        // Routing boxes
-        auto routingArea = bounds.reduced(30, 2);
+        // Routing Area
+        auto routingArea = bounds.reduced(5, 2);
         
-        inTypeComboBox.setBounds(routingArea.removeFromTop(18).reduced(0, 1));
-        inChannelComboBox.setBounds(routingArea.removeFromTop(18).reduced(0, 1));
+        // Two columns
+        auto leftColumn = routingArea.removeFromLeft(routingArea.getWidth() / 2).reduced(2, 0);
+        auto rightColumn = routingArea.reduced(2, 0);
         
-        auto monitorArea = routingArea.removeFromTop(18).reduced(0, 1);
+        // Left Column (Dropdowns)
+        inTypeComboBox.setBounds(leftColumn.removeFromTop(18).reduced(0, 1));
+        inChannelComboBox.setBounds(leftColumn.removeFromTop(18).reduced(0, 1));
+        
+        leftColumn.removeFromTop(4); // Spacing
+        
+        outTypeComboBox.setBounds(leftColumn.removeFromTop(18).reduced(0, 1));
+        outChannelComboBox.setBounds(leftColumn.removeFromTop(18).reduced(0, 1));
+        
+        // Right Column (Monitor options)
+        auto monitorArea = rightColumn.removeFromTop(20); // Give it some height
         int w = monitorArea.getWidth() / 3;
-        monitorInButton.setBounds(monitorArea.removeFromLeft(w));
-        monitorAutoButton.setBounds(monitorArea.removeFromLeft(w));
-        monitorOffButton.setBounds(monitorArea);
-        
-        outTypeComboBox.setBounds(routingArea.removeFromTop(18).reduced(0, 1));
-        outChannelComboBox.setBounds(routingArea.removeFromTop(18).reduced(0, 1));
+        monitorInButton.setBounds(monitorArea.removeFromLeft(w).reduced(1));
+        monitorAutoButton.setBounds(monitorArea.removeFromLeft(w).reduced(1));
+        monitorOffButton.setBounds(monitorArea.reduced(1));
     }
 }
 

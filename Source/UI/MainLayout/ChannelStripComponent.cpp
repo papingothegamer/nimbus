@@ -215,6 +215,8 @@ void ChannelStripComponent::mouseDown(const juce::MouseEvent& event) {
         m.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
             if (result == 1) {
                 engine.getTimelineProject().removeTrack(trackIndex);
+            } else if (result == 2) {
+                engine.getTimelineProject().groupTracks(engine.getTimelineProject().getSelectedTracks());
             }
         });
     }
