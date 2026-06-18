@@ -26,6 +26,14 @@ private:
     int keyHeight = 16;
     int totalKeys = 128;
     
+    int draggedEventIndex = -1;
+    bool isResizing = false;
+    double dragStartNoteTime = 0.0;
+    double dragStartNoteLength = 0.0;
+    int dragStartMouseX = 0;
+    int dragStartMouseY = 0;
+    int dragStartNoteNumber = 0;
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PianoRollContent)
 };
 

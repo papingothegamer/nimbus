@@ -84,9 +84,12 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     
     bool isFolded = engine.getTimelineProject().getTrack(trackIndex).isFolded;
     foldButton.setButtonText(isFolded ? DesignSystem::Iconography::Fold : DesignSystem::Iconography::Unfold);
+    
+    startTimerHz(30);
 }
 
 TrackHeaderComponent::~TrackHeaderComponent() {
+    stopTimer();
     engine.getTimelineProject().removeListener(this);
 }
 
@@ -171,8 +174,8 @@ void TrackHeaderComponent::paint(juce::Graphics& g) {
     g.setColour(DesignSystem::Colors::Divider);
     g.fillRect(0, getHeight() - 1, getWidth(), 1);
 
-    // Left separator (since it's on the right of the timeline)
-    g.fillRect(0, 0, 1, getHeight());
+    // Right separator (header is on left side)
+    g.fillRect(getWidth() - 1, 0, 1, getHeight());
 
     // Draw VU Meter or MIDI Activity on the right edge
     int meterWidth = 8;
@@ -181,17 +184,23 @@ void TrackHeaderComponent::paint(juce::Graphics& g) {
     g.setColour(DesignSystem::Colors::ModuleBackground.darker(0.2f));
     g.fillRect(meterBounds);
 
-    float level = 0.0f;
-    
-    if (level > 0.0f) {
+    if (currentLevel > 0.0f) {
         juce::ColourGradient cg(juce::Colours::lime, meterBounds.getBottomLeft().toFloat(),
                                 juce::Colours::red, meterBounds.getTopLeft().toFloat(), false);
         cg.addColour(0.7f, juce::Colours::yellow);
         
-        int fillHeight = juce::roundToInt(meterBounds.getHeight() * level);
+        int fillHeight = juce::roundToInt(meterBounds.getHeight() * currentLevel);
         auto fillBounds = meterBounds.withTrimmedTop(meterBounds.getHeight() - fillHeight);
         g.setGradientFill(cg);
         g.fillRect(fillBounds);
+    }
+}
+
+void TrackHeaderComponent::timerCallback() {
+    float newLevel = engine.getTrackPeakLevel(trackIndex);
+    if (std::abs(newLevel - currentLevel) > 0.01f) {
+        currentLevel = newLevel;
+        repaint(getWidth() - 16, 0, 16, getHeight());
     }
 }
 

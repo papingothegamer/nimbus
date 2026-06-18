@@ -23,7 +23,8 @@ private:
     
     juce::TextEditor searchBox;
     juce::ListBox itemsList;
-    juce::TextButton scanButton{"Scan for VST3s"};
+    juce::TextButton scanButton{"Scan for Plugins"};
+    std::unique_ptr<juce::Drawable> searchIcon;
 
     class PluginItemsModel;
     std::unique_ptr<PluginItemsModel> pluginModel;

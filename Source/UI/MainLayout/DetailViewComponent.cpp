@@ -4,13 +4,14 @@
 
 namespace Nimbus::MainLayout {
 
-DetailViewComponent::DetailViewComponent(NimbusEngine& e) : engine(e), pianoRoll(e), pianoRollTimeline(e), clipProperties(e), notesPanel(e), deviceChain(e) {
+DetailViewComponent::DetailViewComponent(NimbusEngine& e) : engine(e), pianoRoll(e), pianoRollTimeline(e), clipProperties(e), notesPanel(e), audioClipView(e), deviceChain(e) {
     juce::Logger::writeToLog("DetailViewComponent constructor start");
     addChildComponent(placeholderLabel);
     addChildComponent(clipProperties);
     addChildComponent(notesPanel);
     addChildComponent(pianoRollTimeline);
     addChildComponent(pianoRoll);
+    addChildComponent(audioClipView);
     addChildComponent(deviceChain);
     
     addAndMakeVisible(clipTabButton);
@@ -62,6 +63,7 @@ void DetailViewComponent::resized() {
         pianoRollTimeline.setVisible(false);
         clipProperties.setVisible(false);
         notesPanel.setVisible(false);
+        audioClipView.setVisible(false);
         
         deviceChain.setVisible(true);
         deviceChain.setBounds(area);
@@ -76,6 +78,7 @@ void DetailViewComponent::resized() {
         auto timelineArea = area.removeFromTop(20);
         pianoRollTimeline.setBounds(timelineArea);
         pianoRoll.setBounds(area);
+        audioClipView.setBounds(area);
         
         trackSelectionChanged(); // Restore clip view visibility logic
     }
@@ -98,6 +101,7 @@ void DetailViewComponent::trackSelectionChanged() {
         pianoRollTimeline.setVisible(false);
         clipProperties.setVisible(false);
         notesPanel.setVisible(false);
+        audioClipView.setVisible(false);
         
         placeholderLabel.setVisible(true);
         
@@ -136,12 +140,16 @@ void DetailViewComponent::selectedClipChanged() {
             clipProperties.updateClipInfo("MIDI Clip", midiClip->getStartSample(), midiClip->getLengthSamples());
             
             notesPanel.setVisible(true);
+            notesPanel.setMidiClip(midiClip);
             
             pianoRollTimeline.setVisible(true);
             pianoRollTimeline.setMidiClip(midiClip);
             
             pianoRoll.setVisible(true);
             pianoRoll.setMidiClip(midiClip);
+            
+            audioClipView.setVisible(false);
+            audioClipView.setAudioClip(nullptr);
         }
     } else if (std::holds_alternative<std::shared_ptr<AudioClip>>(clip)) {
         auto audioClip = std::get<std::shared_ptr<AudioClip>>(clip);
@@ -154,8 +162,10 @@ void DetailViewComponent::selectedClipChanged() {
             clipProperties.setMidiMode(false);
             clipProperties.updateClipInfo("Audio Clip", audioClip->getStartSample(), audioClip->getLengthSamples());
             
-            placeholderLabel.setVisible(true);
-            placeholderLabel.setText("Audio Clip Viewer (TODO)", juce::dontSendNotification);
+            audioClipView.setVisible(true);
+            audioClipView.setAudioClip(audioClip);
+            
+            placeholderLabel.setVisible(false);
         }
     }
     
@@ -165,6 +175,9 @@ void DetailViewComponent::selectedClipChanged() {
         pianoRoll.setVisible(false);
         pianoRollTimeline.setVisible(false);
         notesPanel.setVisible(false);
+        notesPanel.setMidiClip(nullptr);
+        audioClipView.setVisible(false);
+        audioClipView.setAudioClip(nullptr);
         clipProperties.setVisible(false);
         
         placeholderLabel.setVisible(true);

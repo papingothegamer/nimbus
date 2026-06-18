@@ -22,6 +22,7 @@ public:
 private:
     std::shared_ptr<MidiClip> midiClip;
     ITransport& transport;
+    double sampleRate_{44100.0};
     float currentPeak{0.0f};
 
     // Framework for bouncing:

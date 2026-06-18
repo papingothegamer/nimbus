@@ -1,6 +1,7 @@
 #include "SideBrowserComponent.h"
 #include "UI/DesignSystem/Colors.h"
 #include "UI/DesignSystem/Typography.h"
+#include <algorithm>
 
 namespace Nimbus::MainLayout {
 
@@ -10,28 +11,59 @@ class SideBrowserComponent::PluginItemsModel : public juce::ListBoxModel {
 public:
     PluginItemsModel(NimbusEngine& e) : engine(e) {}
     
+    struct ListItem {
+        bool isHeader = false;
+        juce::String headerText;
+        juce::PluginDescription desc;
+    };
+    
     void updateList(bool instrumentsOnly) {
-        plugins.clear();
+        items.clear();
+        std::vector<juce::PluginDescription> rawPlugins;
         auto& list = engine.getPluginManager().getKnownPluginList();
         for (int i = 0; i < list.getNumTypes(); ++i) {
             auto* type = list.getType(i);
-            if (instrumentsOnly && !type->isInstrument) continue;
-            if (!instrumentsOnly && type->isInstrument) continue;
-            plugins.push_back(*type);
+            rawPlugins.push_back(*type);
+        }
+        // Sort by manufacturer then name
+        std::sort(rawPlugins.begin(), rawPlugins.end(), [](const auto& a, const auto& b) {
+            if (a.manufacturerName != b.manufacturerName)
+                return a.manufacturerName.compareIgnoreCase(b.manufacturerName) < 0;
+            return a.name.compareIgnoreCase(b.name) < 0;
+        });
+        
+        juce::String currentMfg;
+        for (auto& p : rawPlugins) {
+            if (p.manufacturerName != currentMfg) {
+                currentMfg = p.manufacturerName;
+                items.push_back({true, currentMfg, {}});
+            }
+            items.push_back({false, "", p});
         }
     }
 
-    int getNumRows() override { return plugins.size(); }
+    int getNumRows() override { return items.size(); }
     void paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected) override {
-        if (rowIsSelected) g.fillAll(DesignSystem::Colors::PrimaryAction.withAlpha(0.2f));
-        g.setColour(DesignSystem::Colors::TextPrimary);
-        g.setFont(DesignSystem::Typography::getPrimaryFont());
-        g.drawText("  " + plugins[rowNumber].name, 0, 0, width, height, juce::Justification::centredLeft, true);
+        auto& item = items[rowNumber];
+        if (item.isHeader) {
+            g.fillAll(DesignSystem::Colors::ComponentBackground);
+            g.setColour(DesignSystem::Colors::TextSecondary);
+            g.setFont(juce::Font(11.0f, juce::Font::bold));
+            g.drawText("  " + item.headerText.toUpperCase(), 0, 0, width, height, juce::Justification::centredLeft, true);
+        } else {
+            if (rowIsSelected) g.fillAll(DesignSystem::Colors::PrimaryAction.withAlpha(0.2f));
+            g.setColour(DesignSystem::Colors::TextPrimary);
+            g.setFont(DesignSystem::Typography::getPrimaryFont());
+            g.drawText("    " + item.desc.name, 0, 0, width, height, juce::Justification::centredLeft, true);
+        }
     }
     
     void listBoxItemDoubleClicked(int row, const juce::MouseEvent&) override {
-        if (row < 0 || row >= plugins.size()) return;
-        auto& desc = plugins[row];
+        if (row < 0 || row >= (int)items.size()) return;
+        auto& item = items[row];
+        if (item.isHeader) return;
+        
+        auto& desc = item.desc;
         
         auto selectedTracks = engine.getTimelineProject().getSelectedTracks();
         if (!selectedTracks.isEmpty()) {
@@ -42,7 +74,11 @@ public:
                 auto node = std::make_unique<PluginNode>(std::move(instance));
                 auto track = engine.getMixer()->getTrack(trackIndex);
                 if (track) {
-                    track->addInsertPlugin(std::move(node));
+                    if (desc.isInstrument) {
+                        track->setInstrumentPlugin(std::move(node));
+                    } else {
+                        track->addInsertPlugin(std::move(node));
+                    }
                 }
             } else {
                 juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::WarningIcon, "Plugin Load Error", err);
@@ -52,7 +88,7 @@ public:
 
 private:
     NimbusEngine& engine;
-    std::vector<juce::PluginDescription> plugins;
+    std::vector<ListItem> items;
 };
 
 SideBrowserComponent::SideBrowserComponent(NimbusEngine& e) : engine(e) {
@@ -107,6 +143,12 @@ SideBrowserComponent::SideBrowserComponent(NimbusEngine& e) : engine(e) {
         }
     };
     
+    int dataSize = 0;
+    if (auto* data = BinaryData::getNamedResource("search_svg", dataSize)) {
+        searchIcon = juce::Drawable::createFromImageData(data, dataSize);
+        if (searchIcon) searchIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
+    }
+    
     pluginsTab.onClick(); // Populate initial view
 }
 
@@ -128,19 +170,14 @@ void SideBrowserComponent::timerCallback() {
 void SideBrowserComponent::paint(juce::Graphics& g) {
     g.fillAll(DesignSystem::Colors::PanelBackground);
     
-    // Right border
+    // Left border (browser is on right side)
     g.setColour(DesignSystem::Colors::Divider);
-    g.fillRect(getWidth() - 1, 0, 1, getHeight());
+    g.fillRect(0, 0, 1, getHeight());
     
     // Search icon
-    int dataSize = 0;
-    if (auto* data = BinaryData::getNamedResource("search_svg", dataSize)) {
-        if (auto drawable = juce::Drawable::createFromImageData(data, dataSize)) {
-            drawable->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
-            auto iconBounds = getLocalBounds().removeFromTop(30).removeFromBottom(36).reduced(5).removeFromLeft(20).toFloat();
-            iconBounds = juce::Rectangle<float>(10, 30 + 10, 16, 16); // Manually position near the search box
-            drawable->drawWithin(g, iconBounds, juce::RectanglePlacement::centred, 1.0f);
-        }
+    if (searchIcon) {
+        auto iconBounds = juce::Rectangle<float>(10, 30 + 10, 16, 16); // Manually position near the search box
+        searchIcon->drawWithin(g, iconBounds, juce::RectanglePlacement::centred, 1.0f);
     }
 }
 

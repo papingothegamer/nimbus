@@ -5,6 +5,7 @@
 #include "DSP/GainNode.h"
 #include "DSP/LevelMeter.h"
 #include <memory>
+#include <atomic>
 
 namespace Nimbus {
 
@@ -33,6 +34,9 @@ public:
      */
     void addInsertPlugin(std::unique_ptr<IAudioNode> pluginNode);
     void removeInsertPlugin(IAudioNode* pluginNode);
+
+    void setInstrumentPlugin(std::unique_ptr<IAudioNode> instrumentNode);
+    IAudioNode* getInstrumentPlugin() const { return instrument.get(); }
     
     const AudioGraph& getInsertGraph() const { return insertGraph; }
 
@@ -44,16 +48,26 @@ public:
     float getPeakLevel() const { return meter.getPeakLevel(); }
     float getRMSLevel() const { return meter.getRMSLevel(); }
 
+    // Mute / Solo
+    void setMuted(bool muted);
+    void setSoloed(bool soloed);
+    bool isMuted() const { return muted_.load(); }
+    bool isSoloed() const { return soloed_.load(); }
+
 private:
     std::unique_ptr<IAudioNode> source;
+    std::unique_ptr<IAudioNode> instrument;  // Synth for MIDI tracks
     AudioGraph insertGraph;
     GainNode fader;
     LevelMeter meter;
     
     // Intermediate buffer to hold this track's isolated audio
     juce::AudioBuffer<float> trackBuffer;
+    juce::MidiBuffer trackMidiBuffer;
     double currentSampleRate = 44100.0;
     int currentBlockSize = 512;
+    std::atomic<bool> muted_{false};
+    std::atomic<bool> soloed_{false};
 };
 
 } // namespace Nimbus

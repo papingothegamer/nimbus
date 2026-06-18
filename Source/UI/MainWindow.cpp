@@ -60,7 +60,7 @@ void MainWindow::MainContentComponent::resized() {
     
     // Side Browser
     if (isBrowserVisible) {
-        sideBrowser.setBounds(bounds.removeFromLeft(200));
+        sideBrowser.setBounds(bounds.removeFromRight(200));
     }
     
     // Timeline takes the rest
@@ -181,10 +181,6 @@ bool MainWindow::keyPressed(const juce::KeyPress& key) {
             juce::Logger::writeToLog("Shortcut: Undo");
             return true;
         }
-    } else if (key.getKeyCode() == juce::KeyPress::deleteKey || key.getKeyCode() == juce::KeyPress::backspaceKey) {
-        juce::Logger::writeToLog("Shortcut: Delete Selection");
-        // TODO: Delete selected track
-        return true;
     } else if (key.getKeyCode() == juce::KeyPress::spaceKey) {
         if (mainContent.getEngine().getTransport().isPlaying()) {
             mainContent.getEngine().getTransport().stop();

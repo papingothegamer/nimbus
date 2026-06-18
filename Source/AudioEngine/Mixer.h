@@ -30,6 +30,11 @@ public:
      */
     void addTrack(std::unique_ptr<Track> track);
 
+    /**
+     * Remove a track from the mixer by index. Thread-safe (called from UI).
+     */
+    void removeTrack(int index);
+
     // Master Fader Controls
     void setMasterVolume(float gainLinear);
     void setMasterPan(float panValue);
@@ -50,6 +55,7 @@ public:
 private:
     std::vector<std::unique_ptr<Track>> tracks;
     LockFreeQueue<std::unique_ptr<Track>> trackAddQueue;
+    LockFreeQueue<int> trackRemoveQueue;
 
     GainNode masterFader;
     LevelMeter meter;

@@ -106,9 +106,10 @@ void NimbusLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& butt
             auto iconBounds = button.getLocalBounds().toFloat();
             
             // If the button is larger than standard 24x24, we don't want the icon to scale too massively
-            float maxSize = 18.0f;
-            float w = juce::jmin(iconBounds.getWidth() - 4.0f, maxSize);
-            float h = juce::jmin(iconBounds.getHeight() - 4.0f, maxSize);
+            float dim = juce::jmin(iconBounds.getWidth(), iconBounds.getHeight());
+            float iconSize = juce::jmax(14.0f, dim * 0.65f);
+            float w = juce::jmin(iconBounds.getWidth() - 4.0f, iconSize);
+            float h = juce::jmin(iconBounds.getHeight() - 4.0f, iconSize);
             auto drawBounds = juce::Rectangle<float>(0, 0, w, h).withCentre(iconBounds.getCentre());
             
             clone->drawWithin(g, drawBounds, juce::RectanglePlacement::centred, 1.0f);

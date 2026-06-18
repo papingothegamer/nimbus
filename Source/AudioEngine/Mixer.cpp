@@ -2,7 +2,7 @@
 
 namespace Nimbus {
 
-Mixer::Mixer() : trackAddQueue(128) {
+Mixer::Mixer() : trackAddQueue(128), trackRemoveQueue(128) {
 }
 
 void Mixer::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) {
@@ -32,11 +32,23 @@ void Mixer::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
         }
     }
 
+    int removeIndex;
+    while (trackRemoveQueue.pop(removeIndex)) {
+        if (removeIndex >= 0 && removeIndex < (int)tracks.size()) {
+            tracks[removeIndex]->releaseResources();
+            tracks.erase(tracks.begin() + removeIndex);
+        }
+    }
+
     // 2. Clear master buffer
     buffer.clear();
 
     // 3. Process and sum all tracks
+    bool anySoloed = false;
+    for (auto& t : tracks) if (t->isSoloed()) { anySoloed = true; break; }
+
     for (auto& track : tracks) {
+        if (anySoloed && !track->isSoloed()) continue;
         track->processBlock(buffer, midiMessages);
     }
 
@@ -63,6 +75,10 @@ int Mixer::getLatencySamples() const {
 void Mixer::addTrack(std::unique_ptr<Track> track) {
     bool success = trackAddQueue.push(std::move(track));
     jassert(success && "Track add queue is full!");
+}
+
+void Mixer::removeTrack(int index) {
+    trackRemoveQueue.push(index);
 }
 
 void Mixer::setMasterVolume(float gainLinear) {

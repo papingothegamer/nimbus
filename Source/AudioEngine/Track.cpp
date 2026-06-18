@@ -11,29 +11,43 @@ void Track::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock)
     trackBuffer.setSize(2, maximumExpectedSamplesPerBlock);
     
     if (source) source->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
+    if (instrument) instrument->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
     insertGraph.prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
     fader.prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
 }
 
 void Track::releaseResources() {
     if (source) source->releaseResources();
+    if (instrument) instrument->releaseResources();
     insertGraph.releaseResources();
     fader.releaseResources();
 }
 
 void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
+    if (muted_.load(std::memory_order_relaxed)) {
+        trackBuffer.clear();
+        meter.processBlock(trackBuffer);
+        return;
+    }
+
     trackBuffer.clear();
+    trackMidiBuffer.clear();
 
     // 1. Process the source generator into the track buffer
     if (source) {
-        source->processBlock(trackBuffer, midiMessages);
+        source->processBlock(trackBuffer, trackMidiBuffer);
+    }
+
+    // 1.5 Process instrument plugin (synth consumes MIDI, produces audio)
+    if (instrument) {
+        instrument->processBlock(trackBuffer, trackMidiBuffer);
     }
 
     // 2. Process insert plugins
-    insertGraph.processBlock(trackBuffer, midiMessages);
+    insertGraph.processBlock(trackBuffer, trackMidiBuffer);
 
     // 3. Apply volume and panning
-    fader.processBlock(trackBuffer, midiMessages);
+    fader.processBlock(trackBuffer, trackMidiBuffer);
 
     // 4. Update the level meter
     meter.processBlock(trackBuffer);
@@ -60,6 +74,13 @@ void Track::setSourceNode(std::unique_ptr<IAudioNode> sourceNode) {
     }
 }
 
+void Track::setInstrumentPlugin(std::unique_ptr<IAudioNode> instrumentNode) {
+    instrument = std::move(instrumentNode);
+    if (instrument && currentSampleRate > 0) {
+        instrument->prepareToPlay(currentSampleRate, currentBlockSize);
+    }
+}
+
 void Track::addInsertPlugin(std::unique_ptr<IAudioNode> pluginNode) {
     insertGraph.addNode(std::move(pluginNode));
 }
@@ -75,5 +96,8 @@ void Track::setVolume(float gainLinear) {
 void Track::setPan(float panValue) {
     fader.setPan(panValue);
 }
+
+void Track::setMuted(bool muted) { muted_.store(muted); }
+void Track::setSoloed(bool soloed) { soloed_.store(soloed); }
 
 } // namespace Nimbus

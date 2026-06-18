@@ -27,6 +27,7 @@ private:
     std::vector<std::unique_ptr<PluginBox>> pluginBoxes;
     
     int currentTrackIndex = -1;
+    std::unique_ptr<juce::Drawable> addPluginIcon;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DeviceChainComponent)
 };

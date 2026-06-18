@@ -107,10 +107,13 @@ target_sources(Nimbus PRIVATE
     Source/UI/MainLayout/DetailViewComponent.cpp
     Source/UI/MainLayout/DetailViewComponent.h
     Source/UI/MainLayout/DeviceChainComponent.cpp
+    Source/UI/MainLayout/DeviceChainComponent.h
     Source/UI/Mixer/GroupIndicatorComponent.cpp
     Source/UI/Mixer/GroupIndicatorComponent.h
     Source/UI/DetailView/PianoRollComponent.cpp
+    Source/UI/DetailView/PianoRollComponent.h
     Source/UI/DetailView/AudioClipViewComponent.cpp
+    Source/UI/DetailView/AudioClipViewComponent.h
     Source/UI/DetailView/ClipPropertiesComponent.cpp
     Source/UI/DetailView/ClipPropertiesComponent.h
     Source/UI/DetailView/NotesPanelComponent.cpp
@@ -135,7 +138,6 @@ target_sources(Nimbus PRIVATE
     Source/DataModel/TimelineProject.cpp
     Source/PluginHost/PluginManager.cpp
     Source/AudioEngine/PluginNode.cpp
-    Source/UI/PluginWindow.cpp
 )
 
 # Link JUCE modules

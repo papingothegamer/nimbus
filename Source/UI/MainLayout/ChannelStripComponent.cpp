@@ -165,12 +165,12 @@ void ChannelStripComponent::drawMeter(juce::Graphics& g, juce::Rectangle<int> bo
 void ChannelStripComponent::resized() {
     auto bounds = getLocalBounds().reduced(2);
     
+    // Group indicator at bottom if needed
     if (trackIndex != -1) {
         const auto& track = engine.getTimelineProject().getTrack(trackIndex);
         if (!track.parentGroupId.isNull()) {
             groupIndicator.setVisible(true);
             groupIndicator.setBounds(bounds.removeFromBottom(10));
-            // In mixer, indicator at bottom is cool. We don't have isLast logic here unless set by parent.
         } else {
             groupIndicator.setVisible(false);
         }
@@ -178,50 +178,52 @@ void ChannelStripComponent::resized() {
         groupIndicator.setVisible(false);
     }
     
-    // Top section: Dropdowns
-    auto topArea = bounds.removeFromTop(65); // Give enough room for name and both dropdowns
+    // Reserve right edge for meters
+    auto contentBounds = bounds.withTrimmedRight(15);
     
-    // Top name
-    nameLabel.setBounds(topArea.removeFromTop(20));
-    bounds.removeFromTop(5);
+    // 1. Name label at top
+    nameLabel.setBounds(contentBounds.removeFromTop(20));
+    contentBounds.removeFromTop(2);
     
-    // Pan
-    pan.setBounds(bounds.removeFromTop(40).reduced(10, 0));
-    bounds.removeFromTop(5);
-
-    // Mute/Solo/Arm Buttons
+    // 2. Input combo
     if (!master) {
-        auto buttonBounds = bounds.removeFromTop(20).reduced(10, 0);
-        muteButton.setBounds(buttonBounds.removeFromLeft(18));
-        soloButton.setBounds(buttonBounds.removeFromLeft(18).translated(2, 0));
-        armButton.setBounds(buttonBounds.removeFromLeft(18).translated(2, 0));
-        bounds.removeFromTop(5);
+        inputComboBox.setBounds(contentBounds.removeFromTop(20).reduced(2, 0));
+        contentBounds.removeFromTop(2);
     }
-
-    // Volume box
-    volumeLabel.setBounds(bounds.removeFromTop(20).reduced(10, 0));
-    bounds.removeFromTop(5);
-
-
-    // Mute/Solo
+    
+    // 3. Pan knob
+    pan.setBounds(contentBounds.removeFromTop(40).reduced(8, 0));
+    contentBounds.removeFromTop(2);
+    
+    // 4. Mute/Solo/Arm buttons
     if (!master) {
-        auto btnArea = bounds.removeFromBottom(20);
+        auto buttonRow = contentBounds.removeFromTop(20).reduced(4, 0);
+        int bw = buttonRow.getWidth() / 3;
+        muteButton.setBounds(buttonRow.removeFromLeft(bw).reduced(1, 0));
+        soloButton.setBounds(buttonRow.removeFromLeft(bw).reduced(1, 0));
+        armButton.setBounds(buttonRow.reduced(1, 0));
+        contentBounds.removeFromTop(2);
+    }
+    
+    // 5. Volume label
+    volumeLabel.setBounds(contentBounds.removeFromTop(20).reduced(4, 0));
+    contentBounds.removeFromTop(2);
+    
+    // Bottom: Routing combo and stereo button
+    if (!master) {
         if (stereo) {
-            stereoButton.setBounds(btnArea.removeFromRight(20).reduced(2));
+            stereoButton.setBounds(contentBounds.removeFromBottom(20).reduced(2));
+            contentBounds.removeFromBottom(2);
         }
+        routingComboBox.setBounds(contentBounds.removeFromBottom(20).reduced(2, 0));
+        contentBounds.removeFromBottom(2);
+    } else {
+        routingComboBox.setBounds(contentBounds.removeFromBottom(20).reduced(2, 0));
+        contentBounds.removeFromBottom(2);
     }
-
-    // Routing dropdowns at the very bottom
-    bounds.removeFromBottom(5);
-    routingComboBox.setBounds(bounds.removeFromBottom(20).withTrimmedRight(15).reduced(2, 0));
-    bounds.removeFromBottom(2);
-    if (!master) {
-        inputComboBox.setBounds(bounds.removeFromBottom(20).withTrimmedRight(15).reduced(2, 0));
-        bounds.removeFromBottom(5);
-    }
-
-    // Fader gets the rest, keep right edge clear for meters
-    fader.setBounds(bounds.withTrimmedRight(15).reduced(4, 0));
+    
+    // 6. Fader takes remaining space
+    fader.setBounds(contentBounds.reduced(4, 0));
 }
 
 void ChannelStripComponent::mouseDown(const juce::MouseEvent& event) {

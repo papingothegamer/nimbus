@@ -130,12 +130,14 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     detailToggleButton.onClick = [this] { if (onDetailToggle) onDetailToggle(); };
 
     playButton.onClick = [this] { 
-        engine.getTransport().play(); 
-        playButton.setToggleState(engine.getTransport().isPlaying(), juce::dontSendNotification);
+        if (engine.getTransport().isPlaying()) {
+            engine.getTransport().stop();
+        } else {
+            engine.getTransport().play();
+        }
     };
     stopButton.onClick = [this] { 
         engine.getTransport().stop(); 
-        playButton.setToggleState(false, juce::dontSendNotification);
     };
     
     followPlayheadToggle.onClick = [this] {
@@ -156,68 +158,83 @@ void TopToolbarComponent::paint(juce::Graphics& g) {
 }
 
 void TopToolbarComponent::timerCallback() {
-    playButton.setToggleState(engine.getTransport().isPlaying(), juce::dontSendNotification);
+    bool isPlaying = engine.getTransport().isPlaying();
+    playButton.setToggleState(isPlaying, juce::dontSendNotification);
+    playButton.setButtonText(isPlaying ? DesignSystem::Iconography::Pause : DesignSystem::Iconography::Play);
     followPlayheadToggle.setToggleState(engine.isFollowPlayheadEnabled(), juce::dontSendNotification);
 }
 
 void TopToolbarComponent::resized() {
-    auto bounds = getLocalBounds().reduced(5);
-    
-    int blockSpacing = 20;
-    int btnW = 24;
-    int h = 24;
+    auto bounds = getLocalBounds().reduced(4, 2);
+    int h = bounds.getHeight();
+    int btnW = 28;
+    int smallBtnW = 20;
+    int gap = 4;
 
-    // Left Block
-    linkToggle.setBounds(bounds.removeFromLeft(40).withHeight(h));
-    bounds.removeFromLeft(5);
-    tapTempoButton.setBounds(bounds.removeFromLeft(30).withHeight(h));
-    bounds.removeFromLeft(5);
+    // Far-left: browser toggle
+    browserToggleButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
+    bounds.removeFromLeft(gap);
+
+    // Left Block: Link, Tap, Tempo, Nudge, TimeSig, Metronome, Quantize
+    linkToggle.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
+    bounds.removeFromLeft(gap);
+    tapTempoButton.setBounds(bounds.removeFromLeft(32).withHeight(h));
+    bounds.removeFromLeft(gap);
     tempoLabel.setBounds(bounds.removeFromLeft(50).withHeight(h));
-    bounds.removeFromLeft(5);
-    nudgeDownButton.setBounds(bounds.removeFromLeft(15).withHeight(h));
-    nudgeUpButton.setBounds(bounds.removeFromLeft(15).withHeight(h));
-    bounds.removeFromLeft(5);
-    timeSigNumLabel.setBounds(bounds.removeFromLeft(20).withHeight(h));
-    timeSigDenLabel.setBounds(bounds.removeFromLeft(20).withHeight(h));
-    bounds.removeFromLeft(5);
-    metronomeToggle.setBounds(bounds.removeFromLeft(30).withHeight(h));
-    bounds.removeFromLeft(5);
+    bounds.removeFromLeft(2);
+    nudgeDownButton.setBounds(bounds.removeFromLeft(smallBtnW).withHeight(h));
+    nudgeUpButton.setBounds(bounds.removeFromLeft(smallBtnW).withHeight(h));
+    bounds.removeFromLeft(gap);
+    timeSigNumLabel.setBounds(bounds.removeFromLeft(smallBtnW).withHeight(h));
+    timeSigDenLabel.setBounds(bounds.removeFromLeft(smallBtnW).withHeight(h));
+    bounds.removeFromLeft(gap);
+    metronomeToggle.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
+    bounds.removeFromLeft(gap);
     quantizeBox.setBounds(bounds.removeFromLeft(60).withHeight(h));
 
-    bounds.removeFromLeft(blockSpacing);
+    bounds.removeFromLeft(gap * 3);
 
-    // Center Block (Transport)
+    // Center Block: Transport
     playButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
+    bounds.removeFromLeft(2);
     stopButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
+    bounds.removeFromLeft(2);
     arrRecordButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
-    bounds.removeFromLeft(5);
+    bounds.removeFromLeft(gap);
     autoArmButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
+    bounds.removeFromLeft(2);
     reenableAutoButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
-    bounds.removeFromLeft(5);
+    bounds.removeFromLeft(gap);
     sessionRecordButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
-    captureMidiButton.setBounds(bounds.removeFromLeft(30).withHeight(h));
+    bounds.removeFromLeft(2);
+    captureMidiButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
 
-    bounds.removeFromLeft(blockSpacing);
+    bounds.removeFromLeft(gap * 3);
 
-    // Right Block 1 (Loop)
+    // Loop Block
     loopButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
-    punchInButton.setBounds(bounds.removeFromLeft(15).withHeight(h));    
-    loopStartLabel.setBounds(bounds.removeFromLeft(30));
-    loopLengthLabel.setBounds(bounds.removeFromLeft(30));
-    
-    followPlayheadToggle.setBounds(bounds.removeFromLeft(40));
+    bounds.removeFromLeft(2);
+    punchInButton.setBounds(bounds.removeFromLeft(smallBtnW).withHeight(h));
+    loopStartLabel.setBounds(bounds.removeFromLeft(36).withHeight(h));
+    loopLengthLabel.setBounds(bounds.removeFromLeft(36).withHeight(h));
+    punchOutButton.setBounds(bounds.removeFromLeft(smallBtnW).withHeight(h));
+    bounds.removeFromLeft(gap);
+    followPlayheadToggle.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
 
-    // Far Right Block (Misc)
-    auto rightBounds = bounds.removeFromRight(200);
-    cpuLabel.setBounds(rightBounds.removeFromRight(40).withHeight(h));
-    midiMapToggle.setBounds(rightBounds.removeFromRight(40).withHeight(h));
-    keyMapToggle.setBounds(rightBounds.removeFromRight(40).withHeight(h));
-    compMidiToggle.setBounds(rightBounds.removeFromRight(40).withHeight(h));
-    drawModeToggle.setBounds(rightBounds.removeFromRight(40).withHeight(h));
+    // Far-right: detail toggle
+    detailToggleButton.setBounds(bounds.removeFromRight(btnW).withHeight(h));
+    bounds.removeFromRight(gap);
 
-    // Place toggles at the far edges
-    browserToggleButton.setBounds(getLocalBounds().removeFromLeft(20).withHeight(20));
-    detailToggleButton.setBounds(getLocalBounds().removeFromRight(20).withHeight(20));
+    // Right block: CPU, MIDI map, Key map, Comp MIDI, Draw mode
+    cpuLabel.setBounds(bounds.removeFromRight(40).withHeight(h));
+    bounds.removeFromRight(gap);
+    midiMapToggle.setBounds(bounds.removeFromRight(btnW).withHeight(h));
+    bounds.removeFromRight(2);
+    keyMapToggle.setBounds(bounds.removeFromRight(btnW).withHeight(h));
+    bounds.removeFromRight(2);
+    compMidiToggle.setBounds(bounds.removeFromRight(btnW).withHeight(h));
+    bounds.removeFromRight(2);
+    drawModeToggle.setBounds(bounds.removeFromRight(btnW).withHeight(h));
 }
 
 } // namespace Nimbus::MainLayout

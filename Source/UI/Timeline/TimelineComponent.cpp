@@ -86,6 +86,9 @@ TimelineComponent::TimelineComponent(NimbusEngine& e)
     : engine(e)
 {
     addAndMakeVisible(seekingBar);
+    addAndMakeVisible(viewport);
+    viewport.setViewedComponent(&trackContainer, false);
+    viewport.setScrollBarsShown(true, false);
 
     // Register as listener
     engine.getTimelineProject().addListener(this);
@@ -123,8 +126,8 @@ void TimelineComponent::paint(juce::Graphics& g) {
     
     double startX = -std::fmod(scrollOffsetX, pixelsPerBeat);
     for (double i = startX; i < lanesWidth; i += pixelsPerBeat) {
-        int x = static_cast<int>(std::round(i));
-        if (x >= 0) {
+        int x = static_cast<int>(std::round(i)) + headerWidth;
+        if (x >= headerWidth) {
             g.drawLine(x, 24, x, getHeight(), 1.0f);
         }
     }
@@ -140,12 +143,12 @@ void TimelineComponent::paintOverChildren(juce::Graphics& g) {
     if (sampleRate <= 0.0) sampleRate = 48000.0;
     
     double positionSeconds = positionSamples / sampleRate;
-    int playheadX = static_cast<int>(positionSeconds * pixelsPerSecond) - scrollOffsetX;
+    int playheadX = static_cast<int>(positionSeconds * pixelsPerSecond) - scrollOffsetX + headerWidth;
     
-    if (playheadX >= 0 && playheadX < lanesWidth) {
+    if (playheadX >= headerWidth && playheadX < headerWidth + lanesWidth) {
         // Draw inside a clipped region
         g.saveState();
-        g.reduceClipRegion(0, 0, lanesWidth, getHeight());
+        g.reduceClipRegion(headerWidth, 0, lanesWidth, getHeight());
 
         g.setColour(DesignSystem::Colors::PrimaryAction);
         g.drawLine(playheadX, 0, playheadX, getHeight(), 2.0f);
@@ -176,8 +179,8 @@ void TimelineComponent::trackAdded(int trackIndex, const TrackModel& track) {
         trackLanes[i]->setTrackIndex(i);
     }
     
-    addAndMakeVisible(trackHeaders[trackIndex]);
-    addAndMakeVisible(trackLanes[trackIndex]);
+    trackContainer.addAndMakeVisible(trackHeaders[trackIndex]);
+    trackContainer.addAndMakeVisible(trackLanes[trackIndex]);
     resized();
 }
 
@@ -209,8 +212,8 @@ void TimelineComponent::tracksGrouped() {
             trackHeaders.add(new Timeline::TrackHeaderComponent(engine, i));
         }
         trackLanes.add(new Timeline::TrackLaneComponent(engine, *this, i));
-        addAndMakeVisible(trackHeaders.getLast());
-        addAndMakeVisible(trackLanes.getLast());
+        trackContainer.addAndMakeVisible(trackHeaders.getLast());
+        trackContainer.addAndMakeVisible(trackLanes.getLast());
     }
     resized();
 }
@@ -222,17 +225,16 @@ void TimelineComponent::trackFoldStateChanged(int trackIndex, bool isFolded) {
 void TimelineComponent::resized() {
     auto bounds = getLocalBounds();
     
-    // Seeking Bar at the top
-    seekingBar.setBounds(bounds.removeFromTop(24).withTrimmedRight(150)); // Avoid header area
-
     int headerWidth = 150;
     int trackHeight = 110;
+
+    // Seeking Bar at the top
+    seekingBar.setBounds(bounds.removeFromTop(24).withTrimmedLeft(headerWidth));
     
-    // Left side: Lanes
-    auto lanesArea = bounds.removeFromLeft(bounds.getWidth() - headerWidth);
+    viewport.setBounds(bounds);
     
-    // Right side: Headers
-    auto headersArea = bounds;
+    int currentY = 0;
+    int containerWidth = bounds.getWidth() - viewport.getScrollBarThickness();
     
     for (int i = 0; i < trackHeaders.size(); ++i) {
         int currentTrackHeight = trackHeight; // default
@@ -243,7 +245,6 @@ void TimelineComponent::resized() {
             
             // Check if parent group is folded
             if (!track.parentGroupId.isNull()) {
-                // Find parent group
                 for (int j = 0; j < engine.getTimelineProject().getNumTracks(); ++j) {
                     const auto& parentTrack = engine.getTimelineProject().getTrack(j);
                     if (parentTrack.id == track.parentGroupId) {
@@ -256,25 +257,29 @@ void TimelineComponent::resized() {
             }
             
             if (track.isGroup && track.isFolded) {
-                currentTrackHeight = 32; // Folded compact height
+                currentTrackHeight = 32;
             } else if (track.isFolded) {
                 currentTrackHeight = 32;
             } else if (track.isGroup) {
-                currentTrackHeight = 32; // Group tracks are generally small if we want, or default
+                currentTrackHeight = 32;
             }
         }
         
         if (isHidden) {
-            currentTrackHeight = 0;
             trackHeaders[i]->setVisible(false);
             trackLanes[i]->setVisible(false);
         } else {
             trackHeaders[i]->setVisible(true);
             trackLanes[i]->setVisible(true);
-            trackLanes[i]->setBounds(lanesArea.removeFromTop(currentTrackHeight).reduced(0, 1));
-            trackHeaders[i]->setBounds(headersArea.removeFromTop(currentTrackHeight).reduced(0, 1));
+            
+            trackHeaders[i]->setBounds(0, currentY, headerWidth, currentTrackHeight - 1);
+            trackLanes[i]->setBounds(headerWidth, currentY, containerWidth - headerWidth, currentTrackHeight - 1);
+            
+            currentY += currentTrackHeight;
         }
     }
+    
+    trackContainer.setBounds(0, 0, containerWidth, currentY);
 }
 
 void TimelineComponent::timerCallback() {
@@ -289,7 +294,7 @@ void TimelineComponent::timerCallback() {
         int headerWidth = 150;
         int lanesWidth = getWidth() - headerWidth;
         
-        int playheadScreenX = playheadAbsoluteX - static_cast<int>(scrollOffsetX);
+        int playheadScreenX = playheadAbsoluteX - static_cast<int>(scrollOffsetX) + headerWidth;
         
         // Continuous scroll: keep playhead at 1/3 of the screen width
         int targetPlayheadScreenX = lanesWidth / 3;

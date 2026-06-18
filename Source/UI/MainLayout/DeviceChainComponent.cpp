@@ -11,6 +11,18 @@ public:
         if (node && node->getPluginInstance()) {
             name = node->getPluginInstance()->getName();
         }
+        
+        int iconDataSize = 0;
+        if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::Device.toUTF8(), iconDataSize)) {
+            deviceIcon = juce::Drawable::createFromImageData(data, iconDataSize);
+            if (deviceIcon) deviceIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
+        }
+        
+        int delDataSize = 0;
+        if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::Delete.toUTF8(), delDataSize)) {
+            deleteIcon = juce::Drawable::createFromImageData(data, delDataSize);
+            if (deleteIcon) deleteIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::PrimaryAction);
+        }
     }
     
     void paint(juce::Graphics& g) override {
@@ -22,12 +34,8 @@ public:
         g.drawRoundedRectangle(bounds.toFloat(), 5.0f, 1.0f);
         
         auto iconBounds = bounds.removeFromTop(40).reduced(10);
-        int iconDataSize = 0;
-        if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::Device.toUTF8(), iconDataSize)) {
-            if (auto drawable = juce::Drawable::createFromImageData(data, iconDataSize)) {
-                drawable->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
-                drawable->drawWithin(g, iconBounds.toFloat(), juce::RectanglePlacement::centred, 1.0f);
-            }
+        if (deviceIcon) {
+            deviceIcon->drawWithin(g, iconBounds.toFloat(), juce::RectanglePlacement::centred, 1.0f);
         }
 
         // Plugin Name
@@ -36,12 +44,8 @@ public:
         g.drawText(name, bounds.removeFromTop(20), juce::Justification::centred, true);
         
         auto bottomBounds = getLocalBounds().reduced(4).removeFromBottom(30).reduced(5);
-        int delDataSize = 0;
-        if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::Delete.toUTF8(), delDataSize)) {
-            if (auto drawable = juce::Drawable::createFromImageData(data, delDataSize)) {
-                drawable->replaceColour(juce::Colours::black, DesignSystem::Colors::PrimaryAction);
-                drawable->drawWithin(g, bottomBounds.toFloat(), juce::RectanglePlacement::centred, 1.0f);
-            }
+        if (deleteIcon) {
+            deleteIcon->drawWithin(g, bottomBounds.toFloat(), juce::RectanglePlacement::centred, 1.0f);
         }
     }
     
@@ -123,10 +127,18 @@ private:
     NimbusEngine& engine;
     juce::String name;
     juce::Component::SafePointer<PluginWindow> window;
+    std::unique_ptr<juce::Drawable> deviceIcon;
+    std::unique_ptr<juce::Drawable> deleteIcon;
 };
 
 DeviceChainComponent::DeviceChainComponent(NimbusEngine& e) : engine(e) {
     startTimerHz(10); // Check for plugin additions
+    
+    int iconDataSize = 0;
+    if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::AddPlugin.toUTF8(), iconDataSize)) {
+        addPluginIcon = juce::Drawable::createFromImageData(data, iconDataSize);
+        if (addPluginIcon) addPluginIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary.withAlpha(0.5f));
+    }
 }
 
 DeviceChainComponent::~DeviceChainComponent() {
@@ -141,9 +153,15 @@ void DeviceChainComponent::paint(juce::Graphics& g) {
     g.fillAll(DesignSystem::Colors::AppBackground);
     
     if (pluginBoxes.empty()) {
+        auto bounds = getLocalBounds();
+        if (addPluginIcon) {
+            auto iconBounds = bounds.withSizeKeepingCentre(48, 48).translated(0, -20);
+            addPluginIcon->drawWithin(g, iconBounds.toFloat(), juce::RectanglePlacement::centred, 1.0f);
+        }
+        
         g.setColour(DesignSystem::Colors::TextSecondary);
         g.setFont(DesignSystem::Typography::getPrimaryFont());
-        g.drawText("Drop Audio Effects Here", getLocalBounds(), juce::Justification::centred, true);
+        g.drawText("Drop Audio Effects Here", bounds.translated(0, 20), juce::Justification::centred, true);
     }
 }
 

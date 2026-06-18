@@ -69,12 +69,14 @@ void TimelineProject::groupTracks(const juce::SparseSet<int>& trackIndices) {
     groupTrack.isGroup = true;
     groupTrack.isMidi = false;
     
-    insertTrack(firstIndex, groupTrack);
+    // Insert directly into data model without triggering trackAdded
+    // (group tracks don't have corresponding audio engine tracks)
+    tracks.insert(tracks.begin() + firstIndex, groupTrack);
+    trackClips.insert(trackClips.begin() + firstIndex, {});
     
     // Set parent IDs after insertion (since indices shift)
     for (int i = 0; i < trackIndices.getNumRanges(); ++i) {
         auto range = trackIndices.getRange(i);
-        // The original tracks have shifted by +1 if they were at or after firstIndex
         for (int r = range.getStart(); r < range.getEnd(); ++r) {
             int newIndex = (r >= firstIndex) ? r + 1 : r;
             tracks[newIndex].parentGroupId = groupTrack.id;

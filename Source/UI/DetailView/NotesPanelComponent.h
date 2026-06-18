@@ -12,9 +12,12 @@ public:
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    
+    void setMidiClip(std::shared_ptr<MidiClip> clip);
 
 private:
     NimbusEngine& engine;
+    std::shared_ptr<MidiClip> currentClip;
     
     juce::Label titleLabel{"", "Notes"};
     juce::TextButton reverseButton{"Reverse"};

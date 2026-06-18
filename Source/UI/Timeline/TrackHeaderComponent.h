@@ -6,13 +6,14 @@
 
 namespace Nimbus::Timeline {
 
-class TrackHeaderComponent : public juce::Component, public juce::Label::Listener, public TimelineProject::Listener {
+class TrackHeaderComponent : public juce::Component, public juce::Label::Listener, public TimelineProject::Listener, private juce::Timer {
 public:
     TrackHeaderComponent(NimbusEngine& engine, int trackIndex);
     ~TrackHeaderComponent() override;
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    void timerCallback() override;
     
     void setTrackIndex(int newIndex);
     
@@ -32,6 +33,7 @@ public:
 private:
     NimbusEngine& engine;
     int trackIndex;
+    float currentLevel = 0.0f;
 
     juce::TextButton foldButton;
     juce::TextButton numberButton;

@@ -51,6 +51,9 @@ private:
     juce::OwnedArray<juce::Component> trackHeaders;
     juce::OwnedArray<Timeline::TrackLaneComponent> trackLanes;
     
+    juce::Viewport viewport;
+    juce::Component trackContainer;
+    
     double pixelsPerSecond = 50.0;
     double scrollOffsetX = 0.0;
     

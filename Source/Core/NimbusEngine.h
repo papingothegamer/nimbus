@@ -20,7 +20,7 @@ class PluginNode;
  * The root service container for the Nimbus DAW.
  * Owns the core audio engine components and manages their lifecycles.
  */
-class NimbusEngine {
+class NimbusEngine : public TimelineProject::Listener {
 public:
     NimbusEngine();
     ~NimbusEngine();
@@ -40,6 +40,10 @@ public:
     void setFollowPlayheadEnabled(bool enabled) { followPlayhead = enabled; }
 
     void addTrack(bool isMidi);
+
+    // TimelineProject::Listener overrides
+    void trackMuteChanged(int trackIndex, bool isMuted) override;
+    void trackRemoved(int trackIndex) override;
 
     float getMasterPeakLevel() const;
     float getTrackPeakLevel(int trackIndex) const;

@@ -23,6 +23,9 @@ private:
     NimbusEngine& engine;
     juce::Label titleLabel{"", "MIXER"};
 
+    juce::Viewport viewport;
+    juce::Component trackContainer;
+
     juce::OwnedArray<ChannelStripComponent> trackStrips;
     std::unique_ptr<ChannelStripComponent> masterStrip;
 

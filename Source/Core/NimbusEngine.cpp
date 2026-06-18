@@ -2,6 +2,7 @@
 #include "AudioEngine/TestToneNode.h"
 #include "AudioEngine/Track.h"
 #include "AudioEngine/AudioClipNode.h"
+#include "AudioEngine/MidiClipNode.h"
 #include "AudioEngine/PluginNode.h"
 
 namespace Nimbus {
@@ -10,7 +11,9 @@ NimbusEngine::NimbusEngine() : deviceManagerWrapper(mainGraph, transport), thumb
     juce::Logger::writeToLog("NimbusEngine constructed");
 }
 
-NimbusEngine::~NimbusEngine() = default;
+NimbusEngine::~NimbusEngine() {
+    timelineProject.removeListener(this);
+}
 
 void NimbusEngine::initialise() {
     juce::Logger::writeToLog("Engine: Registering formats");
@@ -32,6 +35,8 @@ void NimbusEngine::initialise() {
     // 6. Initialize the audio device manager, which will start pulling audio from the graph
     deviceManagerWrapper.initialise();
 
+    timelineProject.addListener(this);
+
     juce::Logger::writeToLog("Engine: Initialise Complete");
 }
 
@@ -40,12 +45,12 @@ void NimbusEngine::addTrack(bool isMidi) {
     model.name = isMidi ? "MIDI Track" : "Audio Track";
     model.isMidi = isMidi;
     
-    // 1. Add to data model
     timelineProject.addTrack(model);
 
-    // 2. Add to audio engine
     if (mixer != nullptr) {
-        mixer->addTrack(std::make_unique<Track>());
+        auto track = std::make_unique<Track>();
+        // MIDI tracks don't get a source node here - they get one when a clip is added
+        mixer->addTrack(std::move(track));
     }
 }
 
@@ -55,6 +60,20 @@ float NimbusEngine::getMasterPeakLevel() const {
 
 float NimbusEngine::getTrackPeakLevel(int trackIndex) const {
     return mixer ? mixer->getTrackPeakLevel(trackIndex) : 0.0f;
+}
+
+void NimbusEngine::trackMuteChanged(int trackIndex, bool isMuted) {
+    if (mixer) {
+        if (auto* track = mixer->getTrack(trackIndex)) {
+            track->setMuted(isMuted);
+        }
+    }
+}
+
+void NimbusEngine::trackRemoved(int trackIndex) {
+    if (mixer) {
+        mixer->removeTrack(trackIndex);
+    }
 }
 
 } // namespace Nimbus

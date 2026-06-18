@@ -34,7 +34,7 @@ private:
     DetailView::PianoRollTimelineComponent pianoRollTimeline;
     DetailView::ClipPropertiesComponent clipProperties;
     DetailView::NotesPanelComponent notesPanel;
-    // DetailView::AudioClipViewComponent audioClipView;
+    DetailView::AudioClipViewComponent audioClipView;
     DeviceChainComponent deviceChain;
     
     juce::TextButton clipTabButton{"Clip"};

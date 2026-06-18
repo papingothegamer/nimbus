@@ -15,6 +15,10 @@ BottomMixerComponent::BottomMixerComponent(NimbusEngine& e) : engine(e) {
     masterStrip = std::make_unique<ChannelStripComponent>(engine, "Master", true, true);
     masterStrip->setLevelProvider([this]() { return engine.getMasterPeakLevel(); });
     addAndMakeVisible(masterStrip.get());
+    
+    addAndMakeVisible(viewport);
+    viewport.setViewedComponent(&trackContainer, false);
+    viewport.setScrollBarsShown(true, true);
 
     // Load existing tracks
     for (int i = 0; i < engine.getTimelineProject().getNumTracks(); ++i) {
@@ -37,6 +41,7 @@ void BottomMixerComponent::trackAdded(int trackIndex, const TrackModel& track) {
     }
     
     addAndMakeVisible(strip);
+    trackContainer.addAndMakeVisible(strip);
     resized();
 }
 
@@ -58,7 +63,7 @@ void BottomMixerComponent::tracksGrouped() {
         strip->setTrackIndex(i);
         strip->setLevelProvider([this, i]() { return engine.getTrackPeakLevel(i); });
         trackStrips.add(strip);
-        addAndMakeVisible(strip);
+        trackContainer.addAndMakeVisible(strip);
     }
     resized();
 }
@@ -74,9 +79,15 @@ void BottomMixerComponent::paint(juce::Graphics& g) {
 void BottomMixerComponent::resized() {
     titleLabel.setBounds(4, 4, 100, 20);
 
-    auto bounds = getLocalBounds().withTrimmedTop(30).withTrimmedLeft(10);
+    // Put master at the far right
+    auto rightBounds = getLocalBounds().withTrimmedTop(30).withTrimmedRight(10).removeFromRight(80);
+    masterStrip->setBounds(rightBounds);
+
+    auto bounds = getLocalBounds().withTrimmedTop(30).withTrimmedLeft(10).withTrimmedRight(100);
+    viewport.setBounds(bounds);
     
     int stripWidth = 80;
+    int currentX = 0;
     
     for (int i = 0; i < trackStrips.size(); ++i) {
         auto* strip = trackStrips[i];
@@ -104,13 +115,12 @@ void BottomMixerComponent::resized() {
             strip->setBounds(0, 0, 0, 0);
         } else {
             strip->setVisible(true);
-            strip->setBounds(bounds.removeFromLeft(stripWidth));
+            strip->setBounds(currentX, 0, stripWidth, bounds.getHeight() - viewport.getScrollBarThickness());
+            currentX += stripWidth;
         }
     }
     
-    // Put master at the far right
-    auto rightBounds = getLocalBounds().withTrimmedTop(30).withTrimmedRight(10).removeFromRight(80);
-    masterStrip->setBounds(rightBounds);
+    trackContainer.setBounds(0, 0, currentX, bounds.getHeight() - viewport.getScrollBarThickness());
 }
 
 } // namespace Nimbus::MainLayout

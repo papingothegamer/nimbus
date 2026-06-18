@@ -1,5 +1,6 @@
 #include "GroupTrackHeaderComponent.h"
 #include "UI/DesignSystem/Colors.h"
+#include "UI/DesignSystem/Iconography.h"
 #include "UI/DesignSystem/Typography.h"
 
 namespace Nimbus::Timeline {
@@ -40,10 +41,14 @@ GroupTrackHeaderComponent::GroupTrackHeaderComponent(NimbusEngine& e, int tIndex
     addAndMakeVisible(muteButton);
     muteButton.setColour(juce::TextButton::buttonColourId, DesignSystem::Colors::PanelBackground);
     muteButton.setColour(juce::TextButton::textColourOffId, DesignSystem::Colors::TextSecondary);
+    muteButton.setButtonText(DesignSystem::Iconography::Mute);
+    muteButton.setClickingTogglesState(true);
     
     addAndMakeVisible(soloButton);
     soloButton.setColour(juce::TextButton::buttonColourId, DesignSystem::Colors::PanelBackground);
     soloButton.setColour(juce::TextButton::textColourOffId, DesignSystem::Colors::TextSecondary);
+    soloButton.setButtonText(DesignSystem::Iconography::Solo);
+    soloButton.setClickingTogglesState(true);
 
     addAndMakeVisible(sourceBox);
     sourceBox.addItem("Ext. In", 1);
@@ -143,7 +148,7 @@ void GroupTrackHeaderComponent::updateSelectionState() {
 
 void GroupTrackHeaderComponent::updateFoldState() {
     const auto& track = engine.getTimelineProject().getTrack(trackIndex);
-    foldButton.setButtonText(track.isFolded ? ">" : "v");
+    foldButton.setButtonText(track.isFolded ? DesignSystem::Iconography::RightFold : DesignSystem::Iconography::Unfold);
 }
 
 void GroupTrackHeaderComponent::mouseDown(const juce::MouseEvent& event) {

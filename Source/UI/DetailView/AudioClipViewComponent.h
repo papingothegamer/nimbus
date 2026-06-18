@@ -1,22 +1,45 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include <memory>
+#include "DataModel/AudioClip.h"
 
-namespace Nimbus::DetailView {
+namespace Nimbus {
+class NimbusEngine;
+namespace DetailView {
+
+class AudioClipContent : public juce::Component, private juce::ChangeListener {
+public:
+    AudioClipContent(NimbusEngine& e);
+    ~AudioClipContent() override;
+
+    void paint(juce::Graphics& g) override;
+    void setAudioClip(std::shared_ptr<AudioClip> clip);
+
+    void changeListenerCallback(juce::ChangeBroadcaster* source) override;
+
+private:
+    NimbusEngine& engine;
+    std::shared_ptr<AudioClip> currentClip;
+    juce::AudioThumbnail thumbnail;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioClipContent)
+};
 
 class AudioClipViewComponent : public juce::Component {
 public:
-    AudioClipViewComponent() = default;
-    ~AudioClipViewComponent() override = default;
+    AudioClipViewComponent(NimbusEngine& engine);
+    ~AudioClipViewComponent() override;
 
-    void paint(juce::Graphics& g) override {
-        g.fillAll(juce::Colours::darkgrey);
-        g.setColour(juce::Colours::white);
-        g.drawText("Audio Clip Settings & Waveform (WIP)", getLocalBounds(), juce::Justification::centred, true);
-    }
+    void resized() override;
+    void setAudioClip(std::shared_ptr<AudioClip> clip);
 
 private:
+    juce::Viewport viewport;
+    AudioClipContent content;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioClipViewComponent)
 };
 
-} // namespace Nimbus::DetailView
+} // namespace DetailView
+} // namespace Nimbus

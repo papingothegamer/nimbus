@@ -49,6 +49,7 @@ void AudioDeviceManagerWrapper::audioDeviceIOCallbackWithContext(const float* co
 {
     // Clear our intermediate process buffer
     processBuffer.clear();
+    dummyMidiBuffer.clear();
 
     // The graph processes and writes into processBuffer
     graph.processBlock(processBuffer, dummyMidiBuffer);

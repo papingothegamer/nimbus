@@ -47,12 +47,8 @@ void PianoRollContent::paint(juce::Graphics& g) {
                         double noteStart = event->message.getTimeStamp();
                         double noteLength = 0.0;
                         
-                        for (int j = i + 1; j < currentClip->getSequence().getNumEvents(); ++j) {
-                            auto* offEvent = currentClip->getSequence().getEventPointer(j);
-                            if (offEvent->message.isNoteOff() && offEvent->message.getNoteNumber() == event->message.getNoteNumber()) {
-                                noteLength = offEvent->message.getTimeStamp() - noteStart;
-                                break;
-                            }
+                        if (event->noteOffObject != nullptr) {
+                            noteLength = event->noteOffObject->message.getTimeStamp() - noteStart;
                         }
                         if (noteLength == 0.0) noteLength = 48000.0 * 0.25;
                         
@@ -101,6 +97,9 @@ void PianoRollContent::paint(juce::Graphics& g) {
 void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
     if (!currentClip) return;
     
+    draggedEventIndex = -1;
+    isResizing = false;
+    
     if (auto* vp = findParentComponentOfClass<juce::Viewport>()) {
         int vx = vp->getViewPositionX();
         if (event.getPosition().x > vx + keyWidth) {
@@ -122,60 +121,158 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
             
             int gridWidth = getWidth() - keyWidth;
             double timeInClip = (static_cast<double>(x) / gridWidth) * clipSamples;
-            if (timeInClip < 0.0) timeInClip = 0.0;            
-            // Delete if exists
-            bool deletedNote = false;
+            if (timeInClip < 0.0) timeInClip = 0.0;
+            
+            // Look for existing note under mouse
+            int foundNoteIndex = -1;
+            double foundNoteStart = 0.0;
+            double foundNoteLength = 0.0;
+            
             for (int i = 0; i < currentClip->getSequence().getNumEvents(); ++i) {
                 auto* evt = currentClip->getSequence().getEventPointer(i);
                 if (evt->message.isNoteOn() && evt->message.getNoteNumber() == noteNumber) {
                     double noteStart = evt->message.getTimeStamp();
                     double noteLength = samplesPer16th;
-                    for (int j = i + 1; j < currentClip->getSequence().getNumEvents(); ++j) {
-                        auto* offEvt = currentClip->getSequence().getEventPointer(j);
-                        if (offEvt->message.isNoteOff() && offEvt->message.getNoteNumber() == noteNumber) {
-                            noteLength = offEvt->message.getTimeStamp() - noteStart;
-                            break;
-                        }
+                    if (evt->noteOffObject != nullptr) {
+                        noteLength = evt->noteOffObject->message.getTimeStamp() - noteStart;
                     }
                     if (timeInClip >= noteStart && timeInClip <= noteStart + noteLength) {
-                        currentClip->getSequence().deleteEvent(i, false);
-                        for (int j = i; j < currentClip->getSequence().getNumEvents(); ++j) {
-                            auto* offEvt = currentClip->getSequence().getEventPointer(j);
-                            if (offEvt->message.isNoteOff() && offEvt->message.getNoteNumber() == noteNumber) {
-                                currentClip->getSequence().deleteEvent(j, false);
-                                break;
-                            }
-                        }
-                        currentClip->getSequence().updateMatchedPairs();
-                        deletedNote = true;
-                        engine.getTimelineProject().notifyClipModified();
-                        repaint();
+                        foundNoteIndex = i;
+                        foundNoteStart = noteStart;
+                        foundNoteLength = noteLength;
                         break;
                     }
                 }
             }
-            if (deletedNote) return;
             
-            // Add snapped note
-            double snappedTime = std::floor(timeInClip / samplesPer16th) * samplesPer16th;
+            if (foundNoteIndex != -1) {
+                if (event.mods.isPopupMenu() || event.mods.isCommandDown() || event.mods.isCtrlDown()) {
+                    // Delete note
+                    currentClip->getSequence().deleteEvent(foundNoteIndex, true);
+                    currentClip->getSequence().updateMatchedPairs();
+                    engine.getTimelineProject().notifyClipModified();
+                    repaint();
+                } else {
+                    // Prepare to drag or resize
+                    draggedEventIndex = foundNoteIndex;
+                    dragStartMouseX = event.getPosition().x;
+                    dragStartMouseY = event.getPosition().y;
+                    dragStartNoteTime = foundNoteStart;
+                    dragStartNoteLength = foundNoteLength;
+                    dragStartNoteNumber = noteNumber;
+                    
+                    double noteRightEdgeTime = foundNoteStart + foundNoteLength;
+                    double noteRightEdgeX = (noteRightEdgeTime / clipSamples) * gridWidth;
+                    if (x >= noteRightEdgeX - 5.0) {
+                        isResizing = true;
+                    }
+                }
+                return;
+            }
             
-            juce::MidiMessage noteOn = juce::MidiMessage::noteOn(1, noteNumber, (juce::uint8)100);
-            noteOn.setTimeStamp(snappedTime);
-            
-            juce::MidiMessage noteOff = juce::MidiMessage::noteOff(1, noteNumber, (juce::uint8)0);
-            noteOff.setTimeStamp(snappedTime + samplesPer16th);
-            
-            currentClip->getSequence().addEvent(noteOn);
-            currentClip->getSequence().addEvent(noteOff);
+            // Add snapped note if not right-clicking
+            if (!event.mods.isPopupMenu()) {
+                double snappedTime = std::floor(timeInClip / samplesPer16th) * samplesPer16th;
+                
+                juce::MidiMessage noteOn = juce::MidiMessage::noteOn(1, noteNumber, (juce::uint8)100);
+                noteOn.setTimeStamp(snappedTime);
+                
+                juce::MidiMessage noteOff = juce::MidiMessage::noteOff(1, noteNumber, (juce::uint8)0);
+                noteOff.setTimeStamp(snappedTime + samplesPer16th);
+                
+                currentClip->getSequence().addEvent(noteOn);
+                currentClip->getSequence().addEvent(noteOff);
+                currentClip->getSequence().updateMatchedPairs();
+                
+                engine.getTimelineProject().notifyClipModified();
+                repaint();
+                
+                // Set as dragged so user can resize immediately
+                for (int i = 0; i < currentClip->getSequence().getNumEvents(); ++i) {
+                    auto* evt = currentClip->getSequence().getEventPointer(i);
+                    if (evt->message.isNoteOn() && evt->message.getNoteNumber() == noteNumber && evt->message.getTimeStamp() == snappedTime) {
+                        draggedEventIndex = i;
+                        dragStartMouseX = event.getPosition().x;
+                        dragStartMouseY = event.getPosition().y;
+                        dragStartNoteTime = snappedTime;
+                        dragStartNoteLength = samplesPer16th;
+                        dragStartNoteNumber = noteNumber;
+                        isResizing = false;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void PianoRollContent::mouseDrag(const juce::MouseEvent& event) {
+    if (!currentClip || draggedEventIndex == -1) return;
+    
+    auto* evt = currentClip->getSequence().getEventPointer(draggedEventIndex);
+    if (!evt || !evt->message.isNoteOn()) return;
+    
+    double clipSamples = currentClip->getLengthSamples();
+    double sampleRate = engine.getTransport().getSampleRate();
+    if (sampleRate <= 0) sampleRate = 48000.0;
+    
+    double tempo = engine.getTransport().getTempo();
+    double secondsPerBeat = 60.0 / tempo;
+    double secondsPer16th = secondsPerBeat / 4.0;
+    double samplesPer16th = secondsPer16th * sampleRate;
+    
+    int gridWidth = getWidth() - keyWidth;
+    
+    int dx = event.getPosition().x - dragStartMouseX;
+    int dy = event.getPosition().y - dragStartMouseY;
+    
+    double dtSamples = (static_cast<double>(dx) / gridWidth) * clipSamples;
+    
+    if (isResizing) {
+        double newLength = dragStartNoteLength + dtSamples;
+        newLength = std::max(newLength, samplesPer16th); // Min length 1/16th
+        double snappedLength = std::round(newLength / samplesPer16th) * samplesPer16th;
+        
+        if (evt->noteOffObject) {
+            evt->noteOffObject->message.setTimeStamp(dragStartNoteTime + snappedLength);
             currentClip->getSequence().updateMatchedPairs();
+            engine.getTimelineProject().notifyClipModified();
+            repaint();
+        }
+    } else {
+        double newTime = dragStartNoteTime + dtSamples;
+        double snappedTime = std::round(newTime / samplesPer16th) * samplesPer16th;
+        snappedTime = std::max(0.0, snappedTime);
+        
+        int dRow = std::round(static_cast<float>(dy) / keyHeight);
+        int newNoteNumber = dragStartNoteNumber - dRow;
+        newNoteNumber = juce::jlimit(0, 127, newNoteNumber);
+        
+        if (snappedTime != evt->message.getTimeStamp() || newNoteNumber != evt->message.getNoteNumber()) {
+            evt->message.setTimeStamp(snappedTime);
+            evt->message.setNoteNumber(newNoteNumber);
+            if (evt->noteOffObject) {
+                evt->noteOffObject->message.setTimeStamp(snappedTime + dragStartNoteLength);
+                evt->noteOffObject->message.setNoteNumber(newNoteNumber);
+            }
+            // re-sorting might change indices, but for dragging it might glitch if draggedEventIndex changes.
+            // For now, sorting happens in updateMatchedPairs which sorts the events.
+            currentClip->getSequence().updateMatchedPairs();
+            
+            // update draggedEventIndex to the new index after sort
+            for (int i = 0; i < currentClip->getSequence().getNumEvents(); ++i) {
+                auto* e = currentClip->getSequence().getEventPointer(i);
+                if (e->message.isNoteOn() && e->message.getTimeStamp() == snappedTime && e->message.getNoteNumber() == newNoteNumber) {
+                    draggedEventIndex = i;
+                    break;
+                }
+            }
             
             engine.getTimelineProject().notifyClipModified();
             repaint();
         }
     }
 }
-
-void PianoRollContent::mouseDrag(const juce::MouseEvent& event) {}
 
 // ==============================================================================
 PianoRollComponent::PianoRollComponent(NimbusEngine& e) : content(e) {
