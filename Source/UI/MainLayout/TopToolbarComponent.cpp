@@ -3,6 +3,7 @@
 #include "UI/DesignSystem/Typography.h"
 #include "UI/DesignSystem/Iconography.h"
 #include "BinaryData.h"
+#include "UI/Settings/SettingsMenuComponent.h"
 
 namespace Nimbus::MainLayout {
 
@@ -60,7 +61,6 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     playButton.setClickingTogglesState(true);
     playButton.setColour(juce::DrawableButton::backgroundOnColourId, DesignSystem::Colors::PrimaryAction.withAlpha(0.3f));
 
-    addAndMakeVisible(linkToggle);
     addAndMakeVisible(tapTempoButton);
     addAndMakeVisible(tempoLabel);
     tempoLabel.setText("120.00", juce::dontSendNotification);
@@ -102,23 +102,24 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     addAndMakeVisible(keyMapToggle);
     addAndMakeVisible(midiMapToggle);
     
-    linkToggle.setButtonText(DesignSystem::Iconography::Stereo);
     drawModeToggle.setButtonText(DesignSystem::Iconography::Pencil);
     compMidiToggle.setButtonText(DesignSystem::Iconography::Flat);
     keyMapToggle.setButtonText(DesignSystem::Iconography::Piano);
     midiMapToggle.setButtonText(DesignSystem::Iconography::Midi);
+    
+    settingsButton.setButtonText(DesignSystem::Iconography::Settings);
+    addAndMakeVisible(settingsButton);
 
-    linkToggle.setClickingTogglesState(true);
     drawModeToggle.setClickingTogglesState(true);
     compMidiToggle.setClickingTogglesState(true);
     keyMapToggle.setClickingTogglesState(true);
     midiMapToggle.setClickingTogglesState(true);
 
-    setupTextButton(linkToggle);
     setupTextButton(drawModeToggle);
     setupTextButton(compMidiToggle);
     setupTextButton(keyMapToggle);
     setupTextButton(midiMapToggle);
+    setupTextButton(settingsButton);
     
     addAndMakeVisible(cpuLabel);
     cpuLabel.setText("0%", juce::dontSendNotification);
@@ -142,6 +143,11 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     
     followPlayheadToggle.onClick = [this] {
         engine.setFollowPlayheadEnabled(followPlayheadToggle.getToggleState());
+    };
+
+    settingsButton.onClick = [this] {
+        auto menu = std::make_unique<UI::Settings::SettingsMenuComponent>(engine);
+        juce::CallOutBox::launchAsynchronously(std::move(menu), settingsButton.getScreenBounds(), nullptr);
     };
     
     startTimerHz(20);
@@ -175,9 +181,7 @@ void TopToolbarComponent::resized() {
     browserToggleButton.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
     bounds.removeFromLeft(gap);
 
-    // Left Block: Link, Tap, Tempo, Nudge, TimeSig, Metronome, Quantize
-    linkToggle.setBounds(bounds.removeFromLeft(btnW).withHeight(h));
-    bounds.removeFromLeft(gap);
+    // Left Block: Tap, Tempo, Nudge, TimeSig, Metronome, Quantize
     tapTempoButton.setBounds(bounds.removeFromLeft(32).withHeight(h));
     bounds.removeFromLeft(gap);
     tempoLabel.setBounds(bounds.removeFromLeft(50).withHeight(h));
@@ -225,8 +229,10 @@ void TopToolbarComponent::resized() {
     detailToggleButton.setBounds(bounds.removeFromRight(btnW).withHeight(h));
     bounds.removeFromRight(gap);
 
-    // Right block: CPU, MIDI map, Key map, Comp MIDI, Draw mode
+    // Right block: CPU, Settings, MIDI map, Key map, Comp MIDI, Draw mode
     cpuLabel.setBounds(bounds.removeFromRight(40).withHeight(h));
+    bounds.removeFromRight(gap);
+    settingsButton.setBounds(bounds.removeFromRight(btnW).withHeight(h));
     bounds.removeFromRight(gap);
     midiMapToggle.setBounds(bounds.removeFromRight(btnW).withHeight(h));
     bounds.removeFromRight(2);

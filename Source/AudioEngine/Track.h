@@ -9,13 +9,15 @@
 
 namespace Nimbus {
 
+class Transport;
+
 /**
  * Represents a single channel strip in the Mixer.
  * Owns an internal AudioGraph for its insert plugins and a GainNode for its volume/pan fader.
  */
 class Track : public IAudioNode {
 public:
-    Track();
+    Track(Transport* t = nullptr);
     ~Track() override = default;
 
     // IAudioNode
@@ -44,15 +46,17 @@ public:
     void setVolume(float gainLinear);
     void setPan(float panValue);
 
+    // Mute / Solo / Arm
+    void setMuted(bool muted);
+    void setSoloed(bool soloed);
+    void setArmed(bool armed);
+    bool isMuted() const { return muted_.load(); }
+    bool isSoloed() const { return soloed_.load(); }
+    bool isArmed() const { return armed_.load(); }
+
     // Level Metering (Called by UI thread)
     float getPeakLevel() const { return meter.getPeakLevel(); }
     float getRMSLevel() const { return meter.getRMSLevel(); }
-
-    // Mute / Solo
-    void setMuted(bool muted);
-    void setSoloed(bool soloed);
-    bool isMuted() const { return muted_.load(); }
-    bool isSoloed() const { return soloed_.load(); }
 
 private:
     std::unique_ptr<IAudioNode> source;
@@ -64,10 +68,12 @@ private:
     // Intermediate buffer to hold this track's isolated audio
     juce::AudioBuffer<float> trackBuffer;
     juce::MidiBuffer trackMidiBuffer;
+    Transport* transport = nullptr;
     double currentSampleRate = 44100.0;
     int currentBlockSize = 512;
     std::atomic<bool> muted_{false};
     std::atomic<bool> soloed_{false};
+    std::atomic<bool> armed_{false};
 };
 
 } // namespace Nimbus

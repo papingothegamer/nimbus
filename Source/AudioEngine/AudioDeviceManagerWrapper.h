@@ -27,6 +27,8 @@ public:
     void audioDeviceAboutToStart(juce::AudioIODevice* device) override;
     void audioDeviceStopped() override;
 
+    juce::AudioDeviceManager& getJuceAudioDeviceManager() { return deviceManager; }
+
 private:
     AudioGraph& graph;
     Transport& globalTransport;

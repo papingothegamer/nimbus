@@ -71,15 +71,22 @@ void SeekingBarComponent::paint(juce::Graphics& g) {
 }
 
 void SeekingBarComponent::mouseDown(const juce::MouseEvent& event) {
+    isDragging = true;
+    lastDragX = event.position.x;
     if (onSeek) {
         onSeek(event.position.x);
     }
 }
 
 void SeekingBarComponent::mouseDrag(const juce::MouseEvent& event) {
+    lastDragX = event.position.x;
     if (onSeek) {
         onSeek(event.position.x);
     }
+}
+
+void SeekingBarComponent::mouseUp(const juce::MouseEvent& event) {
+    isDragging = false;
 }
 
 TimelineComponent::TimelineComponent(NimbusEngine& e) 
@@ -294,15 +301,36 @@ void TimelineComponent::timerCallback() {
         int headerWidth = 150;
         int lanesWidth = getWidth() - headerWidth;
         
-        int playheadScreenX = playheadAbsoluteX - static_cast<int>(scrollOffsetX) + headerWidth;
-        
-        // Continuous scroll: keep playhead at 1/3 of the screen width
         int targetPlayheadScreenX = lanesWidth / 3;
         
         if (playheadAbsoluteX > targetPlayheadScreenX) {
             scrollOffsetX = playheadAbsoluteX - targetPlayheadScreenX;
         } else {
             scrollOffsetX = 0.0;
+        }
+        
+        for (auto* lane : trackLanes) {
+            lane->resized();
+        }
+    } else if (seekingBar.isDragging) {
+        // Auto-scroll when dragging playhead off-screen
+        float x = seekingBar.lastDragX;
+        bool scrolled = false;
+        if (x < 0) {
+            scrollOffsetX += x * 0.2f; // speed multiplier
+            scrollOffsetX = juce::jmax(0.0, scrollOffsetX);
+            seekingBar.onSeek(0);
+            scrolled = true;
+        } else if (x > seekingBar.getWidth()) {
+            scrollOffsetX += (x - seekingBar.getWidth()) * 0.2f;
+            seekingBar.onSeek(seekingBar.getWidth());
+            scrolled = true;
+        }
+        
+        if (scrolled) {
+            for (auto* lane : trackLanes) {
+                lane->resized();
+            }
         }
     }
     repaint();

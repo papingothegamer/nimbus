@@ -74,6 +74,9 @@ juce_add_binary_data(Nimbus_Assets
         Assets/Icons/Nimbus/tune-vertical.svg
         Assets/Icons/Nimbus/tune.svg
         Assets/Icons/Nimbus/view-bottom-panel.svg
+        Assets/Icons/Nimbus/volume-source.svg
+        Assets/Icons/Nimbus/volume-off.svg
+        Assets/Icons/Nimbus/waveform.svg
 )
 target_link_libraries(Nimbus PRIVATE Nimbus_Assets)
 
@@ -110,6 +113,8 @@ target_sources(Nimbus PRIVATE
     Source/UI/MainLayout/DeviceChainComponent.h
     Source/UI/Mixer/GroupIndicatorComponent.cpp
     Source/UI/Mixer/GroupIndicatorComponent.h
+    Source/UI/Settings/SettingsMenuComponent.cpp
+    Source/UI/Settings/SettingsMenuComponent.h
     Source/UI/DetailView/PianoRollComponent.cpp
     Source/UI/DetailView/PianoRollComponent.h
     Source/UI/DetailView/AudioClipViewComponent.cpp

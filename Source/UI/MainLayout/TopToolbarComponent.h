@@ -37,7 +37,7 @@ private:
     juce::Label loopStartLabel;
     juce::Label loopLengthLabel;
     
-    juce::TextButton linkToggle{"Link"};
+    juce::TextButton settingsButton{"Settings"};
     juce::TextButton followPlayheadToggle{"Follow"};
     juce::TextButton tapTempoButton{"Tap"};
     juce::Label tempoLabel;

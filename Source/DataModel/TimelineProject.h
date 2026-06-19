@@ -17,6 +17,9 @@ struct TrackModel {
     bool isMidi;
     bool isMuted = false;
     bool isSoloed = false;
+    bool isArmed = false;
+    bool isStereo = false;
+    juce::Uuid linkedTrackId;
     
     // Grouping
     bool isGroup = false;
@@ -35,6 +38,8 @@ public:
         virtual void trackAdded(int trackIndex, const TrackModel& track) {}
         virtual void trackRemoved(int trackIndex) {}
         virtual void trackMuteChanged(int trackIndex, bool isMuted) {}
+        virtual void trackArmChanged(int trackIndex, bool isArmed) {}
+        virtual void trackStereoChanged(int trackIndex, bool isStereo) {}
         virtual void trackSelectionChanged() {}
         virtual void trackFoldStateChanged(int trackIndex, bool isFolded) {}
         virtual void tracksGrouped() {}
@@ -61,6 +66,15 @@ public:
 
     void setTrackMuted(int trackIndex, bool isMuted);
     bool isTrackMuted(int trackIndex) const;
+    
+    void setTrackArmed(int trackIndex, bool isArmed);
+    bool isTrackArmed(int trackIndex) const;
+
+    void setTrackStereo(int trackIndex, bool isStereo);
+    bool isTrackStereo(int trackIndex) const;
+
+    void linkTracks(int trackIndex1, int trackIndex2);
+    void unlinkTrack(int trackIndex);
     
     void setTrackSelected(int trackIndex, bool clearExisting = true);
     void toggleTrackSelection(int trackIndex);

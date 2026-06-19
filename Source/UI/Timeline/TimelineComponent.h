@@ -13,8 +13,12 @@ public:
     void paint(juce::Graphics& g) override;
     void mouseDown(const juce::MouseEvent& event) override;
     void mouseDrag(const juce::MouseEvent& event) override;
+    void mouseUp(const juce::MouseEvent& event) override;
     
     std::function<void(float)> onSeek;
+    
+    bool isDragging = false;
+    float lastDragX = 0.0f;
     
 private:
     NimbusEngine& engine;

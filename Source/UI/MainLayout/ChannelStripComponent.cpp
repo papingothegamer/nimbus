@@ -59,27 +59,39 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
         muteButton.onClick = [this] {
             bool isMuted = !muteButton.getToggleState();
             engine.getTimelineProject().setTrackMuted(trackIndex, isMuted);
+            muteButton.setButtonText(isMuted ? DesignSystem::Iconography::VolumeOff : DesignSystem::Iconography::VolumeSource);
         };
         addAndMakeVisible(soloButton);
         addAndMakeVisible(armButton);
         
-        muteButton.setButtonText(DesignSystem::Iconography::Mute);
+        muteButton.setButtonText(DesignSystem::Iconography::VolumeSource);
         soloButton.setButtonText(DesignSystem::Iconography::Solo);
         armButton.setButtonText(DesignSystem::Iconography::RecordArm);
+        armButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::RecordDanger);
         
         muteButton.setClickingTogglesState(true);
         soloButton.setClickingTogglesState(true);
         armButton.setClickingTogglesState(true);
+        armButton.onClick = [this]() {
+            engine.getTimelineProject().setTrackArmed(trackIndex, armButton.getToggleState());
+        };
 
-        if (stereo) {
-            addAndMakeVisible(stereoButton);
-            stereoButton.setClickingTogglesState(true);
-            stereoButton.setToggleState(stereo, juce::dontSendNotification);
-            stereoButton.onClick = [this]() {
-                stereo = stereoButton.getToggleState();
-                repaint();
-            };
-        }
+        addAndMakeVisible(stereoButton);
+        stereoButton.setClickingTogglesState(true);
+        stereoButton.setToggleState(stereo, juce::dontSendNotification);
+        stereoButton.setButtonText(stereo ? "oo" : "o");
+        stereoButton.onClick = [this]() {
+            bool isStereo = stereoButton.getToggleState();
+            engine.getTimelineProject().setTrackStereo(trackIndex, isStereo);
+        };
+
+        addAndMakeVisible(linkIcon);
+        linkIcon.setButtonText(DesignSystem::Iconography::Stereo);
+        linkIcon.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+        linkIcon.setColour(juce::TextButton::textColourOffId, DesignSystem::Colors::TextSecondary);
+        linkIcon.setMouseCursor(juce::MouseCursor::NormalCursor);
+        linkIcon.setInterceptsMouseClicks(false, false);
+        linkIcon.setVisible(false);
     }
 
     startTimerHz(30); // 30fps meter updates
@@ -95,6 +107,10 @@ ChannelStripComponent::~ChannelStripComponent() {
 
 void ChannelStripComponent::setTrackIndex(int index) {
     trackIndex = index;
+    if (trackIndex != -1 && !master) {
+        bool isMidi = engine.getTimelineProject().getTrack(trackIndex).isMidi;
+        stereoButton.setVisible(!isMidi);
+    }
 }
 
 void ChannelStripComponent::setLevelProvider(std::function<float()> provider) {
@@ -133,7 +149,12 @@ void ChannelStripComponent::paint(juce::Graphics& g) {
     auto bounds = getLocalBounds();
     auto meterArea = bounds.removeFromRight(15).reduced(2, 40).withTrimmedBottom(20);
     
-    if (stereo) {
+    bool isTrackStereo = stereo;
+    if (trackIndex != -1) {
+        isTrackStereo = engine.getTimelineProject().getTrack(trackIndex).isStereo;
+    }
+    
+    if (isTrackStereo) {
         auto leftMeter = meterArea.removeFromLeft(meterArea.getWidth() / 2).reduced(1, 0);
         auto rightMeter = meterArea.reduced(1, 0);
         drawMeter(g, leftMeter, currentLevel); 
@@ -211,7 +232,11 @@ void ChannelStripComponent::resized() {
     
     // Bottom: Routing combo and stereo button
     if (!master) {
-        if (stereo) {
+        if (linkIcon.isVisible()) {
+            linkIcon.setBounds(contentBounds.removeFromBottom(16).reduced(2));
+            contentBounds.removeFromBottom(2);
+        }
+        if (stereoButton.isVisible()) {
             stereoButton.setBounds(contentBounds.removeFromBottom(20).reduced(2));
             contentBounds.removeFromBottom(2);
         }
@@ -263,14 +288,32 @@ void ChannelStripComponent::mouseDown(const juce::MouseEvent& event) {
 void ChannelStripComponent::trackMuteChanged(int track, bool isMuted) {
     if (track == trackIndex) {
         muteButton.setToggleState(!isMuted, juce::dontSendNotification);
+        muteButton.setButtonText(isMuted ? DesignSystem::Iconography::VolumeOff : DesignSystem::Iconography::VolumeSource);
+    }
+}
+
+void ChannelStripComponent::trackArmChanged(int track, bool isArmed) {
+    if (track == trackIndex) {
+        armButton.setToggleState(isArmed, juce::dontSendNotification);
+    }
+}
+
+void ChannelStripComponent::trackStereoChanged(int track, bool isStereo) {
+    if (track == trackIndex) {
+        this->stereo = isStereo;
+        stereoButton.setToggleState(isStereo, juce::dontSendNotification);
+        stereoButton.setButtonText(isStereo ? "oo" : "o");
     }
 }
 
 void ChannelStripComponent::trackSelectionChanged() {
     if (!master) {
         selected = engine.getTimelineProject().isTrackSelected(trackIndex);
-        repaint();
+        
+        auto& track = engine.getTimelineProject().getTrack(trackIndex);
+        linkIcon.setVisible(!track.linkedTrackId.isNull());
     }
+    repaint();
 }
 
 } // namespace Nimbus::MainLayout

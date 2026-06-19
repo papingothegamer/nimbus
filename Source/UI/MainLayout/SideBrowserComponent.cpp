@@ -1,6 +1,7 @@
 #include "SideBrowserComponent.h"
 #include "UI/DesignSystem/Colors.h"
 #include "UI/DesignSystem/Typography.h"
+#include "UI/DesignSystem/Iconography.h"
 #include <algorithm>
 
 namespace Nimbus::MainLayout {
@@ -38,7 +39,9 @@ public:
                 currentMfg = p.manufacturerName;
                 items.push_back({true, currentMfg, {}});
             }
-            items.push_back({false, "", p});
+            if (expandedMakers.count(currentMfg) > 0) {
+                items.push_back({false, "", p});
+            }
         }
     }
 
@@ -49,12 +52,38 @@ public:
             g.fillAll(DesignSystem::Colors::ComponentBackground);
             g.setColour(DesignSystem::Colors::TextSecondary);
             g.setFont(juce::Font(11.0f, juce::Font::bold));
-            g.drawText("  " + item.headerText.toUpperCase(), 0, 0, width, height, juce::Justification::centredLeft, true);
+            
+            // Draw chevron
+            bool isExpanded = expandedMakers.count(item.headerText) > 0;
+            juce::String chevron = isExpanded ? DesignSystem::Iconography::Fold : DesignSystem::Iconography::Unfold;
+            
+            // Render text
+            g.drawText("  " + item.headerText.toUpperCase(), 24, 0, width - 24, height, juce::Justification::centredLeft, true);
+            
+            // Simple chevron representation (if we had access to SVG rendering here easily, we'd use it, 
+            // but we can just use text characters for now if needed, or leave it to standard lookandfeel)
+            g.drawText(isExpanded ? "-" : "+", 8, 0, 16, height, juce::Justification::centred, true);
         } else {
             if (rowIsSelected) g.fillAll(DesignSystem::Colors::PrimaryAction.withAlpha(0.2f));
             g.setColour(DesignSystem::Colors::TextPrimary);
             g.setFont(DesignSystem::Typography::getPrimaryFont());
-            g.drawText("    " + item.desc.name, 0, 0, width, height, juce::Justification::centredLeft, true);
+            g.drawText("        " + item.desc.name, 0, 0, width, height, juce::Justification::centredLeft, true);
+        }
+    }
+    
+    void listBoxItemClicked(int row, const juce::MouseEvent&) override {
+        if (row < 0 || row >= (int)items.size()) return;
+        auto& item = items[row];
+        if (item.isHeader) {
+            if (expandedMakers.count(item.headerText) > 0) {
+                expandedMakers.erase(item.headerText);
+            } else {
+                expandedMakers.insert(item.headerText);
+            }
+            // Need to notify component to update list. 
+            // The cleanest way is to call updateList and updateContent, but we don't have a direct reference to the ListBox here.
+            // We can just rely on a callback or pass the listbox in.
+            if (onModelChanged) onModelChanged();
         }
     }
     
@@ -86,13 +115,20 @@ public:
         }
     }
 
+    std::function<void()> onModelChanged;
+
 private:
     NimbusEngine& engine;
     std::vector<ListItem> items;
+    std::set<juce::String> expandedMakers;
 };
 
 SideBrowserComponent::SideBrowserComponent(NimbusEngine& e) : engine(e) {
     pluginModel = std::make_unique<PluginItemsModel>(engine);
+    pluginModel->onModelChanged = [this]() {
+        pluginModel->updateList(false);
+        itemsList.updateContent();
+    };
 
     addAndMakeVisible(pluginsTab);
     addAndMakeVisible(samplesTab);

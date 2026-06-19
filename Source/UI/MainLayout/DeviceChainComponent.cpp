@@ -26,26 +26,45 @@ public:
     }
     
     void paint(juce::Graphics& g) override {
-        auto bounds = getLocalBounds().reduced(4);
-        g.setColour(DesignSystem::Colors::PanelBackground.brighter(0.1f));
+        auto bounds = getLocalBounds().reduced(2);
+        
+        // Main Background (Module Background)
+        g.setColour(DesignSystem::Colors::ModuleBackground);
         g.fillRoundedRectangle(bounds.toFloat(), 5.0f);
         
-        g.setColour(DesignSystem::Colors::Divider);
-        g.drawRoundedRectangle(bounds.toFloat(), 5.0f, 1.0f);
+        // Header Background
+        auto headerBounds = bounds.removeFromTop(24);
+        g.setColour(DesignSystem::Colors::ComponentBackground);
+        g.fillRoundedRectangle(headerBounds.toFloat(), 5.0f);
+        g.fillRect(headerBounds.withTop(headerBounds.getBottom() - 5).toFloat()); // Square off the bottom corners
         
+        // Border
+        g.setColour(DesignSystem::Colors::ComponentBorder);
+        g.drawRoundedRectangle(getLocalBounds().reduced(2).toFloat(), 5.0f, 1.0f);
+
+        // Header Content - Plugin Name
+        g.setColour(DesignSystem::Colors::TextPrimary);
+        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f).withStyle(juce::Font::bold));
+        g.drawText(name.toUpperCase(), headerBounds.reduced(8, 0), juce::Justification::centredLeft, true);
+        
+        // Body Design (Device Icon + Generic Parameters)
         auto iconBounds = bounds.removeFromTop(40).reduced(10);
         if (deviceIcon) {
+            deviceIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
             deviceIcon->drawWithin(g, iconBounds.toFloat(), juce::RectanglePlacement::centred, 1.0f);
         }
 
-        // Plugin Name
-        g.setColour(DesignSystem::Colors::TextPrimary);
-        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(13.0f));
-        g.drawText(name, bounds.removeFromTop(20), juce::Justification::centred, true);
-        
-        auto bottomBounds = getLocalBounds().reduced(4).removeFromBottom(30).reduced(5);
+        // Generic device graphic (e.g. some knobs or sliders)
+        g.setColour(DesignSystem::Colors::Divider);
+        float cx = bounds.getCentreX();
+        float cy = bounds.getCentreY() - 10;
+        // Two simple "knobs"
+        g.drawEllipse(cx - 20, cy - 8, 16, 16, 2.0f);
+        g.drawEllipse(cx + 4, cy - 8, 16, 16, 2.0f);
+
+        auto bottomBounds = getLocalBounds().reduced(2).removeFromBottom(24).reduced(4);
         if (deleteIcon) {
-            deleteIcon->drawWithin(g, bottomBounds.toFloat(), juce::RectanglePlacement::centred, 1.0f);
+            deleteIcon->drawWithin(g, bottomBounds.removeFromRight(16).toFloat(), juce::RectanglePlacement::centred, 1.0f);
         }
     }
     
@@ -90,7 +109,11 @@ public:
                         }
                     }
                 } else if (result == 4 && track != nullptr) {
-                    track->removeInsertPlugin(node);
+                    if (track->getInstrumentPlugin() == node) {
+                        track->setInstrumentPlugin(nullptr);
+                    } else {
+                        track->removeInsertPlugin(node);
+                    }
                     if (window != nullptr) {
                         window->closeButtonPressed();
                     }
@@ -105,7 +128,11 @@ public:
         auto bottomArea = getLocalBounds().reduced(4).removeFromBottom(30);
         if (bottomArea.contains(e.getPosition())) {
             if (track != nullptr) {
-                track->removeInsertPlugin(node);
+                if (track->getInstrumentPlugin() == node) {
+                    track->setInstrumentPlugin(nullptr);
+                } else {
+                    track->removeInsertPlugin(node);
+                }
                 if (window != nullptr) {
                     window->closeButtonPressed();
                 }
@@ -215,13 +242,23 @@ void DeviceChainComponent::updateChain() {
     
     const auto& nodes = track->getInsertGraph().getNodes();
     
+    // Count total expected nodes
+    int expectedNodes = (track->getInstrumentPlugin() != nullptr ? 1 : 0) + nodes.size();
+    
     // Quick check if it's the same
-    if (currentTrackIndex == trackIndex && pluginBoxes.size() == nodes.size()) {
+    if (currentTrackIndex == trackIndex && pluginBoxes.size() == expectedNodes) {
         return; // Assume no change for now to avoid flickering
     }
     
     currentTrackIndex = trackIndex;
     pluginBoxes.clear();
+    
+    // Add instrument first
+    if (auto* instr = dynamic_cast<PluginNode*>(track->getInstrumentPlugin())) {
+        auto box = std::make_unique<PluginBox>(instr, track, engine);
+        addAndMakeVisible(box.get());
+        pluginBoxes.push_back(std::move(box));
+    }
     
     for (auto& n : nodes) {
         if (auto* pluginNode = dynamic_cast<PluginNode*>(n.get())) {

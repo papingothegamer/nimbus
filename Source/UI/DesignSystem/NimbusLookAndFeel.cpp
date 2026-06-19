@@ -71,7 +71,11 @@ void NimbusLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& bu
     bool isActive = shouldDrawButtonAsDown || button.getToggleState();
     
     if (isActive) {
-        baseColour = Colors::PrimaryAction.withAlpha(0.8f);
+        if (button.isColourSpecified(juce::TextButton::buttonOnColourId)) {
+            baseColour = button.findColour(juce::TextButton::buttonOnColourId);
+        } else {
+            baseColour = Colors::PrimaryAction.withAlpha(0.8f);
+        }
     } else if (shouldDrawButtonAsHighlighted) {
         baseColour = Colors::TextSecondary.withAlpha(0.2f); // subtle instant hover
     }
@@ -96,9 +100,13 @@ void NimbusLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& butt
     if (text.endsWith("_svg")) {
         if (auto* svg = getOrCacheSvg(text)) {
             std::unique_ptr<juce::Drawable> clone(svg->createCopy());
-            // When toggled on, we make the icon white to contrast against the bright PrimaryAction background.
-            // Otherwise, we use TextPrimary.
+            // When toggled on, we make the icon white to contrast against the bright background.
+            // Otherwise, we use TextPrimary or TextSecondary based on toggle state.
             juce::Colour iconColor = button.getToggleState() ? Colors::TextPrimary : Colors::TextSecondary;
+            // If the button explicitly overrides the icon color when toggled on, use it (though usually it's white).
+            if (button.getToggleState() && button.isColourSpecified(juce::TextButton::textColourOnId)) {
+                iconColor = button.findColour(juce::TextButton::textColourOnId);
+            }
             clone->replaceColour(juce::Colours::black, iconColor);
             clone->replaceColour(juce::Colours::white, iconColor);
             

@@ -34,6 +34,14 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     nameLabel.setEditable(false, true, false);
     nameLabel.addListener(this);
 
+    addAndMakeVisible(linkIcon);
+    linkIcon.setButtonText(DesignSystem::Iconography::Stereo);
+    linkIcon.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+    linkIcon.setColour(juce::TextButton::textColourOffId, DesignSystem::Colors::TextSecondary);
+    linkIcon.setMouseCursor(juce::MouseCursor::NormalCursor);
+    linkIcon.setInterceptsMouseClicks(false, false);
+    linkIcon.setVisible(false);
+
     addAndMakeVisible(soloButton);
     soloButton.setClickingTogglesState(true);
     soloButton.setButtonText(DesignSystem::Iconography::Solo);
@@ -43,6 +51,10 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     armButton.setClickingTogglesState(true);
     armButton.setButtonText(DesignSystem::Iconography::RecordArm);
     armButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::RecordDanger);
+    
+    armButton.onClick = [this] {
+        engine.getTimelineProject().setTrackArmed(trackIndex, armButton.getToggleState());
+    };
 
     // Routing combo boxes (placeholder items)
     addAndMakeVisible(sourceLabel);
@@ -128,13 +140,26 @@ void TrackHeaderComponent::mouseDown(const juce::MouseEvent& event) {
         m.addSeparator();
         m.addItem(6, "Group Tracks", true, false);
         
-        m.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
+        auto selectedTracks = engine.getTimelineProject().getSelectedTracks();
+        if (selectedTracks.size() == 2 && selectedTracks.contains(trackIndex)) {
+            m.addItem(7, "Link Selected Tracks", true, false);
+        }
+        if (!engine.getTimelineProject().getTrack(trackIndex).linkedTrackId.isNull()) {
+            m.addItem(8, "Unlink Track", true, false);
+        }
+        
+        m.showMenuAsync(juce::PopupMenu::Options(), [this, selectedTracks](int result) {
             if (result == 1) { /* Rename */ }
             else if (result == 2) { engine.addTrack(false); }
             else if (result == 3) { engine.addTrack(true); }
-            else if (result == 4) { /* Duplicate */ }
             else if (result == 5) { engine.getTimelineProject().removeTrack(trackIndex); }
             else if (result == 6) { engine.getTimelineProject().groupTracks(engine.getTimelineProject().getSelectedTracks()); }
+            else if (result == 7) { 
+                int t1 = selectedTracks[0];
+                int t2 = selectedTracks[1];
+                engine.getTimelineProject().linkTracks(t1, t2);
+            }
+            else if (result == 8) { engine.getTimelineProject().unlinkTrack(trackIndex); }
         });
     }
 }
@@ -145,7 +170,15 @@ void TrackHeaderComponent::trackMuteChanged(int track, bool isMuted) {
     }
 }
 
+void TrackHeaderComponent::trackArmChanged(int track, bool isArmed) {
+    if (track == trackIndex) {
+        armButton.setToggleState(isArmed, juce::dontSendNotification);
+    }
+}
+
 void TrackHeaderComponent::trackSelectionChanged() {
+    auto& track = engine.getTimelineProject().getTrack(trackIndex);
+    linkIcon.setVisible(!track.linkedTrackId.isNull());
     repaint();
 }
 
@@ -251,6 +284,10 @@ void TrackHeaderComponent::resized() {
     if (!isGroup && !isFolded) {
         armButton.setBounds(topRow.removeFromRight(20).reduced(2));
         soloButton.setBounds(topRow.removeFromRight(20).reduced(2));
+    }
+    
+    if (linkIcon.isVisible()) {
+        linkIcon.setBounds(topRow.removeFromRight(16).reduced(2));
     }
     
     nameLabel.setBounds(topRow.reduced(2, 0));

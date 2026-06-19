@@ -22,6 +22,7 @@ public:
 
     // TimelineProject::Listener
     void trackMuteChanged(int track, bool isMuted) override;
+    void trackArmChanged(int track, bool isArmed) override;
     void trackSelectionChanged() override;
 
     void trackFoldStateChanged(int track, bool isFolded) override;
@@ -40,6 +41,7 @@ private:
     juce::Label nameLabel;
     juce::TextButton soloButton{"S"};
     juce::TextButton armButton{"O"};
+    juce::TextButton linkIcon{"Link"};
     
     juce::Label sourceLabel{"", "Audio From"};
     juce::ComboBox sourceBox;

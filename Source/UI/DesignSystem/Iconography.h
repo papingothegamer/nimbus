@@ -20,6 +20,8 @@ struct Iconography {
     static const inline juce::String Solo = "solo_svg";
     static const inline juce::String Mute = "mute_svg";
     static const inline juce::String RecordArm = "recordarmtrack_svg";
+    static const inline juce::String VolumeSource = "volumesource_svg";
+    static const inline juce::String VolumeOff = "volumeoff_svg";
     
     // Routing/Other
     static const inline juce::String Stereo = "link_svg";

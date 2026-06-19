@@ -1,8 +1,9 @@
 #include "Track.h"
+#include "Transport.h"
 
 namespace Nimbus {
 
-Track::Track() = default;
+Track::Track(Transport* t) : transport(t) {}
 
 void Track::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) {
     currentSampleRate = sampleRate;
@@ -38,9 +39,20 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
         source->processBlock(trackBuffer, trackMidiBuffer);
     }
 
+    // Route live MIDI input only if armed
+    if (armed_.load(std::memory_order_relaxed)) {
+        trackMidiBuffer.addEvents(midiMessages, 0, trackBuffer.getNumSamples(), 0);
+    }
+
     // 1.5 Process instrument plugin (synth consumes MIDI, produces audio)
     if (instrument) {
         instrument->processBlock(trackBuffer, trackMidiBuffer);
+        
+        // Mute instrument if track is disarmed and transport is stopped.
+        // This prevents the instrument from making sounds if the user interacts with its UI while disarmed.
+        if (!armed_.load(std::memory_order_relaxed) && transport != nullptr && !transport->isPlaying()) {
+            trackBuffer.clear();
+        }
     }
 
     // 2. Process insert plugins
@@ -99,5 +111,6 @@ void Track::setPan(float panValue) {
 
 void Track::setMuted(bool muted) { muted_.store(muted); }
 void Track::setSoloed(bool soloed) { soloed_.store(soloed); }
+void Track::setArmed(bool armed) { armed_.store(armed); }
 
 } // namespace Nimbus

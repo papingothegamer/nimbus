@@ -42,6 +42,7 @@ private:
     juce::TextButton soloButton{"S"};
     juce::TextButton armButton{"O"};
     juce::TextButton stereoButton{"O"}; // Mock stereo link icon
+    juce::TextButton linkIcon{"Link"}; // Mock stereo link icon
 
     int trackIndex = -1;
 
@@ -53,6 +54,8 @@ private:
 
     // TimelineProject::Listener
     void trackMuteChanged(int track, bool isMuted) override;
+    void trackArmChanged(int track, bool isArmed) override;
+    void trackStereoChanged(int track, bool isStereo) override;
     void trackSelectionChanged() override;
     
     float currentLevel = 0.0f;

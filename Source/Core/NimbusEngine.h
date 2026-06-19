@@ -43,7 +43,9 @@ public:
 
     // TimelineProject::Listener overrides
     void trackMuteChanged(int trackIndex, bool isMuted) override;
+    void trackArmChanged(int trackIndex, bool isArmed) override;
     void trackRemoved(int trackIndex) override;
+    void trackClipsChanged(int trackIndex) override;
 
     float getMasterPeakLevel() const;
     float getTrackPeakLevel(int trackIndex) const;
