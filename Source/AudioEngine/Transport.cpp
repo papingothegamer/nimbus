@@ -18,6 +18,10 @@ void Transport::record() {
     playing.store(true, std::memory_order_relaxed);
 }
 
+void Transport::stopRecording() {
+    recording.store(false, std::memory_order_relaxed);
+}
+
 void Transport::setPosition(double samplePosition) {
     currentPosition.store(samplePosition, std::memory_order_relaxed);
 }

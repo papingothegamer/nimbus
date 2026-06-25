@@ -56,6 +56,10 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
         engine.getTimelineProject().setTrackArmed(trackIndex, armButton.getToggleState());
     };
 
+    soloButton.onClick = [this] {
+        engine.getTimelineProject().setTrackSoloed(trackIndex, soloButton.getToggleState());
+    };
+
     // Routing combo boxes (placeholder items)
     addAndMakeVisible(sourceLabel);
     addAndMakeVisible(destLabel);
@@ -68,7 +72,20 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     addAndMakeVisible(sourceBox);
     addAndMakeVisible(destBox);
     
-    sourceBox.addItem("Ext. In", 1);
+    sourceBox.clear();
+    if (auto* device = engine.getAudioDeviceManager().getJuceAudioDeviceManager().getCurrentAudioDevice()) {
+        auto activeChannels = device->getActiveInputChannels();
+        auto channelNames = device->getInputChannelNames();
+        int itemIndex = 1;
+        for (int i = 0; i < channelNames.size(); ++i) {
+            if (activeChannels[i]) {
+                sourceBox.addItem(channelNames[i], itemIndex++);
+            }
+        }
+    }
+    if (sourceBox.getNumItems() == 0) {
+        sourceBox.addItem("No Input", 1);
+    }
     sourceBox.setSelectedItemIndex(0);
     
     destBox.addItem("Master", 1);
@@ -95,13 +112,10 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     engine.getTimelineProject().addListener(this);
     
     bool isFolded = engine.getTimelineProject().getTrack(trackIndex).isFolded;
-    foldButton.setButtonText(isFolded ? DesignSystem::Iconography::Fold : DesignSystem::Iconography::Unfold);
-    
-    startTimerHz(30);
+    foldButton.setButtonText(isFolded ? DesignSystem::Iconography::Unfold : DesignSystem::Iconography::Fold);
 }
 
 TrackHeaderComponent::~TrackHeaderComponent() {
-    stopTimer();
     engine.getTimelineProject().removeListener(this);
 }
 
@@ -170,6 +184,12 @@ void TrackHeaderComponent::trackMuteChanged(int track, bool isMuted) {
     }
 }
 
+void TrackHeaderComponent::trackSoloChanged(int track, bool isSoloed) {
+    if (track == trackIndex) {
+        soloButton.setToggleState(isSoloed, juce::dontSendNotification);
+    }
+}
+
 void TrackHeaderComponent::trackArmChanged(int track, bool isArmed) {
     if (track == trackIndex) {
         armButton.setToggleState(isArmed, juce::dontSendNotification);
@@ -184,7 +204,7 @@ void TrackHeaderComponent::trackSelectionChanged() {
 
 void TrackHeaderComponent::trackFoldStateChanged(int track, bool isFolded) {
     if (track == trackIndex) {
-        foldButton.setButtonText(isFolded ? DesignSystem::Iconography::Fold : DesignSystem::Iconography::Unfold);
+        foldButton.setButtonText(isFolded ? DesignSystem::Iconography::Unfold : DesignSystem::Iconography::Fold);
         resized();
         repaint();
     }
@@ -193,7 +213,8 @@ void TrackHeaderComponent::trackFoldStateChanged(int track, bool isFolded) {
 void TrackHeaderComponent::setTrackIndex(int newIndex) {
     trackIndex = newIndex;
     numberButton.setButtonText(juce::String(trackIndex + 1));
-    nameLabel.setText("Track " + juce::String(trackIndex + 1), juce::dontSendNotification);
+    const auto& track = engine.getTimelineProject().getTrack(trackIndex);
+    nameLabel.setText(track.name.isNotEmpty() ? track.name : "Track " + juce::String(trackIndex + 1), juce::dontSendNotification);
 }
 
 void TrackHeaderComponent::paint(juce::Graphics& g) {
@@ -229,7 +250,7 @@ void TrackHeaderComponent::paint(juce::Graphics& g) {
     }
 }
 
-void TrackHeaderComponent::timerCallback() {
+void TrackHeaderComponent::updateMeters() {
     float newLevel = engine.getTrackPeakLevel(trackIndex);
     if (std::abs(newLevel - currentLevel) > 0.01f) {
         currentLevel = newLevel;

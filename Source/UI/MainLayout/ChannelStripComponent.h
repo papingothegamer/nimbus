@@ -7,7 +7,7 @@
 
 namespace Nimbus::MainLayout {
 
-class ChannelStripComponent : public juce::Component, private juce::Timer, public TimelineProject::Listener {
+class ChannelStripComponent : public juce::Component, public TimelineProject::Listener {
 public:
     ChannelStripComponent(NimbusEngine& engine, const juce::String& name, bool isStereo, bool isMaster);
     ~ChannelStripComponent() override;
@@ -16,7 +16,7 @@ public:
     void resized() override;
     
     void setTrackIndex(int newIndex);
-    void timerCallback() override;
+    void updateMeters();
 
     void setLevelProvider(std::function<float()> provider);
 
@@ -41,7 +41,6 @@ private:
     juce::TextButton muteButton{"M"};
     juce::TextButton soloButton{"S"};
     juce::TextButton armButton{"O"};
-    juce::TextButton stereoButton{"O"}; // Mock stereo link icon
     juce::TextButton linkIcon{"Link"}; // Mock stereo link icon
 
     int trackIndex = -1;
@@ -55,8 +54,10 @@ private:
     // TimelineProject::Listener
     void trackMuteChanged(int track, bool isMuted) override;
     void trackArmChanged(int track, bool isArmed) override;
-    void trackStereoChanged(int track, bool isStereo) override;
     void trackSelectionChanged() override;
+    void trackSoloChanged(int track, bool isSoloed) override;
+    void trackVolumeChanged(int track, float volume) override;
+    void trackPanChanged(int track, float pan) override;
     
     float currentLevel = 0.0f;
     

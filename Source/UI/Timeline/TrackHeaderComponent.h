@@ -6,14 +6,14 @@
 
 namespace Nimbus::Timeline {
 
-class TrackHeaderComponent : public juce::Component, public juce::Label::Listener, public TimelineProject::Listener, private juce::Timer {
+class TrackHeaderComponent : public juce::Component, public juce::Label::Listener, public TimelineProject::Listener {
 public:
     TrackHeaderComponent(NimbusEngine& engine, int trackIndex);
     ~TrackHeaderComponent() override;
 
     void paint(juce::Graphics& g) override;
     void resized() override;
-    void timerCallback() override;
+    void updateMeters();
     
     void setTrackIndex(int newIndex);
     
@@ -22,6 +22,7 @@ public:
 
     // TimelineProject::Listener
     void trackMuteChanged(int track, bool isMuted) override;
+    void trackSoloChanged(int track, bool isSoloed) override;
     void trackArmChanged(int track, bool isArmed) override;
     void trackSelectionChanged() override;
 

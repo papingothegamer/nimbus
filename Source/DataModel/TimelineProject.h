@@ -25,6 +25,9 @@ struct TrackModel {
     bool isGroup = false;
     bool isFolded = false;
     juce::Uuid parentGroupId;
+    
+    float volume = 0.75f;
+    float pan = 0.0f;
 };
 
 /**
@@ -45,6 +48,9 @@ public:
         virtual void tracksGrouped() {}
         virtual void trackClipsChanged(int trackIndex) {}
         virtual void selectedClipChanged() {}
+        virtual void trackSoloChanged(int trackIndex, bool isSoloed) {}
+        virtual void trackVolumeChanged(int trackIndex, float volume) {}
+        virtual void trackPanChanged(int trackIndex, float pan) {}
     };
 
     TimelineProject() = default;
@@ -72,6 +78,15 @@ public:
 
     void setTrackStereo(int trackIndex, bool isStereo);
     bool isTrackStereo(int trackIndex) const;
+
+    void setTrackSoloed(int trackIndex, bool isSoloed);
+    bool isTrackSoloed(int trackIndex) const;
+
+    void setTrackVolume(int trackIndex, float volume);
+    float getTrackVolume(int trackIndex) const;
+
+    void setTrackPan(int trackIndex, float pan);
+    float getTrackPan(int trackIndex) const;
 
     void linkTracks(int trackIndex1, int trackIndex2);
     void unlinkTrack(int trackIndex);

@@ -21,6 +21,12 @@ void TrackLaneComponent::paint(juce::Graphics& g) {
         g.fillRect(getLocalBounds());
     }
     
+    // Recording indicator
+    if (engine.getTransport().isRecording() && engine.getTimelineProject().isTrackArmed(trackIndex)) {
+        g.setColour(juce::Colours::red.withAlpha(0.15f));
+        g.fillRect(getLocalBounds());
+    }
+    
     // Bottom separator
     g.setColour(DesignSystem::Colors::Divider);
     g.fillRect(0, getHeight() - 1, getWidth(), 1);

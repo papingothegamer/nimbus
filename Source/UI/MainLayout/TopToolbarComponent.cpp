@@ -26,6 +26,7 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     loopButton.setButtonText(DesignSystem::Iconography::Loop);
     metronomeToggle.setButtonText(DesignSystem::Iconography::Metronome);
     metronomeToggle.setClickingTogglesState(true);
+    arrRecordButton.setClickingTogglesState(true);
     followPlayheadToggle.setButtonText(DesignSystem::Iconography::Follow);
     followPlayheadToggle.setClickingTogglesState(true);
 
@@ -144,6 +145,14 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     followPlayheadToggle.onClick = [this] {
         engine.setFollowPlayheadEnabled(followPlayheadToggle.getToggleState());
     };
+    
+    arrRecordButton.onClick = [this] {
+        if (engine.getTransport().isRecording()) {
+            engine.getTransport().stopRecording();
+        } else {
+            engine.getTransport().record();
+        }
+    };
 
     settingsButton.onClick = [this] {
         auto menu = std::make_unique<UI::Settings::SettingsMenuComponent>(engine);
@@ -168,6 +177,9 @@ void TopToolbarComponent::timerCallback() {
     playButton.setToggleState(isPlaying, juce::dontSendNotification);
     playButton.setButtonText(isPlaying ? DesignSystem::Iconography::Pause : DesignSystem::Iconography::Play);
     followPlayheadToggle.setToggleState(engine.isFollowPlayheadEnabled(), juce::dontSendNotification);
+    
+    bool isRecording = engine.getTransport().isRecording();
+    arrRecordButton.setToggleState(isRecording, juce::dontSendNotification);
 }
 
 void TopToolbarComponent::resized() {

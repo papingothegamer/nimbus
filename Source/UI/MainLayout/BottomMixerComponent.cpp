@@ -24,9 +24,12 @@ BottomMixerComponent::BottomMixerComponent(NimbusEngine& e) : engine(e) {
     for (int i = 0; i < engine.getTimelineProject().getNumTracks(); ++i) {
         trackAdded(i, engine.getTimelineProject().getTrack(i));
     }
+    
+    startTimerHz(30);
 }
 
 BottomMixerComponent::~BottomMixerComponent() {
+    stopTimer();
     engine.getTimelineProject().removeListener(this);
 }
 
@@ -66,6 +69,17 @@ void BottomMixerComponent::tracksGrouped() {
         trackContainer.addAndMakeVisible(strip);
     }
     resized();
+}
+
+void BottomMixerComponent::trackFoldStateChanged(int trackIndex, bool isFolded) {
+    resized();
+}
+
+void BottomMixerComponent::timerCallback() {
+    masterStrip->updateMeters();
+    for (auto* strip : trackStrips) {
+        strip->updateMeters();
+    }
 }
 
 void BottomMixerComponent::paint(juce::Graphics& g) {

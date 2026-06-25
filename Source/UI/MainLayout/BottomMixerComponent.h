@@ -6,7 +6,7 @@
 
 namespace Nimbus::MainLayout {
 
-class BottomMixerComponent : public juce::Component, public TimelineProject::Listener {
+class BottomMixerComponent : public juce::Component, public TimelineProject::Listener, private juce::Timer {
 public:
     BottomMixerComponent(NimbusEngine& engine);
     ~BottomMixerComponent() override;
@@ -18,6 +18,10 @@ public:
     void trackAdded(int trackIndex, const TrackModel& track) override;
     void trackRemoved(int trackIndex) override;
     void tracksGrouped() override;
+    void trackFoldStateChanged(int trackIndex, bool isFolded) override;
+
+    // juce::Timer
+    void timerCallback() override;
 
 private:
     NimbusEngine& engine;

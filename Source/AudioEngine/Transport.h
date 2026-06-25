@@ -14,6 +14,7 @@ public:
     void play() override;
     void stop() override;
     void record() override;
+    void stopRecording();
     
     void setPosition(double samplePosition) override;
     double getCurrentPosition() const override;

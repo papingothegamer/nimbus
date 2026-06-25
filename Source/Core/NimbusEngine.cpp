@@ -71,6 +71,30 @@ void NimbusEngine::trackMuteChanged(int trackIndex, bool isMuted) {
     }
 }
 
+void NimbusEngine::trackSoloChanged(int trackIndex, bool isSoloed) {
+    if (mixer) {
+        if (auto* track = mixer->getTrack(trackIndex)) {
+            track->setSoloed(isSoloed);
+        }
+    }
+}
+
+void NimbusEngine::trackVolumeChanged(int trackIndex, float volume) {
+    if (mixer) {
+        if (auto* track = mixer->getTrack(trackIndex)) {
+            track->setVolume(volume);
+        }
+    }
+}
+
+void NimbusEngine::trackPanChanged(int trackIndex, float pan) {
+    if (mixer) {
+        if (auto* track = mixer->getTrack(trackIndex)) {
+            track->setPan(pan);
+        }
+    }
+}
+
 void NimbusEngine::trackArmChanged(int trackIndex, bool isArmed) {
     if (mixer) {
         if (auto* track = mixer->getTrack(trackIndex)) {

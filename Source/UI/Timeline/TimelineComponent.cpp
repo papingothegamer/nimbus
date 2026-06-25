@@ -290,6 +290,8 @@ void TimelineComponent::resized() {
 }
 
 void TimelineComponent::timerCallback() {
+    bool shouldRepaint = false;
+    
     if (engine.getTransport().isPlaying() && engine.isFollowPlayheadEnabled()) {
         double positionSamples = engine.getTransport().getCurrentPosition();
         double sampleRate = engine.getTransport().getSampleRate();
@@ -312,6 +314,7 @@ void TimelineComponent::timerCallback() {
         for (auto* lane : trackLanes) {
             lane->resized();
         }
+        shouldRepaint = true;
     } else if (seekingBar.isDragging) {
         // Auto-scroll when dragging playhead off-screen
         float x = seekingBar.lastDragX;
@@ -332,17 +335,40 @@ void TimelineComponent::timerCallback() {
                 lane->resized();
             }
         }
+        shouldRepaint = true;
     }
-    repaint();
+    
+    for (auto* header : trackHeaders) {
+        if (auto* trackHeader = dynamic_cast<Timeline::TrackHeaderComponent*>(header)) {
+            trackHeader->updateMeters();
+        }
+    }
+    
+    if (shouldRepaint) {
+        repaint();
+    }
 }
 
 void TimelineComponent::mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) {
     if (event.mods.isCtrlDown() || event.mods.isCommandDown()) {
         // Zoom
         double zoomDelta = wheel.deltaY > 0 ? 1.1 : 0.9;
+        if (wheel.deltaY == 0) zoomDelta = 1.0;
+        
         pixelsPerSecond = juce::jlimit(5.0, 500.0, pixelsPerSecond * zoomDelta);
+        for (auto* lane : trackLanes) {
+            lane->resized();
+        }
         repaint();
     } else {
+        if (std::abs(wheel.deltaX) > 0.0f) {
+            scrollOffsetX += wheel.deltaX * 500.0;
+            scrollOffsetX = juce::jmax(0.0, scrollOffsetX);
+            for (auto* lane : trackLanes) {
+                lane->resized();
+            }
+            repaint();
+        }
     }
 }
 

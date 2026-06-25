@@ -148,6 +148,48 @@ bool TimelineProject::isTrackStereo(int trackIndex) const {
     return false;
 }
 
+void TimelineProject::setTrackSoloed(int trackIndex, bool isSoloed) {
+    if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        tracks[trackIndex].isSoloed = isSoloed;
+        listeners.call(&Listener::trackSoloChanged, trackIndex, isSoloed);
+    }
+}
+
+bool TimelineProject::isTrackSoloed(int trackIndex) const {
+    if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        return tracks[trackIndex].isSoloed;
+    }
+    return false;
+}
+
+void TimelineProject::setTrackVolume(int trackIndex, float volume) {
+    if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        tracks[trackIndex].volume = volume;
+        listeners.call(&Listener::trackVolumeChanged, trackIndex, volume);
+    }
+}
+
+float TimelineProject::getTrackVolume(int trackIndex) const {
+    if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        return tracks[trackIndex].volume;
+    }
+    return 0.75f;
+}
+
+void TimelineProject::setTrackPan(int trackIndex, float pan) {
+    if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        tracks[trackIndex].pan = pan;
+        listeners.call(&Listener::trackPanChanged, trackIndex, pan);
+    }
+}
+
+float TimelineProject::getTrackPan(int trackIndex) const {
+    if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        return tracks[trackIndex].pan;
+    }
+    return 0.0f;
+}
+
 void TimelineProject::linkTracks(int trackIndex1, int trackIndex2) {
     if (trackIndex1 >= 0 && trackIndex1 < tracks.size() &&
         trackIndex2 >= 0 && trackIndex2 < tracks.size() &&

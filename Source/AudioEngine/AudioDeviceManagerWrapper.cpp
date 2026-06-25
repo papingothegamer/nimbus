@@ -40,8 +40,8 @@ void AudioDeviceManagerWrapper::audioDeviceStopped() {
     graph.releaseResources();
 }
 
-void AudioDeviceManagerWrapper::audioDeviceIOCallbackWithContext(const float* const* /*inputChannelData*/,
-                                                                 int /*numInputChannels*/,
+void AudioDeviceManagerWrapper::audioDeviceIOCallbackWithContext(const float* const* inputChannelData,
+                                                                 int numInputChannels,
                                                                  float* const* outputChannelData,
                                                                  int numOutputChannels,
                                                                  int numSamples,
@@ -50,6 +50,14 @@ void AudioDeviceManagerWrapper::audioDeviceIOCallbackWithContext(const float* co
     // Clear our intermediate process buffer
     processBuffer.clear();
     dummyMidiBuffer.clear();
+
+    // Copy input hardware data to processBuffer
+    int numInputChannelsToCopy = std::min(numInputChannels, processBuffer.getNumChannels());
+    for (int ch = 0; ch < numInputChannelsToCopy; ++ch) {
+        if (inputChannelData[ch] != nullptr) {
+            processBuffer.copyFrom(ch, 0, inputChannelData[ch], numSamples);
+        }
+    }
 
     // The graph processes and writes into processBuffer
     graph.processBlock(processBuffer, dummyMidiBuffer);
