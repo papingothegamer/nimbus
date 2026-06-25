@@ -93,6 +93,11 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     addAndMakeVisible(arrRecordButton);
     addAndMakeVisible(loopButton);
     addAndMakeVisible(punchInButton);
+    
+    playButton.setWantsKeyboardFocus(false);
+    stopButton.setWantsKeyboardFocus(false);
+    arrRecordButton.setWantsKeyboardFocus(false);
+    loopButton.setWantsKeyboardFocus(false);
     addAndMakeVisible(loopStartLabel);
     loopStartLabel.setText("1. 1. 1", juce::dontSendNotification);
     addAndMakeVisible(loopLengthLabel);
@@ -148,7 +153,7 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     
     arrRecordButton.onClick = [this] {
         if (engine.getTransport().isRecording()) {
-            engine.getTransport().stopRecording();
+            engine.getTransport().stop(); // Stop playback and recording
         } else {
             engine.getTransport().record();
         }

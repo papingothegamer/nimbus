@@ -13,6 +13,8 @@ void Mixer::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock)
         track->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
     }
     masterFader.prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
+    inputBufferCopy.setSize(2, maximumExpectedSamplesPerBlock);
+    inputBufferCopy.clear();
 }
 
 void Mixer::releaseResources() {
@@ -40,14 +42,23 @@ void Mixer::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
         }
     }
 
-    // 2. Clear master buffer
+    // 2. Copy the live input from buffer before clearing it
+    if (buffer.getNumChannels() > 0 && buffer.getNumSamples() > 0) {
+        inputBufferCopy.setSize(buffer.getNumChannels(), buffer.getNumSamples(), false, false, true);
+        for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
+            inputBufferCopy.copyFrom(ch, 0, buffer, ch, 0, buffer.getNumSamples());
+        }
+    }
+
+    // 3. Clear master buffer
     buffer.clear();
 
-    // 3. Process and sum all tracks
+    // 4. Process and sum all tracks
     bool anySoloed = false;
     for (auto& t : tracks) if (t->isSoloed()) { anySoloed = true; break; }
 
     for (auto& track : tracks) {
+        track->setInputBuffer(&inputBufferCopy);
         if (anySoloed && !track->isSoloed()) continue;
         track->processBlock(buffer, midiMessages);
     }

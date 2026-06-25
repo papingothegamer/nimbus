@@ -42,6 +42,8 @@ public:
     
     const AudioGraph& getInsertGraph() const { return insertGraph; }
 
+    void setInputBuffer(const juce::AudioBuffer<float>* inBuf) { inputBufferPtr = inBuf; }
+
     // Fader Controls
     void setVolume(float gainLinear);
     void setPan(float panValue);
@@ -68,6 +70,7 @@ private:
     // Intermediate buffer to hold this track's isolated audio
     juce::AudioBuffer<float> trackBuffer;
     juce::MidiBuffer trackMidiBuffer;
+    const juce::AudioBuffer<float>* inputBufferPtr = nullptr;
     Transport* transport = nullptr;
     double currentSampleRate = 44100.0;
     int currentBlockSize = 512;

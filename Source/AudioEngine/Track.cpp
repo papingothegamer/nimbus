@@ -42,6 +42,13 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
     // Route live MIDI input only if armed
     if (armed_.load(std::memory_order_relaxed)) {
         trackMidiBuffer.addEvents(midiMessages, 0, trackBuffer.getNumSamples(), 0);
+        
+        // Route live AUDIO input if no instrument is present
+        if (inputBufferPtr != nullptr && instrument == nullptr) {
+            for (int ch = 0; ch < std::min(trackBuffer.getNumChannels(), inputBufferPtr->getNumChannels()); ++ch) {
+                trackBuffer.addFrom(ch, 0, *inputBufferPtr, ch, 0, trackBuffer.getNumSamples());
+            }
+        }
     }
 
     // 1.5 Process instrument plugin (synth consumes MIDI, produces audio)

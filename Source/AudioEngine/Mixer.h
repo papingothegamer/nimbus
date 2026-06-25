@@ -59,6 +59,7 @@ private:
 
     GainNode masterFader;
     LevelMeter meter;
+    juce::AudioBuffer<float> inputBufferCopy;
 
     double currentSampleRate = 44100.0;
     int currentBlockSize = 512;
