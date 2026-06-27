@@ -93,8 +93,7 @@ void ClipComponent::mouseDown(const juce::MouseEvent& event) {
         
         menu.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
             if (result == 3) {
-                // Delete clip logic (needs parent to remove it, or via project)
-                // We'll leave it as a placeholder or call project remove
+                engine.getTimelineProject().removeClip(clipData);
             }
         });
         return;

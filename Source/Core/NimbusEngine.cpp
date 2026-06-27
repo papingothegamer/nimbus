@@ -131,8 +131,10 @@ void NimbusEngine::trackClipsChanged(int trackIndex) {
                     auto clipNode = std::make_unique<MidiClipNode>(midiClip, transport);
                     track->setSourceNode(std::move(clipNode));
                 } else if (std::holds_alternative<std::shared_ptr<AudioClip>>(anyClip)) {
-                    // Similar for audio clip
-                    // Not implemented right now as it requires DiskStreamer
+                    auto audioClip = std::get<std::shared_ptr<AudioClip>>(anyClip);
+                    auto streamer = std::make_shared<DiskStreamer>(audioClip->getSourceFile(), formatManager);
+                    auto clipNode = std::make_unique<AudioClipNode>(audioClip, streamer, transport);
+                    track->setSourceNode(std::move(clipNode));
                 }
             } else {
                 track->setSourceNode(nullptr); // No clips

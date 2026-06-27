@@ -105,6 +105,7 @@ public:
     int getLastSelectedTrack() const { return lastSelectedTrack; }
 
     void addClipToTrack(int trackIndex, AnyClipPtr clip);
+    void removeClip(AnyClipPtr clip);
     std::vector<AnyClipPtr> getClipsOnTrack(int trackIndex) const;
     
     void setSelectedClip(AnyClipPtr clip);
