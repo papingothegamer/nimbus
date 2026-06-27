@@ -184,6 +184,21 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
                 currentClip->getSequence().addEvent(noteOff);
                 currentClip->getSequence().updateMatchedPairs();
                 
+                // Audition the note
+                int trackIndex = -1;
+                auto& sel = engine.getTimelineProject().getSelectedTracks();
+                if (sel.getNumRanges() > 0) {
+                    trackIndex = sel.getRange(0).getStart();
+                }
+                if (trackIndex >= 0) {
+                    if (auto* track = engine.getMixer()->getTrack(trackIndex)) {
+                        juce::MidiMessage noteOn = juce::MidiMessage::noteOn(1, noteNumber, (juce::uint8)100);
+                        track->addLiveMidiMessage(noteOn);
+                        // Let's just send the NoteOn for now. It might hang unless the synth auto-releases.
+                        // To fix this properly, we send a note with 0 velocity when mouse is released.
+                    }
+                }
+
                 engine.getTimelineProject().notifyClipModified();
                 repaint();
                 
@@ -270,6 +285,23 @@ void PianoRollContent::mouseDrag(const juce::MouseEvent& event) {
             
             engine.getTimelineProject().notifyClipModified();
             repaint();
+        }
+    }
+}
+
+void PianoRollContent::mouseUp(const juce::MouseEvent& event) {
+    // Send a generic note off for all notes to stop audition sounds from hanging
+    int trackIndex = -1;
+    auto& sel = engine.getTimelineProject().getSelectedTracks();
+    if (sel.getNumRanges() > 0) {
+        trackIndex = sel.getRange(0).getStart();
+    }
+    if (trackIndex >= 0) {
+        if (auto* track = engine.getMixer()->getTrack(trackIndex)) {
+            // We can send an AllNotesOff CC or just note off for the dragged note
+            // Since we auditioned dragStartNoteNumber, let's send a NoteOff for it
+            juce::MidiMessage shortOff = juce::MidiMessage::noteOff(1, dragStartNoteNumber, (juce::uint8)0);
+            track->addLiveMidiMessage(shortOff);
         }
     }
 }

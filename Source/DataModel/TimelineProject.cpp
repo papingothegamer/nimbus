@@ -190,6 +190,20 @@ float TimelineProject::getTrackPan(int trackIndex) const {
     return 0.0f;
 }
 
+void TimelineProject::setTrackInputChannel(int trackIndex, int inputChannel) {
+    if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        tracks[trackIndex].inputChannelIndex = inputChannel;
+        listeners.call(&Listener::trackInputChannelChanged, trackIndex, inputChannel);
+    }
+}
+
+int TimelineProject::getTrackInputChannel(int trackIndex) const {
+    if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        return tracks[trackIndex].inputChannelIndex;
+    }
+    return -1;
+}
+
 void TimelineProject::linkTracks(int trackIndex1, int trackIndex2) {
     if (trackIndex1 >= 0 && trackIndex1 < tracks.size() &&
         trackIndex2 >= 0 && trackIndex2 < tracks.size() &&

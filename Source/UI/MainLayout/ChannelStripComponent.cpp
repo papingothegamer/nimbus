@@ -14,23 +14,31 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
     nameLabel.setJustificationType(juce::Justification::centred);
 
     addAndMakeVisible(inputComboBox);
-    inputComboBox.clear();
+    int itemIndex = 1;
+    inputComboBox.addItem("No Input", itemIndex++);
     if (auto* device = engine.getAudioDeviceManager().getJuceAudioDeviceManager().getCurrentAudioDevice()) {
         auto activeChannels = device->getActiveInputChannels();
         auto channelNames = device->getInputChannelNames();
-        int itemIndex = 1;
         for (int i = 0; i < channelNames.size(); ++i) {
             if (activeChannels[i]) {
-                inputComboBox.addItem(channelNames[i], itemIndex++);
+                // We use item ID = i + 10 (so index 0 is 10, index 1 is 11)
+                inputComboBox.addItem(channelNames[i], i + 10);
             }
         }
-    }
-    if (inputComboBox.getNumItems() == 0) {
-        inputComboBox.addItem("No Input", 1);
     }
     inputComboBox.addItem("Resampling", 100);
     inputComboBox.setSelectedId(1, juce::dontSendNotification);
     inputComboBox.setJustificationType(juce::Justification::centred);
+    inputComboBox.onChange = [this]() {
+        if (trackIndex != -1) {
+            int selectedId = inputComboBox.getSelectedId();
+            int inputIndex = -1;
+            if (selectedId >= 10 && selectedId < 100) {
+                inputIndex = selectedId - 10;
+            }
+            engine.getTimelineProject().setTrackInputChannel(trackIndex, inputIndex);
+        }
+    };
 
     addAndMakeVisible(routingComboBox);
     routingComboBox.addItem("Master", 1);
@@ -124,6 +132,14 @@ ChannelStripComponent::~ChannelStripComponent() {
 
 void ChannelStripComponent::setTrackIndex(int index) {
     trackIndex = index;
+    if (trackIndex != -1 && !master) {
+        int inputChannel = engine.getTimelineProject().getTrackInputChannel(trackIndex);
+        if (inputChannel == -1) {
+            inputComboBox.setSelectedId(1, juce::dontSendNotification);
+        } else {
+            inputComboBox.setSelectedId(inputChannel + 10, juce::dontSendNotification);
+        }
+    }
 }
 
 void ChannelStripComponent::setLevelProvider(std::function<float()> provider) {
@@ -322,6 +338,16 @@ void ChannelStripComponent::trackVolumeChanged(int track, float volume) {
 void ChannelStripComponent::trackPanChanged(int track, float panValue) {
     if (track == trackIndex) {
         pan.setValue(panValue, juce::dontSendNotification);
+    }
+}
+
+void ChannelStripComponent::trackInputChannelChanged(int track, int inputChannel) {
+    if (track == trackIndex) {
+        if (inputChannel == -1) {
+            inputComboBox.setSelectedId(1, juce::dontSendNotification);
+        } else {
+            inputComboBox.setSelectedId(inputChannel + 10, juce::dontSendNotification);
+        }
     }
 }
 

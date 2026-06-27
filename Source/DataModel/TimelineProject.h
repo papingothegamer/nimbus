@@ -28,6 +28,8 @@ struct TrackModel {
     
     float volume = 0.75f;
     float pan = 0.0f;
+    
+    int inputChannelIndex = -1; // -1 = All active, 0 = Ch1, 1 = Ch2, etc.
 };
 
 /**
@@ -51,6 +53,7 @@ public:
         virtual void trackSoloChanged(int trackIndex, bool isSoloed) {}
         virtual void trackVolumeChanged(int trackIndex, float volume) {}
         virtual void trackPanChanged(int trackIndex, float pan) {}
+        virtual void trackInputChannelChanged(int trackIndex, int inputChannel) {}
     };
 
     TimelineProject() = default;
@@ -87,6 +90,9 @@ public:
 
     void setTrackPan(int trackIndex, float pan);
     float getTrackPan(int trackIndex) const;
+
+    void setTrackInputChannel(int trackIndex, int inputChannel);
+    int getTrackInputChannel(int trackIndex) const;
 
     void linkTracks(int trackIndex1, int trackIndex2);
     void unlinkTrack(int trackIndex);

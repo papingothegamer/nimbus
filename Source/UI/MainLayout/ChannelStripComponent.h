@@ -58,6 +58,7 @@ private:
     void trackSoloChanged(int track, bool isSoloed) override;
     void trackVolumeChanged(int track, float volume) override;
     void trackPanChanged(int track, float pan) override;
+    void trackInputChannelChanged(int track, int inputChannel) override;
     
     float currentLevel = 0.0f;
     

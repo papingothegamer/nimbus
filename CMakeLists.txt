@@ -12,7 +12,7 @@ include(FetchContent)
 FetchContent_Declare(
     juce
     GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-    GIT_TAG        8.0.1
+    GIT_TAG        8.0.14
 )
 FetchContent_MakeAvailable(juce)
 
@@ -25,6 +25,7 @@ juce_add_gui_app(Nimbus
 target_compile_definitions(Nimbus PRIVATE
     JUCE_PLUGINHOST_VST3=1
     JUCE_PLUGINHOST_AU=1
+    JUCE_ASIO=1
 )
 
 if (MSVC)

@@ -50,6 +50,7 @@ public:
     void trackArmChanged(int trackIndex, bool isArmed) override;
     void trackVolumeChanged(int trackIndex, float volume) override;
     void trackPanChanged(int trackIndex, float pan) override;
+    void trackInputChannelChanged(int trackIndex, int inputChannel) override;
     void trackRemoved(int trackIndex) override;
     void trackClipsChanged(int trackIndex) override;
 
@@ -77,8 +78,8 @@ private:
     TimelineProject timelineProject;
 
     juce::TimeSliceThread recorderThread { "RecorderThread" };
-    std::vector<std::unique_ptr<AudioRecorder>> trackRecorders;
-    std::vector<std::unique_ptr<MidiRecorder>> midiRecorders;
+    std::map<int, std::unique_ptr<AudioRecorder>> trackRecorders;
+    std::map<int, std::unique_ptr<MidiRecorder>> midiRecorders;
 
     // Temporary storage for our single disk streamer for Phase 4
     std::shared_ptr<DiskStreamer> mainStreamer;

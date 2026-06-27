@@ -3,7 +3,7 @@
 namespace Nimbus {
 
 PluginManager::PluginManager() {
-    formatManager.addDefaultFormats();
+    juce::addDefaultFormatsToManager(formatManager);
     
     // Load cached plugins
     juce::File appData = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("Nimbus").getChildFile("Plugins.xml");

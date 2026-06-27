@@ -11,6 +11,8 @@ void Track::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock)
     currentSampleRate = sampleRate;
     currentBlockSize = maximumExpectedSamplesPerBlock;
 
+    uiMidiCollector.reset(sampleRate);
+
     trackBuffer.setSize(2, maximumExpectedSamplesPerBlock);
     
     if (source) source->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
@@ -42,7 +44,16 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
     // 1. Process the source generator into the track buffer
     if (source) {
         source->processBlock(trackBuffer, trackMidiBuffer);
+        if (!trackMidiBuffer.isEmpty()) {
+            static int logCounter = 0;
+            if (logCounter++ % 10 == 0) { // Log occasionally to prevent spam
+                juce::Logger::writeToLog("Track has " + juce::String(trackMidiBuffer.getNumEvents()) + " MIDI events from source!");
+            }
+        }
     }
+
+    // Add any UI-injected MIDI messages
+    uiMidiCollector.removeNextBlockOfMessages(trackMidiBuffer, trackBuffer.getNumSamples());
 
     // Route live MIDI input only if armed
     if (armed_.load(std::memory_order_relaxed)) {
@@ -50,14 +61,27 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
         
         // Route live AUDIO input if no instrument is present
         if (inputBufferPtr != nullptr && instrument == nullptr) {
-            for (int ch = 0; ch < std::min(trackBuffer.getNumChannels(), inputBufferPtr->getNumChannels()); ++ch) {
-                trackBuffer.addFrom(ch, 0, *inputBufferPtr, ch, 0, trackBuffer.getNumSamples());
+            int inCh = inputChannelIndex_.load(std::memory_order_relaxed);
+            if (inCh == -1) {
+                for (int ch = 0; ch < std::min(trackBuffer.getNumChannels(), inputBufferPtr->getNumChannels()); ++ch) {
+                    trackBuffer.addFrom(ch, 0, *inputBufferPtr, ch, 0, trackBuffer.getNumSamples());
+                }
+            } else if (inCh >= 0 && inCh < inputBufferPtr->getNumChannels()) {
+                // Duplicate mono input across all track channels
+                for (int ch = 0; ch < trackBuffer.getNumChannels(); ++ch) {
+                    trackBuffer.addFrom(ch, 0, *inputBufferPtr, inCh, 0, trackBuffer.getNumSamples());
+                }
             }
         }
         
         // Record the live input if transport is recording
         if (recorder_ != nullptr && transport != nullptr && transport->isRecording()) {
             recorder_->pushSamples(trackBuffer, trackBuffer.getNumSamples());
+        }
+        
+        if (midiRecorder_ != nullptr && transport != nullptr && transport->isRecording()) {
+            double startPos = transport->getCurrentPosition();
+            midiRecorder_->pushEvents(midiMessages, trackBuffer.getNumSamples(), startPos);
         }
     }
 

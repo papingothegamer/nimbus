@@ -54,6 +54,7 @@ void NimbusEngine::addTrack(bool isMidi) {
 
     if (mixer != nullptr) {
         auto track = std::make_unique<Track>(&transport);
+        track->setInputChannelIndex(model.inputChannelIndex);
         // MIDI tracks don't get a source node here - they get one when a clip is added
         mixer->addTrack(std::move(track));
     }
@@ -95,6 +96,14 @@ void NimbusEngine::trackPanChanged(int trackIndex, float pan) {
     if (mixer) {
         if (auto* track = mixer->getTrack(trackIndex)) {
             track->setPan(pan);
+        }
+    }
+}
+
+void NimbusEngine::trackInputChannelChanged(int trackIndex, int inputChannel) {
+    if (mixer) {
+        if (auto* track = mixer->getTrack(trackIndex)) {
+            track->setInputChannelIndex(inputChannel);
         }
     }
 }
@@ -157,7 +166,7 @@ void NimbusEngine::startRecording() {
                     if (auto* mixerTrack = mixer->getTrack(i)) {
                         mixerTrack->setRecorder(recorder.get());
                     }
-                    trackRecorders.push_back(std::move(recorder));
+                    trackRecorders[i] = std::move(recorder);
                 }
             } else {
                 // Create MidiRecorder
@@ -167,7 +176,7 @@ void NimbusEngine::startRecording() {
                 if (auto* mixerTrack = mixer->getTrack(i)) {
                     mixerTrack->setMidiRecorder(recorder.get());
                 }
-                midiRecorders.push_back(std::move(recorder));
+                midiRecorders[i] = std::move(recorder);
             }
         }
     }
@@ -178,20 +187,17 @@ void NimbusEngine::startRecording() {
 void NimbusEngine::stopRecording() {
     transport.stop();
     
-    for (auto& recorder : trackRecorders) {
-        // Find which track this recorder belongs to
-        int trackIdx = -1;
-        for (int i = 0; i < timelineProject.getNumTracks(); ++i) {
-            if (mixer && mixer->getTrack(i) && mixer->getTrack(i)->isArmed() && !timelineProject.getTrack(i).isMidi) {
-                if (mixer->getTrack(i)) mixer->getTrack(i)->setRecorder(nullptr);
-                trackIdx = i;
-                break;
-            }
+    for (auto& pair : trackRecorders) {
+        int trackIdx = pair.first;
+        auto& recorder = pair.second;
+        
+        if (mixer && mixer->getTrack(trackIdx)) {
+            mixer->getTrack(trackIdx)->setRecorder(nullptr);
         }
         
         juce::File recordedFile = recorder->stopRecording();
         
-        if (recordedFile.existsAsFile() && trackIdx != -1) {
+        if (recordedFile.existsAsFile()) {
             double sampleRate = transport.getSampleRate();
             if (sampleRate <= 0) sampleRate = 48000.0;
             
@@ -206,20 +212,17 @@ void NimbusEngine::stopRecording() {
     }
     
     double endPosition = transport.getCurrentPosition();
-    for (auto& recorder : midiRecorders) {
-        int trackIndex = -1;
-        for (int i = 0; i < timelineProject.getNumTracks(); ++i) {
-            if (auto* mixerTrack = mixer->getTrack(i)) {
-                mixerTrack->setMidiRecorder(nullptr);
-                if (timelineProject.isTrackArmed(i) && timelineProject.getTrack(i).isMidi) {
-                    trackIndex = i;
-                }
-            }
+    for (auto& pair : midiRecorders) {
+        int trackIdx = pair.first;
+        auto& recorder = pair.second;
+        
+        if (mixer && mixer->getTrack(trackIdx)) {
+            mixer->getTrack(trackIdx)->setMidiRecorder(nullptr);
         }
         
         auto clip = recorder->stopRecordingAndGetClip(endPosition);
-        if (clip && trackIndex != -1) {
-            timelineProject.addClipToTrack(trackIndex, clip);
+        if (clip) {
+            timelineProject.addClipToTrack(trackIdx, clip);
         }
     }
 

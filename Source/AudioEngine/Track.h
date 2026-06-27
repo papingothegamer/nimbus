@@ -6,6 +6,7 @@
 #include "DSP/LevelMeter.h"
 #include <memory>
 #include <atomic>
+#include <JuceHeader.h>
 
 namespace Nimbus {
 
@@ -48,6 +49,13 @@ public:
     void setRecorder(AudioRecorder* recorder) { recorder_ = recorder; }
     void setMidiRecorder(MidiRecorder* recorder) { midiRecorder_ = recorder; }
 
+    juce::MidiMessageCollector uiMidiCollector;
+    
+    // Live MIDI from UI or hardware
+    void addLiveMidiMessage(const juce::MidiMessage& msg) {
+        uiMidiCollector.addMessageToQueue(msg);
+    }
+
     // Fader Controls
     void setVolume(float gainLinear);
     void setPan(float panValue);
@@ -56,6 +64,8 @@ public:
     void setMuted(bool muted);
     void setSoloed(bool soloed);
     void setArmed(bool armed);
+    void setInputChannelIndex(int index) { inputChannelIndex_ = index; }
+    
     bool isMuted() const { return muted_.load(); }
     bool isSoloed() const { return soloed_.load(); }
     bool isArmed() const { return armed_.load(); }
@@ -83,6 +93,7 @@ private:
     std::atomic<bool> muted_{false};
     std::atomic<bool> soloed_{false};
     std::atomic<bool> armed_{false};
+    std::atomic<int> inputChannelIndex_{-1};
     juce::SpinLock processLock;
 };
 
