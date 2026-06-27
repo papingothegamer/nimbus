@@ -10,7 +10,7 @@ class TimelineComponent;
 
 namespace Nimbus::Timeline {
 
-class TrackLaneComponent : public juce::Component, public TimelineProject::Listener {
+class TrackLaneComponent : public juce::Component, public TimelineProject::Listener, public juce::FileDragAndDropTarget {
 public:
     TrackLaneComponent(NimbusEngine& engine, Nimbus::TimelineComponent& timeline, int trackIndex);
     ~TrackLaneComponent() override;
@@ -25,6 +25,10 @@ public:
     
     void updateClips();
     void showContextMenu(const juce::MouseEvent& event);
+    
+    // FileDragAndDropTarget
+    bool isInterestedInFileDrag(const juce::StringArray& files) override;
+    void filesDropped(const juce::StringArray& files, int x, int y) override;
     
     // TimelineProject::Listener
     void trackClipsChanged(int changedTrackIndex) override;

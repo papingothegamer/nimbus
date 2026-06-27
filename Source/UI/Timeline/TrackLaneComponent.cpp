@@ -47,8 +47,7 @@ void TrackLaneComponent::mouseDoubleClick(const juce::MouseEvent& event) {
             double clipLengthSamples = (secondsPerBeat * 4.0) * sampleRate;
 
             double pixelsPerSecond = timeline.getPixelsPerSecond();
-            double scrollX = timeline.getScrollOffsetX();
-            double clickSeconds = (event.position.x + scrollX) / pixelsPerSecond;
+            double clickSeconds = event.position.x / pixelsPerSecond;
             double snappedSeconds = std::round(clickSeconds / secondsPerBeat) * secondsPerBeat;
             double startSamples = snappedSeconds * sampleRate;
 
@@ -104,15 +103,117 @@ void TrackLaneComponent::resized() {
 void TrackLaneComponent::updateClips() {
     clipComponents.clear();
     
-    // Get clips for this track from the timeline project
-    auto clips = engine.getTimelineProject().getClipsOnTrack(trackIndex);
-    for (auto clip : clips) {
-        auto* clipComp = new ClipComponent(clip, engine);
-        clipComponents.add(clipComp);
-        addAndMakeVisible(clipComp);
+    if (trackIndex >= engine.getTimelineProject().getNumTracks()) return;
+
+    const auto& track = engine.getTimelineProject().getTrack(trackIndex);
+    for (auto clipModel : track.clips) {
+        if (auto* audioClip = dynamic_cast<AudioClip*>(clipModel.get())) {
+            auto* comp = new AudioClipComponent(*audioClip, engine);
+            clipComponents.add(comp);
+            addAndMakeVisible(comp);
+        } else if (auto* midiClip = dynamic_cast<MidiClip*>(clipModel.get())) {
+            auto* comp = new MidiClipComponent(*midiClip, engine);
+            clipComponents.add(comp);
+            addAndMakeVisible(comp);
+        }
     }
     
     resized();
+}
+
+bool TrackLaneComponent::isInterestedInFileDrag(const juce::StringArray& files) {
+    if (trackIndex >= engine.getTimelineProject().getNumTracks()) return false;
+    const auto& track = engine.getTimelineProject().getTrack(trackIndex);
+    
+    for (const auto& file : files) {
+        if (file.endsWithIgnoreCase(".wav") || file.endsWithIgnoreCase(".aiff") || 
+            file.endsWithIgnoreCase(".mp3") || file.endsWithIgnoreCase(".flac")) {
+            return !track.isMidi;
+        }
+        if (file.endsWithIgnoreCase(".mid") || file.endsWithIgnoreCase(".midi")) {
+            return track.isMidi;
+        }
+    }
+    return false;
+}
+
+void TrackLaneComponent::filesDropped(const juce::StringArray& files, int x, int y) {
+    if (trackIndex >= engine.getTimelineProject().getNumTracks()) return;
+    const auto& track = engine.getTimelineProject().getTrack(trackIndex);
+    
+    double pixelsPerSecond = timeline.getPixelsPerSecond();
+    if (pixelsPerSecond <= 0) return;
+    
+    double dropSeconds = x / pixelsPerSecond;
+    double sampleRate = engine.getTransport().getSampleRate();
+    if (sampleRate <= 0.0) sampleRate = 48000.0;
+    
+    double startSamples = dropSeconds * sampleRate;
+    
+    for (const auto& filePath : files) {
+        juce::File file(filePath);
+        
+        if (!track.isMidi && (file.hasFileExtension("wav") || file.hasFileExtension("aiff") || 
+                              file.hasFileExtension("mp3") || file.hasFileExtension("flac"))) {
+            
+            auto reader = std::unique_ptr<juce::AudioFormatReader>(
+                engine.getFormatManager().createReaderFor(file));
+                
+            if (reader) {
+                int numSamples = static_cast<int>(reader->lengthInSamples);
+                auto audioClip = std::make_shared<AudioClip>(file, static_cast<int>(startSamples), numSamples);
+                engine.getTimelineProject().addClipToTrack(trackIndex, audioClip);
+                return; // Only process the first valid file
+            }
+        }
+        else if (track.isMidi && (file.hasFileExtension("mid") || file.hasFileExtension("midi"))) {
+            juce::FileInputStream fis(file);
+            juce::MidiFile midiFile;
+            if (midiFile.readFrom(fis)) {
+                midiFile.convertTimestampTicksToSeconds();
+                double lengthInSeconds = 0.0;
+                for (int i = 0; i < midiFile.getNumTracks(); ++i) {
+                    auto* midiTrack = midiFile.getTrack(i);
+                    if (midiTrack->getNumEvents() > 0) {
+                        lengthInSeconds = std::max(lengthInSeconds, midiTrack->getEventPointer(midiTrack->getNumEvents() - 1)->message.getTimeStamp());
+                    }
+                }
+                
+                int numSamples = static_cast<int>(lengthInSeconds * sampleRate);
+                if (numSamples <= 0) numSamples = static_cast<int>(sampleRate);
+                
+                auto midiClip = std::make_shared<MidiClip>(static_cast<int>(startSamples), numSamples);
+                
+                for (int i = 0; i < midiFile.getNumTracks(); ++i) {
+                    auto* midiTrack = midiFile.getTrack(i);
+                    for (int j = 0; j < midiTrack->getNumEvents(); ++j) {
+                        auto msg = midiTrack->getEventPointer(j)->message;
+                        if (msg.isNoteOn()) {
+                            double noteOffTime = msg.getTimeStamp() + 0.5;
+                            int noteNum = msg.getNoteNumber();
+                            for (int k = j + 1; k < midiTrack->getNumEvents(); ++k) {
+                                auto msg2 = midiTrack->getEventPointer(k)->message;
+                                if (msg2.isNoteOff() && msg2.getNoteNumber() == noteNum) {
+                                    noteOffTime = msg2.getTimeStamp();
+                                    break;
+                                }
+                            }
+                            
+                            MidiNote note;
+                            note.noteNumber = noteNum;
+                            note.velocity = msg.getFloatVelocity();
+                            note.startSample = static_cast<int>(msg.getTimeStamp() * sampleRate);
+                            note.lengthSamples = static_cast<int>((noteOffTime - msg.getTimeStamp()) * sampleRate);
+                            midiClip->addNote(note);
+                        }
+                    }
+                }
+                
+                engine.getTimelineProject().addClipToTrack(trackIndex, midiClip);
+                return; // Only process the first valid file
+            }
+        }
+    }
 }
 
 void TrackLaneComponent::setTrackIndex(int newIndex) {
