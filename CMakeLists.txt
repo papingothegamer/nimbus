@@ -133,6 +133,8 @@ target_sources(Nimbus PRIVATE
     Source/AudioEngine/Transport.cpp
     Source/AudioEngine/TestToneNode.cpp
     Source/AudioEngine/Track.cpp
+    Source/AudioEngine/AudioRecorder.cpp
+    Source/AudioEngine/MidiRecorder.cpp
     Source/AudioEngine/Mixer.cpp
     Source/AudioEngine/AudioClipNode.cpp
     Source/AudioEngine/DiskStreaming/DiskStreamer.cpp

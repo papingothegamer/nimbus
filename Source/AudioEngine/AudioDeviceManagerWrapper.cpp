@@ -14,13 +14,32 @@ AudioDeviceManagerWrapper::~AudioDeviceManagerWrapper() {
 }
 
 void AudioDeviceManagerWrapper::initialise() {
-    // Initialise the device manager with 2 input channels and 2 output channels
+    // Initialise with 2 input and 2 output channels
     auto errorInfo = deviceManager.initialiseWithDefaultDevices(2, 2);
     if (errorInfo.isNotEmpty()) {
         juce::Logger::writeToLog("AudioDeviceManager Error: " + errorInfo);
+    } else {
+        juce::Logger::writeToLog("AudioDeviceManager: initialised OK");
+    }
+    
+    // Log what device was actually opened
+    if (auto* device = deviceManager.getCurrentAudioDevice()) {
+        juce::Logger::writeToLog("  Device type: " + device->getTypeName());
+        juce::Logger::writeToLog("  Device name: " + device->getName());
+        juce::Logger::writeToLog("  Sample rate: " + juce::String(device->getCurrentSampleRate()));
+        juce::Logger::writeToLog("  Buffer size: " + juce::String(device->getCurrentBufferSizeSamples()));
+        
+        auto activeIn = device->getActiveInputChannels();
+        auto activeOut = device->getActiveOutputChannels();
+        juce::Logger::writeToLog("  Active input channels bitmask: " + juce::String(activeIn.toInteger()));
+        juce::Logger::writeToLog("  Active output channels bitmask: " + juce::String(activeOut.toInteger()));
+        juce::Logger::writeToLog("  Input channel names: " + device->getInputChannelNames().joinIntoString(", "));
+    } else {
+        juce::Logger::writeToLog("  WARNING: No audio device opened!");
     }
     
     deviceManager.addAudioCallback(this);
+    deviceManager.addMidiInputDeviceCallback(juce::String(), this);
 }
 
 void AudioDeviceManagerWrapper::audioDeviceAboutToStart(juce::AudioIODevice* device) {
@@ -28,6 +47,14 @@ void AudioDeviceManagerWrapper::audioDeviceAboutToStart(juce::AudioIODevice* dev
         auto sampleRate = device->getCurrentSampleRate();
         auto blockSize = device->getCurrentBufferSizeSamples();
         
+        auto activeIn = device->getActiveInputChannels();
+        int numActiveInputs = activeIn.countNumberOfSetBits();
+        juce::Logger::writeToLog("audioDeviceAboutToStart: SR=" + juce::String(sampleRate) 
+            + " BS=" + juce::String(blockSize) 
+            + " activeInputs=" + juce::String(numActiveInputs));
+        
+        midiCollector.reset(sampleRate);
+
         // Ensure our pre-allocated process buffer is large enough
         processBuffer.setSize(2, blockSize);
         
@@ -40,6 +67,10 @@ void AudioDeviceManagerWrapper::audioDeviceStopped() {
     graph.releaseResources();
 }
 
+void AudioDeviceManagerWrapper::handleIncomingMidiMessage(juce::MidiInput* /*source*/, const juce::MidiMessage& message) {
+    midiCollector.addMessageToQueue(message);
+}
+
 void AudioDeviceManagerWrapper::audioDeviceIOCallbackWithContext(const float* const* inputChannelData,
                                                                  int numInputChannels,
                                                                  float* const* outputChannelData,
@@ -49,7 +80,30 @@ void AudioDeviceManagerWrapper::audioDeviceIOCallbackWithContext(const float* co
 {
     // Clear our intermediate process buffer
     processBuffer.clear();
-    dummyMidiBuffer.clear();
+    liveMidiBuffer.clear();
+
+    // Copy incoming MIDI events into liveMidiBuffer
+    midiCollector.removeNextBlockOfMessages(liveMidiBuffer, numSamples);
+
+    // One-shot diagnostic: log input stats for the first few callbacks
+    static int callbackCount = 0;
+    if (callbackCount < 5) {
+        float maxLevel = 0.0f;
+        for (int ch = 0; ch < numInputChannels; ++ch) {
+            if (inputChannelData[ch] != nullptr) {
+                for (int s = 0; s < numSamples; ++s) {
+                    float v = std::abs(inputChannelData[ch][s]);
+                    if (v > maxLevel) maxLevel = v;
+                }
+            }
+        }
+        juce::Logger::writeToLog("AudioCallback #" + juce::String(callbackCount)
+            + ": numIn=" + juce::String(numInputChannels)
+            + " numOut=" + juce::String(numOutputChannels)
+            + " samples=" + juce::String(numSamples)
+            + " inputPeak=" + juce::String(maxLevel, 6));
+        callbackCount++;
+    }
 
     // Copy input hardware data to processBuffer
     int numInputChannelsToCopy = std::min(numInputChannels, processBuffer.getNumChannels());
@@ -60,7 +114,7 @@ void AudioDeviceManagerWrapper::audioDeviceIOCallbackWithContext(const float* co
     }
 
     // The graph processes and writes into processBuffer
-    graph.processBlock(processBuffer, dummyMidiBuffer);
+    graph.processBlock(processBuffer, liveMidiBuffer);
     
     // Advance the transport
     globalTransport.advancePosition(numSamples);
@@ -78,3 +132,4 @@ void AudioDeviceManagerWrapper::audioDeviceIOCallbackWithContext(const float* co
 }
 
 } // namespace Nimbus
+

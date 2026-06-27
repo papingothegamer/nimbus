@@ -1,4 +1,8 @@
 #include "NimbusEngine.h"
+#include "../DataModel/TimelineProject.h"
+#include "../AudioEngine/DiskStreaming/DiskStreamer.h"
+#include "../AudioEngine/AudioRecorder.h"
+#include "../AudioEngine/MidiRecorder.h"
 #include "AudioEngine/TestToneNode.h"
 #include "AudioEngine/Track.h"
 #include "AudioEngine/AudioClipNode.h"
@@ -132,6 +136,103 @@ void NimbusEngine::trackRemoved(int trackIndex) {
     if (mixer) {
         mixer->removeTrack(trackIndex);
     }
+}
+
+void NimbusEngine::startRecording() {
+    recorderThread.startThread();
+    
+    double sampleRate = transport.getSampleRate();
+    if (sampleRate <= 0) sampleRate = 48000.0;
+    
+    for (int i = 0; i < timelineProject.getNumTracks(); ++i) {
+        if (timelineProject.isTrackArmed(i)) {
+            if (!timelineProject.getTrack(i).isMidi) {
+                // Create AudioRecorder
+                auto recorder = std::make_unique<AudioRecorder>(recorderThread);
+                juce::File tempFile = juce::File::getSpecialLocation(juce::File::tempDirectory)
+                                        .getChildFile("NimbusRecord_" + juce::String(juce::Time::currentTimeMillis()) + ".wav");
+                
+                // Audio engine output tracks are implicitly 2 channels
+                if (recorder->startRecording(tempFile, sampleRate, 2)) {
+                    if (auto* mixerTrack = mixer->getTrack(i)) {
+                        mixerTrack->setRecorder(recorder.get());
+                    }
+                    trackRecorders.push_back(std::move(recorder));
+                }
+            } else {
+                // Create MidiRecorder
+                auto recorder = std::make_unique<MidiRecorder>();
+                recorder->startRecording(transport.getCurrentPosition());
+                
+                if (auto* mixerTrack = mixer->getTrack(i)) {
+                    mixerTrack->setMidiRecorder(recorder.get());
+                }
+                midiRecorders.push_back(std::move(recorder));
+            }
+        }
+    }
+    
+    transport.record();
+}
+
+void NimbusEngine::stopRecording() {
+    transport.stop();
+    
+    for (auto& recorder : trackRecorders) {
+        // Find which track this recorder belongs to
+        int trackIdx = -1;
+        for (int i = 0; i < timelineProject.getNumTracks(); ++i) {
+            if (mixer && mixer->getTrack(i) && mixer->getTrack(i)->isArmed() && !timelineProject.getTrack(i).isMidi) {
+                if (mixer->getTrack(i)) mixer->getTrack(i)->setRecorder(nullptr);
+                trackIdx = i;
+                break;
+            }
+        }
+        
+        juce::File recordedFile = recorder->stopRecording();
+        
+        if (recordedFile.existsAsFile() && trackIdx != -1) {
+            double sampleRate = transport.getSampleRate();
+            if (sampleRate <= 0) sampleRate = 48000.0;
+            
+            double numSamples = recorder->getNumSamplesRecorded();
+            double startPos = transport.getCurrentPosition() - numSamples;
+            int startPosInt = static_cast<int>(startPos);
+            if (startPosInt < 0) startPosInt = 0;
+            
+            auto audioClip = std::make_shared<AudioClip>(recordedFile, startPosInt, static_cast<int>(numSamples));
+            timelineProject.addClipToTrack(trackIdx, audioClip);
+        }
+    }
+    
+    double endPosition = transport.getCurrentPosition();
+    for (auto& recorder : midiRecorders) {
+        int trackIndex = -1;
+        for (int i = 0; i < timelineProject.getNumTracks(); ++i) {
+            if (auto* mixerTrack = mixer->getTrack(i)) {
+                mixerTrack->setMidiRecorder(nullptr);
+                if (timelineProject.isTrackArmed(i) && timelineProject.getTrack(i).isMidi) {
+                    trackIndex = i;
+                }
+            }
+        }
+        
+        auto clip = recorder->stopRecordingAndGetClip(endPosition);
+        if (clip && trackIndex != -1) {
+            timelineProject.addClipToTrack(trackIndex, clip);
+        }
+    }
+
+    // Ensure all tracks have recorder set to null
+    for (int i = 0; i < timelineProject.getNumTracks(); ++i) {
+        if (mixer && mixer->getTrack(i)) {
+            mixer->getTrack(i)->setRecorder(nullptr);
+            mixer->getTrack(i)->setMidiRecorder(nullptr);
+        }
+    }
+    
+    trackRecorders.clear();
+    midiRecorders.clear();
 }
 
 } // namespace Nimbus

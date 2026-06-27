@@ -1,5 +1,7 @@
 #include "Track.h"
 #include "Transport.h"
+#include "AudioRecorder.h"
+#include "MidiRecorder.h"
 
 namespace Nimbus {
 
@@ -25,12 +27,15 @@ void Track::releaseResources() {
 }
 
 void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
+    const juce::SpinLock::ScopedLockType sl(processLock);
+
     if (muted_.load(std::memory_order_relaxed)) {
         trackBuffer.clear();
         meter.processBlock(trackBuffer);
         return;
     }
 
+    trackBuffer.setSize(2, buffer.getNumSamples(), true, false, true);
     trackBuffer.clear();
     trackMidiBuffer.clear();
 
@@ -49,17 +54,28 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
                 trackBuffer.addFrom(ch, 0, *inputBufferPtr, ch, 0, trackBuffer.getNumSamples());
             }
         }
+        
+        // Record the live input if transport is recording
+        if (recorder_ != nullptr && transport != nullptr && transport->isRecording()) {
+            recorder_->pushSamples(trackBuffer, trackBuffer.getNumSamples());
+        }
     }
 
     // 1.5 Process instrument plugin (synth consumes MIDI, produces audio)
     if (instrument) {
         instrument->processBlock(trackBuffer, trackMidiBuffer);
         
-        // Mute instrument if track is disarmed and transport is stopped.
-        // This prevents the instrument from making sounds if the user interacts with its UI while disarmed.
-        if (!armed_.load(std::memory_order_relaxed) && transport != nullptr && !transport->isPlaying()) {
+        // Only mute instrument output when transport is stopped AND track is disarmed
+        // This prevents stray sounds from plugin UI interaction, but allows playback of clips
+        if (!armed_.load(std::memory_order_relaxed) && transport != nullptr && !transport->isPlaying() && source == nullptr) {
             trackBuffer.clear();
         }
+    }
+    
+    // Record MIDI if recording
+    if (midiRecorder_) {
+        double blockStartPos = transport ? transport->getCurrentPosition() : 0.0;
+        midiRecorder_->pushEvents(trackMidiBuffer, trackBuffer.getNumSamples(), blockStartPos);
     }
 
     // 2. Process insert plugins
@@ -87,6 +103,7 @@ int Track::getLatencySamples() const {
 }
 
 void Track::setSourceNode(std::unique_ptr<IAudioNode> sourceNode) {
+    const juce::SpinLock::ScopedLockType sl(processLock);
     source = std::move(sourceNode);
     if (source && currentSampleRate > 0) {
         source->prepareToPlay(currentSampleRate, currentBlockSize);
@@ -94,6 +111,7 @@ void Track::setSourceNode(std::unique_ptr<IAudioNode> sourceNode) {
 }
 
 void Track::setInstrumentPlugin(std::unique_ptr<IAudioNode> instrumentNode) {
+    const juce::SpinLock::ScopedLockType sl(processLock);
     instrument = std::move(instrumentNode);
     if (instrument && currentSampleRate > 0) {
         instrument->prepareToPlay(currentSampleRate, currentBlockSize);
@@ -101,10 +119,12 @@ void Track::setInstrumentPlugin(std::unique_ptr<IAudioNode> instrumentNode) {
 }
 
 void Track::addInsertPlugin(std::unique_ptr<IAudioNode> pluginNode) {
+    const juce::SpinLock::ScopedLockType sl(processLock);
     insertGraph.addNode(std::move(pluginNode));
 }
 
 void Track::removeInsertPlugin(IAudioNode* pluginNode) {
+    const juce::SpinLock::ScopedLockType sl(processLock);
     insertGraph.removeNode(pluginNode);
 }
 

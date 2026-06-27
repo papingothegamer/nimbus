@@ -10,6 +10,8 @@
 namespace Nimbus {
 
 class Transport;
+class AudioRecorder;
+class MidiRecorder;
 
 /**
  * Represents a single channel strip in the Mixer.
@@ -43,6 +45,8 @@ public:
     const AudioGraph& getInsertGraph() const { return insertGraph; }
 
     void setInputBuffer(const juce::AudioBuffer<float>* inBuf) { inputBufferPtr = inBuf; }
+    void setRecorder(AudioRecorder* recorder) { recorder_ = recorder; }
+    void setMidiRecorder(MidiRecorder* recorder) { midiRecorder_ = recorder; }
 
     // Fader Controls
     void setVolume(float gainLinear);
@@ -71,12 +75,15 @@ private:
     juce::AudioBuffer<float> trackBuffer;
     juce::MidiBuffer trackMidiBuffer;
     const juce::AudioBuffer<float>* inputBufferPtr = nullptr;
+    AudioRecorder* recorder_ = nullptr;
+    MidiRecorder* midiRecorder_ = nullptr;
     Transport* transport = nullptr;
     double currentSampleRate = 44100.0;
     int currentBlockSize = 512;
     std::atomic<bool> muted_{false};
     std::atomic<bool> soloed_{false};
     std::atomic<bool> armed_{false};
+    juce::SpinLock processLock;
 };
 
 } // namespace Nimbus

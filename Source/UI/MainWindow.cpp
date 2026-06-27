@@ -182,7 +182,9 @@ bool MainWindow::keyPressed(const juce::KeyPress& key) {
             return true;
         }
     } else if (key.getKeyCode() == juce::KeyPress::spaceKey) {
-        if (mainContent.getEngine().getTransport().isPlaying()) {
+        if (mainContent.getEngine().getTransport().isRecording()) {
+            mainContent.getEngine().stopRecording();
+        } else if (mainContent.getEngine().getTransport().isPlaying()) {
             mainContent.getEngine().getTransport().stop();
         } else {
             mainContent.getEngine().getTransport().play();

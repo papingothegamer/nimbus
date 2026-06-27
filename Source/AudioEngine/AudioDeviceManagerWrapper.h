@@ -9,7 +9,8 @@ namespace Nimbus {
 /**
  * Wraps juce::AudioDeviceManager and feeds the AudioGraph.
  */
-class AudioDeviceManagerWrapper : public juce::AudioIODeviceCallback {
+class AudioDeviceManagerWrapper : public juce::AudioIODeviceCallback,
+                                  public juce::MidiInputCallback {
 public:
     AudioDeviceManagerWrapper(AudioGraph& mainGraph, Transport& transport);
     ~AudioDeviceManagerWrapper() override;
@@ -27,6 +28,9 @@ public:
     void audioDeviceAboutToStart(juce::AudioIODevice* device) override;
     void audioDeviceStopped() override;
 
+    // juce::MidiInputCallback
+    void handleIncomingMidiMessage(juce::MidiInput* source, const juce::MidiMessage& message) override;
+
     juce::AudioDeviceManager& getJuceAudioDeviceManager() { return deviceManager; }
 
 private:
@@ -34,7 +38,8 @@ private:
     Transport& globalTransport;
     juce::AudioDeviceManager deviceManager;
     juce::AudioBuffer<float> processBuffer;
-    juce::MidiBuffer dummyMidiBuffer;
+    juce::MidiBuffer liveMidiBuffer;
+    juce::MidiMessageCollector midiCollector;
 };
 
 } // namespace Nimbus

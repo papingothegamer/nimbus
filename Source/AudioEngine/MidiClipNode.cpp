@@ -34,8 +34,6 @@ void MidiClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuff
             continue;
 
         auto& msg = event->message;
-        if (!msg.isNoteOn())
-            continue;
 
         // Event timestamp is relative to clip start (in samples)
         double absoluteTime = clipStart + msg.getTimeStamp();
@@ -43,16 +41,6 @@ void MidiClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuff
 
         if (sampleOffset >= 0 && sampleOffset < numSamples) {
             midiMessages.addEvent(msg, sampleOffset);
-
-            // Also add the matched noteOff if it exists
-            if (event->noteOffObject != nullptr) {
-                auto& offMsg = event->noteOffObject->message;
-                double offAbsoluteTime = clipStart + offMsg.getTimeStamp();
-                int offSampleOffset = juce::roundToInt(offAbsoluteTime - currentPos);
-
-                if (offSampleOffset >= 0 && offSampleOffset < numSamples)
-                    midiMessages.addEvent(offMsg, offSampleOffset);
-            }
         }
     }
 }

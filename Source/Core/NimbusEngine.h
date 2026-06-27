@@ -8,13 +8,16 @@
 #include "AudioEngine/DiskStreaming/DiskStreamer.h"
 #include "PluginHost/PluginManager.h"
 #include "AudioEngine/PluginNode.h"
+#include "AudioEngine/AudioRecorder.h"
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <memory>
 
 namespace Nimbus {
 
+class DiskStreamer;
 class PluginNode;
+class MidiRecorder;
 
 /**
  * The root service container for the Nimbus DAW.
@@ -60,6 +63,9 @@ public:
     };
     PluginClipboard& getPluginClipboard() { return clipboard; }
 
+    void startRecording();
+    void stopRecording();
+
 private:
     AudioGraph mainGraph; // The root graph executing on the audio thread
     Mixer* mixer = nullptr; // Raw pointer to the mixer owned by mainGraph
@@ -69,6 +75,10 @@ private:
     juce::AudioThumbnailCache thumbnailCache;
     PluginManager pluginManager;
     TimelineProject timelineProject;
+
+    juce::TimeSliceThread recorderThread { "RecorderThread" };
+    std::vector<std::unique_ptr<AudioRecorder>> trackRecorders;
+    std::vector<std::unique_ptr<MidiRecorder>> midiRecorders;
 
     // Temporary storage for our single disk streamer for Phase 4
     std::shared_ptr<DiskStreamer> mainStreamer;

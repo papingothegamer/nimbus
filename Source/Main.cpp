@@ -16,16 +16,21 @@ public:
     bool moreThanOneInstanceAllowed() override { return true; }
 
     void initialise(const juce::String& /*commandLine*/) override {
-        juce::Logger::writeToLog("1. Creating Engine");
-        engine = std::make_unique<Nimbus::NimbusEngine>();
-        
-        juce::Logger::writeToLog("2. Initialising Engine");
-        engine->initialise();
-        
-        juce::Logger::writeToLog("3. Creating MainWindow");
-        mainWindow.reset(new Nimbus::MainWindow(getApplicationName(), *engine));
-        
-        juce::Logger::writeToLog("4. Initialise Complete");
+        juce::Logger::writeToLog("1. Requesting Permissions");
+        juce::RuntimePermissions::request(juce::RuntimePermissions::recordAudio, [this](bool granted) {
+            juce::Logger::writeToLog(granted ? "Microphone permission granted" : "Microphone permission denied");
+            
+            juce::Logger::writeToLog("2. Creating Engine");
+            engine = std::make_unique<Nimbus::NimbusEngine>();
+            
+            juce::Logger::writeToLog("3. Initialising Engine");
+            engine->initialise();
+            
+            juce::Logger::writeToLog("4. Creating MainWindow");
+            mainWindow.reset(new Nimbus::MainWindow(getApplicationName(), *engine));
+            
+            juce::Logger::writeToLog("5. Initialise Complete");
+        });
     }
 
     void shutdown() override {

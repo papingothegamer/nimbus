@@ -138,9 +138,6 @@ void ChannelStripComponent::updateMeters() {
             // Only repaint the meter area instead of the whole component
             auto bounds = getLocalBounds();
             auto meterArea = bounds.removeFromRight(15).reduced(2, 40).withTrimmedBottom(20);
-            if (master) {
-                meterArea = bounds.removeFromRight(20).reduced(2, 40).withTrimmedBottom(20);
-            }
             repaint(meterArea);
         }
     }

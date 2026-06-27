@@ -153,9 +153,9 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     
     arrRecordButton.onClick = [this] {
         if (engine.getTransport().isRecording()) {
-            engine.getTransport().stop(); // Stop playback and recording
+            engine.stopRecording(); // Stop playback and recording
         } else {
-            engine.getTransport().record();
+            engine.startRecording();
         }
     };
 

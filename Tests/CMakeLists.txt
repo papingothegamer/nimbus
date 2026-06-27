@@ -16,12 +16,15 @@ add_executable(NimbusTests
     Concurrency/LockFreeQueueTests.cpp
     ../Source/AudioEngine/AudioGraph.cpp
     ../Source/AudioEngine/Track.cpp
+    ../Source/AudioEngine/AudioRecorder.cpp
+    ../Source/AudioEngine/MidiRecorder.cpp
     ../Source/AudioEngine/Mixer.cpp
     ../Source/AudioEngine/AudioClipNode.cpp
     ../Source/AudioEngine/DiskStreaming/DiskStreamer.cpp
     ../Source/AudioEngine/Transport.cpp
     ../Source/DSP/GainNode.cpp
     ../Source/DataModel/AudioClip.cpp
+    ../Source/DataModel/MidiClip.cpp
     ../Source/DataModel/TimelineProject.cpp
 )
 
