@@ -72,21 +72,9 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     addAndMakeVisible(sourceBox);
     addAndMakeVisible(destBox);
     
-    sourceBox.clear();
-    if (auto* device = engine.getAudioDeviceManager().getJuceAudioDeviceManager().getCurrentAudioDevice()) {
-        auto activeChannels = device->getActiveInputChannels();
-        auto channelNames = device->getInputChannelNames();
-        int itemIndex = 1;
-        for (int i = 0; i < channelNames.size(); ++i) {
-            if (activeChannels[i]) {
-                sourceBox.addItem(channelNames[i], itemIndex++);
-            }
-        }
-    }
-    if (sourceBox.getNumItems() == 0) {
-        sourceBox.addItem("No Input", 1);
-    }
-    sourceBox.setSelectedItemIndex(0);
+    sourceBox.addListener(this);
+    engine.getAudioDeviceManager().getJuceAudioDeviceManager().addChangeListener(this);
+    updateInputSources();
     
     destBox.addItem("Master", 1);
     destBox.setSelectedItemIndex(0);
@@ -117,11 +105,58 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
 
 TrackHeaderComponent::~TrackHeaderComponent() {
     engine.getTimelineProject().removeListener(this);
+    engine.getAudioDeviceManager().getJuceAudioDeviceManager().removeChangeListener(this);
 }
 
 void TrackHeaderComponent::labelTextChanged(juce::Label* labelThatHasChanged) {
     if (labelThatHasChanged == &nameLabel) {
         // We'd add setTrackName to TimelineProject if needed, skipping for now
+    }
+}
+
+void TrackHeaderComponent::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) {
+    if (comboBoxThatHasChanged == &sourceBox) {
+        int index = sourceBox.getSelectedItemIndex();
+        int inputChannel = index - 1; // 0 = All Channels (-1), 1 = In 1 (0), 2 = In 2 (1)
+        engine.getTimelineProject().setTrackInputChannel(trackIndex, inputChannel);
+    }
+}
+
+void TrackHeaderComponent::changeListenerCallback(juce::ChangeBroadcaster* source) {
+    if (source == &engine.getAudioDeviceManager().getJuceAudioDeviceManager()) {
+        updateInputSources();
+    }
+}
+
+void TrackHeaderComponent::updateInputSources() {
+    int currentSelection = sourceBox.getSelectedItemIndex();
+    
+    sourceBox.clear();
+    if (auto* device = engine.getAudioDeviceManager().getJuceAudioDeviceManager().getCurrentAudioDevice()) {
+        auto activeChannels = device->getActiveInputChannels();
+        auto channelNames = device->getInputChannelNames();
+        
+        sourceBox.addItem("All Channels", 1);
+        int itemIndex = 2;
+        
+        for (int i = 0; i < channelNames.size(); ++i) {
+            if (activeChannels[i]) {
+                sourceBox.addItem(channelNames[i], itemIndex++);
+            }
+        }
+    }
+    
+    if (sourceBox.getNumItems() == 0) {
+        sourceBox.addItem("No Input", 1);
+    }
+    
+    int modelIndex = engine.getTimelineProject().getTrack(trackIndex).inputChannelIndex;
+    int desiredSelection = modelIndex + 1; // -1 becomes 0 (All Channels), 0 becomes 1
+    
+    if (desiredSelection >= 0 && desiredSelection < sourceBox.getNumItems()) {
+        sourceBox.setSelectedItemIndex(desiredSelection, juce::dontSendNotification);
+    } else {
+        sourceBox.setSelectedItemIndex(0, juce::dontSendNotification);
     }
 }
 

@@ -10,7 +10,8 @@ namespace Nimbus {
  * Wraps juce::AudioDeviceManager and feeds the AudioGraph.
  */
 class AudioDeviceManagerWrapper : public juce::AudioIODeviceCallback,
-                                  public juce::MidiInputCallback {
+                                  public juce::MidiInputCallback,
+                                  public juce::ChangeListener {
 public:
     AudioDeviceManagerWrapper(AudioGraph& mainGraph, Transport& transport);
     ~AudioDeviceManagerWrapper() override;
@@ -30,6 +31,9 @@ public:
 
     // juce::MidiInputCallback
     void handleIncomingMidiMessage(juce::MidiInput* source, const juce::MidiMessage& message) override;
+
+    // juce::ChangeListener
+    void changeListenerCallback(juce::ChangeBroadcaster* source) override;
 
     juce::AudioDeviceManager& getJuceAudioDeviceManager() { return deviceManager; }
 

@@ -10,12 +10,28 @@ AudioDeviceManagerWrapper::AudioDeviceManagerWrapper(AudioGraph& mainGraph, Tran
 }
 
 AudioDeviceManagerWrapper::~AudioDeviceManagerWrapper() {
+    deviceManager.removeChangeListener(this);
     deviceManager.removeAudioCallback(this);
 }
 
 void AudioDeviceManagerWrapper::initialise() {
-    // Initialise with 2 input and 2 output channels
-    auto errorInfo = deviceManager.initialiseWithDefaultDevices(2, 2);
+    juce::File settingsFile = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("Nimbus/AudioDeviceSettings.xml");
+    
+    std::unique_ptr<juce::XmlElement> savedState;
+    if (settingsFile.existsAsFile()) {
+        savedState = juce::XmlDocument::parse(settingsFile);
+    }
+    
+    juce::String errorInfo;
+    if (savedState != nullptr) {
+        errorInfo = deviceManager.initialise(2, 2, savedState.get(), true);
+    }
+    
+    if (savedState == nullptr || errorInfo.isNotEmpty()) {
+        // Fallback to defaults
+        errorInfo = deviceManager.initialiseWithDefaultDevices(2, 2);
+    }
+
     if (errorInfo.isNotEmpty()) {
         juce::Logger::writeToLog("AudioDeviceManager Error: " + errorInfo);
     } else {
@@ -40,6 +56,17 @@ void AudioDeviceManagerWrapper::initialise() {
     
     deviceManager.addAudioCallback(this);
     deviceManager.addMidiInputDeviceCallback(juce::String(), this);
+    deviceManager.addChangeListener(this);
+}
+
+void AudioDeviceManagerWrapper::changeListenerCallback(juce::ChangeBroadcaster*) {
+    // Save settings when they change
+    auto state = deviceManager.createStateXml();
+    if (state != nullptr) {
+        juce::File settingsFile = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("Nimbus/AudioDeviceSettings.xml");
+        settingsFile.getParentDirectory().createDirectory();
+        state->writeTo(settingsFile);
+    }
 }
 
 void AudioDeviceManagerWrapper::audioDeviceAboutToStart(juce::AudioIODevice* device) {
