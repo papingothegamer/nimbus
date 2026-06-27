@@ -41,31 +41,36 @@ void DiskStreamer::processBlock(juce::AudioBuffer<float>& buffer, int startSampl
     }
 
     // Expected position vs actual read position
-    // If the transport jumped, we must request a seek
-    int expectedPosition = startSampleInFile;
+    // If we are too far out of sync, we MUST seek.
     int currentReadPos = readPosition.load(std::memory_order_relaxed);
 
-    if (currentReadPos != expectedPosition) {
+    if (std::abs(currentReadPos - startSampleInFile) > numSamples) {
         // We are out of sync. Request a seek.
-        // We only request if we haven't already requested this exact position recently.
         int currentSeek = seekRequest.load(std::memory_order_relaxed);
-        if (currentSeek != expectedPosition) {
-            seekRequest.store(expectedPosition, std::memory_order_release);
+        // Only request if we haven't recently requested a seek near this position
+        if (std::abs(currentSeek - startSampleInFile) > numSamples) {
+            seekRequest.store(startSampleInFile, std::memory_order_release);
             notify(); // Wake up the disk thread
         }
         buffer.clear();
         return; // Underrun / waiting for seek
     }
 
+    // Is there a pending seek?
+    if (seekRequest.load(std::memory_order_relaxed) >= 0) {
+        buffer.clear();
+        return;
+    }
+
     // Normal continuous read
     int read = ringBuffer->read(buffer, numSamples);
     if (read < numSamples) {
         // Underrun! We read what we could, but the buffer zeroed the rest.
-        // The background thread might be falling behind.
         notify(); // Kick the thread
     }
     
-    readPosition.store(currentReadPos + numSamples, std::memory_order_relaxed);
+    // Force readPosition to stay in sync with the transport
+    readPosition.store(startSampleInFile + numSamples, std::memory_order_relaxed);
     notify(); // Kick the thread to read more
 }
 

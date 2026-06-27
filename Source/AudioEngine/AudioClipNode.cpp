@@ -28,8 +28,8 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
     int currentTransportPos = globalTransport.getCurrentPositionSamples();
     int numSamples = buffer.getNumSamples();
 
-    // Did the transport jump?
-    if (lastProcessedTransportPos != -1 && currentTransportPos != lastProcessedTransportPos) {
+    // Did the transport jump or just start?
+    if (lastProcessedTransportPos == -1 || currentTransportPos != lastProcessedTransportPos) {
         // Transport seeked!
         int relativeFilePos = currentTransportPos - clipModel->getStartSample() + clipModel->getSourceOffsetSamples();
         if (relativeFilePos >= 0) {
