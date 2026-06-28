@@ -107,11 +107,11 @@ public:
     void addClipToTrack(int trackIndex, AnyClipPtr clip);
     void removeClip(AnyClipPtr clip);
     std::vector<AnyClipPtr> getClipsOnTrack(int trackIndex) const;
-    
+
+    void notifyClipModified();
+
     void setSelectedClip(AnyClipPtr clip);
     AnyClipPtr getSelectedClip() const;
-    
-    void notifyClipModified();
 
 private:
     std::vector<TrackModel> tracks;

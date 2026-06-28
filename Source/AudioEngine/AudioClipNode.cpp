@@ -73,6 +73,16 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
         juce::AudioBuffer<float> subBuffer(buffer.getArrayOfWritePointers(), buffer.getNumChannels(), renderStartOffset, renderLength);
         
         diskStreamer->processBlock(subBuffer, filePosition, renderLength);
+        
+        static int logCounter = 0;
+        if (logCounter++ % 100 == 0) {
+            float sum = 0.0f;
+            for (int i = 0; i < subBuffer.getNumSamples(); ++i) {
+                sum += std::abs(subBuffer.getSample(0, i));
+            }
+            juce::Logger::writeToLog("AudioClipNode processed: transport=" + juce::String(currentTransportPos) + " clipStart=" + juce::String(clipStart) + " filePos=" + juce::String(filePosition) + " len=" + juce::String(renderLength) + " sum=" + juce::String(sum));
+        }
+
     }
 
     lastProcessedTransportPos = currentTransportPos + numSamples;

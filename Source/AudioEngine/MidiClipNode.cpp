@@ -41,6 +41,7 @@ void MidiClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuff
 
         if (sampleOffset >= 0 && sampleOffset < numSamples) {
             midiMessages.addEvent(msg, sampleOffset);
+            juce::Logger::writeToLog("MidiClipNode ADDED event: note=" + juce::String(msg.getNoteNumber()) + " isOn=" + (msg.isNoteOn() ? "true" : "false") + " offset=" + juce::String(sampleOffset));
         }
     }
 }

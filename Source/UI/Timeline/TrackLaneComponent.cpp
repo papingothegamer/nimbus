@@ -103,19 +103,11 @@ void TrackLaneComponent::resized() {
 void TrackLaneComponent::updateClips() {
     clipComponents.clear();
     
-    if (trackIndex >= engine.getTimelineProject().getNumTracks()) return;
-
-    const auto& track = engine.getTimelineProject().getTrack(trackIndex);
-    for (auto clipModel : track.clips) {
-        if (auto* audioClip = dynamic_cast<AudioClip*>(clipModel.get())) {
-            auto* comp = new AudioClipComponent(*audioClip, engine);
-            clipComponents.add(comp);
-            addAndMakeVisible(comp);
-        } else if (auto* midiClip = dynamic_cast<MidiClip*>(clipModel.get())) {
-            auto* comp = new MidiClipComponent(*midiClip, engine);
-            clipComponents.add(comp);
-            addAndMakeVisible(comp);
-        }
+    auto clips = engine.getTimelineProject().getClipsOnTrack(trackIndex);
+    for (auto clip : clips) {
+        auto* clipComp = new ClipComponent(clip, engine);
+        clipComponents.add(clipComp);
+        addAndMakeVisible(clipComp);
     }
     
     resized();
@@ -161,6 +153,8 @@ void TrackLaneComponent::filesDropped(const juce::StringArray& files, int x, int
                 
             if (reader) {
                 int numSamples = static_cast<int>(reader->lengthInSamples);
+                reader.reset(); // Close the file handle to prevent Windows file locking
+                
                 auto audioClip = std::make_shared<AudioClip>(file, static_cast<int>(startSamples), numSamples);
                 engine.getTimelineProject().addClipToTrack(trackIndex, audioClip);
                 return; // Only process the first valid file
@@ -199,12 +193,7 @@ void TrackLaneComponent::filesDropped(const juce::StringArray& files, int x, int
                                 }
                             }
                             
-                            MidiNote note;
-                            note.noteNumber = noteNum;
-                            note.velocity = msg.getFloatVelocity();
-                            note.startSample = static_cast<int>(msg.getTimeStamp() * sampleRate);
-                            note.lengthSamples = static_cast<int>((noteOffTime - msg.getTimeStamp()) * sampleRate);
-                            midiClip->addNote(note);
+                            midiClip->addNote(1, noteNum, msg.getFloatVelocity(), msg.getTimeStamp() * sampleRate, (noteOffTime - msg.getTimeStamp()) * sampleRate);
                         }
                     }
                 }

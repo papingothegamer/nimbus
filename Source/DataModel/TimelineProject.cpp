@@ -303,6 +303,12 @@ std::vector<AnyClipPtr> TimelineProject::getClipsOnTrack(int trackIndex) const {
     return {};
 }
 
+void TimelineProject::notifyClipModified() {
+    for (size_t trackIndex = 0; trackIndex < trackClips.size(); ++trackIndex) {
+        listeners.call(&Listener::trackClipsChanged, static_cast<int>(trackIndex));
+    }
+}
+
 void TimelineProject::setSelectedClip(AnyClipPtr clip) {
     currentSelectedClip = clip;
     listeners.call(&Listener::selectedClipChanged);
@@ -310,10 +316,6 @@ void TimelineProject::setSelectedClip(AnyClipPtr clip) {
 
 AnyClipPtr TimelineProject::getSelectedClip() const {
     return currentSelectedClip;
-}
-
-void TimelineProject::notifyClipModified() {
-    listeners.call(&Listener::trackClipsChanged, -1);
 }
 
 // Force rebuild
