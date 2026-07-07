@@ -7,6 +7,7 @@
 #include <memory>
 #include <atomic>
 #include <JuceHeader.h>
+#include "DataModel/Models.h"
 
 namespace Nimbus {
 
@@ -20,7 +21,7 @@ class MidiRecorder;
  */
 class Track : public IAudioNode {
 public:
-    Track(Transport* t = nullptr);
+    Track(TrackID id, Transport* t = nullptr);
     ~Track() override = default;
 
     // IAudioNode
@@ -33,6 +34,7 @@ public:
      * Set the sound source for this track (e.g. an AudioFileReaderNode, or TestToneNode).
      */
     void setSourceNode(std::unique_ptr<IAudioNode> sourceNode);
+    IAudioNode* getSourceNode() const { return source.get(); }
 
     /**
      * Add an insert plugin to this track's chain.
@@ -42,6 +44,8 @@ public:
 
     void setInstrumentPlugin(std::unique_ptr<IAudioNode> instrumentNode);
     IAudioNode* getInstrumentPlugin() const { return instrument.get(); }
+    
+    TrackID getId() const { return id_; }
     
     const AudioGraph& getInsertGraph() const { return insertGraph; }
 
@@ -75,6 +79,7 @@ public:
     float getRMSLevel() const { return meter.getRMSLevel(); }
 
 private:
+    TrackID id_;
     std::unique_ptr<IAudioNode> source;
     std::unique_ptr<IAudioNode> instrument;  // Synth for MIDI tracks
     AudioGraph insertGraph;

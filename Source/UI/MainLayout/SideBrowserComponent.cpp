@@ -6,7 +6,32 @@
 
 namespace Nimbus::MainLayout {
 
-// Removed CategoriesModel
+class SideBrowserComponent::CategoriesModel : public juce::ListBoxModel {
+public:
+    CategoriesModel() {
+        categories = {
+            "Sounds", "Drums", "Instruments", "Audio Effects", "MIDI Effects", 
+            "Plugins", "Samples", "Files"
+        };
+    }
+    
+    int getNumRows() override { return categories.size(); }
+    
+    void paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected) override {
+        if (rowIsSelected) g.fillAll(DesignSystem::Colors::ComponentBackground);
+        
+        g.setColour(rowIsSelected ? DesignSystem::Colors::TextPrimary : DesignSystem::Colors::TextSecondary);
+        g.setFont(DesignSystem::Typography::getPrimaryFont());
+        g.drawText(" " + categories[rowNumber], 0, 0, width, height, juce::Justification::centredLeft, true);
+    }
+    
+    void listBoxItemClicked(int row, const juce::MouseEvent&) override {
+        if (onCategorySelected) onCategorySelected(categories[row]);
+    }
+
+    std::vector<juce::String> categories;
+    std::function<void(const juce::String&)> onCategorySelected;
+};
 
 class SideBrowserComponent::PluginItemsModel : public juce::ListBoxModel {
 public:
@@ -124,52 +149,44 @@ private:
 };
 
 SideBrowserComponent::SideBrowserComponent(NimbusEngine& e) : engine(e) {
+    catModel = std::make_unique<CategoriesModel>();
     pluginModel = std::make_unique<PluginItemsModel>(engine);
+    
     pluginModel->onModelChanged = [this]() {
         pluginModel->updateList(false);
         itemsList.updateContent();
     };
-
-    addAndMakeVisible(pluginsTab);
-    addAndMakeVisible(samplesTab);
-    addAndMakeVisible(filesTab);
     
-    pluginsTab.setClickingTogglesState(true);
-    samplesTab.setClickingTogglesState(true);
-    filesTab.setClickingTogglesState(true);
-    
-    pluginsTab.setRadioGroupId(101);
-    samplesTab.setRadioGroupId(101);
-    filesTab.setRadioGroupId(101);
-    
-    pluginsTab.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
-    pluginsTab.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::PrimaryAction);
-    samplesTab.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
-    samplesTab.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::PrimaryAction);
-    filesTab.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
-    filesTab.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::PrimaryAction);
-
-    pluginsTab.setToggleState(true, juce::dontSendNotification);
-    
-    pluginsTab.onClick = [this] {
-        pluginModel->updateList(false);
-        itemsList.setModel(pluginModel.get());
+    catModel->onCategorySelected = [this](const juce::String& cat) {
+        if (cat == "Plugins") {
+            pluginModel->updateList(false);
+            itemsList.setModel(pluginModel.get());
+        } else {
+            itemsList.setModel(nullptr); // Empty placeholder for other categories
+        }
         itemsList.updateContent();
-        scanButton.setVisible(true);
     };
-    samplesTab.onClick = [this] { itemsList.setModel(nullptr); itemsList.updateContent(); scanButton.setVisible(false); };
-    filesTab.onClick = [this] { itemsList.setModel(nullptr); itemsList.updateContent(); scanButton.setVisible(false); };
 
-    addAndMakeVisible(searchBox);
-    searchBox.setTextToShowWhenEmpty("Search...", juce::Colours::grey);
+    categoriesList.setModel(catModel.get());
+    categoriesList.setColour(juce::ListBox::backgroundColourId, DesignSystem::Colors::PanelBackground);
+    categoriesList.setRowHeight(24);
+    addAndMakeVisible(categoriesList);
+    
+    itemsList.setModel(pluginModel.get());
+    itemsList.setColour(juce::ListBox::backgroundColourId, DesignSystem::Colors::ModuleBackground);
+    itemsList.setRowHeight(24);
+    addAndMakeVisible(itemsList);
+    
+    catModel->onCategorySelected("Plugins"); // Default selection
+    categoriesList.selectRow(5); // Index of "Plugins"
+    
+    searchBox.setTextToShowWhenEmpty("Search...", DesignSystem::Colors::TextSecondary);
     searchBox.setColour(juce::TextEditor::backgroundColourId, DesignSystem::Colors::AppBackground);
+    searchBox.setColour(juce::TextEditor::outlineColourId, DesignSystem::Colors::ComponentBorder);
     searchBox.setColour(juce::TextEditor::textColourId, DesignSystem::Colors::TextPrimary);
+    addAndMakeVisible(searchBox);
     searchBox.setFont(DesignSystem::Typography::getPrimaryFont());
 
-    addAndMakeVisible(itemsList);
-    itemsList.setColour(juce::ListBox::backgroundColourId, DesignSystem::Colors::PanelBackground);
-    itemsList.setRowHeight(24);
-    
     addAndMakeVisible(scanButton);
     scanButton.onClick = [this] {
         if (!engine.getPluginManager().isScanning()) {
@@ -184,22 +201,20 @@ SideBrowserComponent::SideBrowserComponent(NimbusEngine& e) : engine(e) {
         searchIcon = juce::Drawable::createFromImageData(data, dataSize);
         if (searchIcon) searchIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
     }
-    
-    pluginsTab.onClick(); // Populate initial view
 }
 
 SideBrowserComponent::~SideBrowserComponent() {
     stopTimer();
     itemsList.setModel(nullptr);
+    categoriesList.setModel(nullptr);
 }
 
 void SideBrowserComponent::timerCallback() {
     if (!engine.getPluginManager().isScanning()) {
         stopTimer();
         // Force refresh
-        if (pluginsTab.getToggleState()) {
-            pluginsTab.onClick();
-        }
+        pluginModel->updateList(false);
+        itemsList.updateContent();
     }
 }
 
@@ -219,20 +234,14 @@ void SideBrowserComponent::paint(juce::Graphics& g) {
 
 void SideBrowserComponent::resized() {
     auto bounds = getLocalBounds();
+    auto topBar = bounds.removeFromTop(36).reduced(4);
     
-    auto tabsArea = bounds.removeFromTop(30);
-    int tabW = tabsArea.getWidth() / 3;
-    pluginsTab.setBounds(tabsArea.removeFromLeft(tabW).reduced(2));
-    samplesTab.setBounds(tabsArea.removeFromLeft(tabW).reduced(2));
-    filesTab.setBounds(tabsArea.reduced(2));
+    searchBox.setBounds(topBar.removeFromLeft(bounds.getWidth() - 30).reduced(2));
     
-    // Add padding to the search box for the icon
-    auto searchBounds = bounds.removeFromTop(36).reduced(5);
-    searchBox.setBounds(searchBounds.withTrimmedLeft(24));
+    auto leftCol = bounds.removeFromLeft(110);
+    categoriesList.setBounds(leftCol);
     
-    if (scanButton.isVisible()) {
-        scanButton.setBounds(bounds.removeFromBottom(30).reduced(2));
-    }
+    scanButton.setBounds(bounds.removeFromBottom(30).reduced(2));
     
     itemsList.setBounds(bounds);
 }

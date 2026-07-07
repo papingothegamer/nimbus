@@ -1,6 +1,7 @@
 #include "ClipComponent.h"
 #include "TimelineComponent.h"
 #include "UI/DesignSystem/Colors.h"
+#include "UI/DesignSystem/Typography.h"
 
 namespace Nimbus::Timeline {
 
@@ -17,26 +18,35 @@ ClipComponent::ClipComponent(AnyClipPtr clip, NimbusEngine& e)
 ClipComponent::~ClipComponent() = default;
 
 void ClipComponent::paint(juce::Graphics& g) {
-    // Draw clip background
-    g.fillAll(DesignSystem::Colors::ComponentBackground.brighter(0.1f));
+    bool isAudio = std::holds_alternative<std::shared_ptr<AudioClip>>(clipData);
+    juce::Colour baseColour = isAudio ? juce::Colour::fromString("#FF0A84FF") // vibrant blue
+                                      : juce::Colour::fromString("#FFFF9F0A"); // vibrant orange
+
+    // Draw clip background (solid vibrant color with subtle transparency)
+    g.setColour(baseColour.withAlpha(0.8f));
+    g.fillRoundedRectangle(getLocalBounds().toFloat(), 4.0f);
     
-    // Draw clip border
-    g.setColour(DesignSystem::Colors::ComponentBorder);
-    g.drawRect(getLocalBounds(), 1);
+    // Draw selection highlight
+    if (engine.getTimelineProject().getSelectedClip() == clipData) {
+        g.setColour(juce::Colours::white.withAlpha(0.3f));
+        g.fillRoundedRectangle(getLocalBounds().toFloat(), 4.0f);
+        g.setColour(juce::Colours::white);
+        g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), 4.0f, 1.0f);
+    }
 
     // Draw waveform
-    if (std::holds_alternative<std::shared_ptr<AudioClip>>(clipData)) {
-        g.setColour(DesignSystem::Colors::PrimaryAction);
+    if (isAudio) {
+        g.setColour(juce::Colours::white.withAlpha(0.9f));
         if (thumbnail.getTotalLength() > 0.0) {
-            thumbnail.drawChannels(g, getLocalBounds().reduced(2), 0.0, thumbnail.getTotalLength(), 1.0f);
+            thumbnail.drawChannels(g, getLocalBounds().reduced(4), 0.0, thumbnail.getTotalLength(), 1.0f);
         } else {
-            g.setFont(10.0f);
+            g.setFont(DesignSystem::Typography::getPrimaryFont());
             g.drawText("Loading...", getLocalBounds(), juce::Justification::centred, false);
         }
     } else if (std::holds_alternative<std::shared_ptr<MidiClip>>(clipData)) {
         auto midiClip = std::get<std::shared_ptr<MidiClip>>(clipData);
         if (midiClip) {
-            g.setColour(juce::Colours::yellow.withAlpha(0.8f));
+            g.setColour(juce::Colours::black.withAlpha(0.5f));
             int minNote = 127;
             int maxNote = 0;
             for (int i = 0; i < midiClip->getSequence().getNumEvents(); ++i) {

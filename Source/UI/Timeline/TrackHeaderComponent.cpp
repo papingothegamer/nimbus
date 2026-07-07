@@ -254,23 +254,20 @@ void TrackHeaderComponent::setTrackIndex(int newIndex) {
 
 void TrackHeaderComponent::paint(juce::Graphics& g) {
     if (engine.getTimelineProject().isTrackSelected(trackIndex)) {
-        g.fillAll(DesignSystem::Colors::ModuleBackground.brighter(0.1f));
+        g.fillAll(DesignSystem::Colors::ComponentBackground);
     } else {
-        g.fillAll(DesignSystem::Colors::ModuleBackground);
+        g.fillAll(DesignSystem::Colors::AppBackground.brighter(0.05f));
     }
     
     // Bottom separator
     g.setColour(DesignSystem::Colors::Divider);
     g.fillRect(0, getHeight() - 1, getWidth(), 1);
 
-    // Right separator (header is on left side)
-    g.fillRect(getWidth() - 1, 0, 1, getHeight());
-
     // Draw VU Meter or MIDI Activity on the right edge
-    int meterWidth = 8;
-    auto meterBounds = juce::Rectangle<int>(getWidth() - meterWidth - 4, 4, meterWidth, getHeight() - 8);
+    int meterWidth = 4; // sleek thin meter
+    auto meterBounds = juce::Rectangle<int>(getWidth() - meterWidth, 1, meterWidth, getHeight() - 2);
     
-    g.setColour(DesignSystem::Colors::ModuleBackground.darker(0.2f));
+    g.setColour(DesignSystem::Colors::AppBackground.darker(0.2f));
     g.fillRect(meterBounds);
 
     if (currentLevel > 0.0f) {

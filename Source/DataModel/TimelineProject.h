@@ -7,29 +7,41 @@
 #include <variant>
 #include <juce_events/juce_events.h>
 
+#include "Models.h"
+
 namespace Nimbus {
 
 using AnyClipPtr = std::variant<std::shared_ptr<AudioClip>, std::shared_ptr<MidiClip>>;
 
 struct TrackModel {
-    juce::Uuid id;
+    TrackID id;
     juce::String name;
-    bool isMidi;
+    TrackType type = TrackType::Audio;
+    bool isMidi = false; // Legacy field, eventually remove
     bool isMuted = false;
     bool isSoloed = false;
     bool isArmed = false;
     bool isStereo = false;
-    juce::Uuid linkedTrackId;
+    TrackID linkedTrackId;
+    
+    // Routing
+    InputSource inputSource;
+    TrackID outputBus; // Empty UUID means master
     
     // Grouping
     bool isGroup = false;
     bool isFolded = false;
-    juce::Uuid parentGroupId;
+    TrackID parentGroupId;
     
     float volume = 0.75f;
     float pan = 0.0f;
     
-    int inputChannelIndex = -1; // -1 = All active, 0 = Ch1, 1 = Ch2, etc.
+    int inputChannelIndex = -1; // -1 = All active, 0 = Ch1, 1 = Ch2, etc. (Legacy)
+    
+    // Plugins
+    std::vector<PluginSlot> pluginSlots;
+    PluginSlot instrumentSlot;
+    bool hasInstrument = false;
 };
 
 /**

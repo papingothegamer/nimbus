@@ -5,7 +5,7 @@
 
 namespace Nimbus {
 
-Track::Track(Transport* t) : transport(t) {}
+Track::Track(TrackID id, Transport* t) : id_(id), transport(t) {}
 
 void Track::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) {
     currentSampleRate = sampleRate;

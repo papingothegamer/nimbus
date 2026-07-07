@@ -31,15 +31,15 @@ struct Typography {
     }
 
     static juce::Font getGiantFont() {
-        return juce::Font(getChakraPetchRegular()).withHeight(28.0f);
+        return juce::Font(getInterBold()).withHeight(28.0f);
     }
 
     static juce::Font getTitleFont() {
-        return juce::Font(getChakraPetchBold()).withHeight(14.0f);
+        return juce::Font(getInterBold()).withHeight(14.0f);
     }
 
     static juce::Font getPrimaryFont() {
-        return juce::Font(getChakraPetchRegular()).withHeight(13.0f);
+        return juce::Font(getInterRegular()).withHeight(13.0f);
     }
 
     static juce::Font getSecondaryFont() {

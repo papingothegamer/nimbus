@@ -64,7 +64,7 @@ void TimelineProject::groupTracks(const juce::SparseSet<int>& trackIndices) {
     int firstIndex = trackIndices.getRange(0).getStart();
     
     TrackModel groupTrack;
-    groupTrack.id = juce::Uuid();
+    groupTrack.id = TrackID();
     groupTrack.name = "Group Track";
     groupTrack.isGroup = true;
     groupTrack.isMidi = false;
@@ -88,10 +88,10 @@ void TimelineProject::groupTracks(const juce::SparseSet<int>& trackIndices) {
 
 void TimelineProject::ungroupTracks(int groupTrackIndex) {
     if (groupTrackIndex >= 0 && groupTrackIndex < tracks.size() && tracks[groupTrackIndex].isGroup) {
-        juce::Uuid groupId = tracks[groupTrackIndex].id;
+        TrackID groupId = tracks[groupTrackIndex].id;
         for (auto& track : tracks) {
             if (track.parentGroupId == groupId) {
-                track.parentGroupId = juce::Uuid::null();
+                track.parentGroupId = TrackID();
             }
         }
         removeTrack(groupTrackIndex);
@@ -221,13 +221,13 @@ void TimelineProject::linkTracks(int trackIndex1, int trackIndex2) {
 
 void TimelineProject::unlinkTrack(int trackIndex) {
     if (trackIndex >= 0 && trackIndex < tracks.size()) {
-        juce::Uuid linkedId = tracks[trackIndex].linkedTrackId;
-        if (!linkedId.isNull()) {
-            tracks[trackIndex].linkedTrackId = juce::Uuid();
+        TrackID linkedId = tracks[trackIndex].linkedTrackId;
+        if (linkedId != TrackID()) {
+            tracks[trackIndex].linkedTrackId = TrackID();
             // Find and unlink the other track
             for (auto& track : tracks) {
                 if (track.id == linkedId) {
-                    track.linkedTrackId = juce::Uuid();
+                    track.linkedTrackId = TrackID();
                     break;
                 }
             }

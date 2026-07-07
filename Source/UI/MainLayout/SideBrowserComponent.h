@@ -16,15 +16,15 @@ public:
 
 private:
     NimbusEngine& engine;
-    
-    juce::TextButton pluginsTab{"Plugins"};
-    juce::TextButton samplesTab{"Samples"};
-    juce::TextButton filesTab{"Files"};
-    
-    juce::TextEditor searchBox;
+    juce::ListBox categoriesList;
     juce::ListBox itemsList;
+    juce::TextEditor searchBox;
     juce::TextButton scanButton{"Scan for Plugins"};
+    
     std::unique_ptr<juce::Drawable> searchIcon;
+
+    class CategoriesModel;
+    std::unique_ptr<CategoriesModel> catModel;
 
     class PluginItemsModel;
     std::unique_ptr<PluginItemsModel> pluginModel;

@@ -18,12 +18,13 @@ namespace Nimbus {
 class DiskStreamer;
 class PluginNode;
 class MidiRecorder;
+class PlaybackEngine;
 
 /**
  * The root service container for the Nimbus DAW.
  * Owns the core audio engine components and manages their lifecycles.
  */
-class NimbusEngine : public TimelineProject::Listener {
+class NimbusEngine {
 public:
     NimbusEngine();
     ~NimbusEngine();
@@ -44,16 +45,8 @@ public:
 
     void addTrack(bool isMidi);
 
-    // TimelineProject::Listener overrides
-    void trackMuteChanged(int trackIndex, bool isMuted) override;
-    void trackSoloChanged(int trackIndex, bool isSoloed) override;
-    void trackArmChanged(int trackIndex, bool isArmed) override;
-    void trackVolumeChanged(int trackIndex, float volume) override;
-    void trackPanChanged(int trackIndex, float pan) override;
-    void trackInputChannelChanged(int trackIndex, int inputChannel) override;
-    void trackRemoved(int trackIndex) override;
-    void trackClipsChanged(int trackIndex) override;
-
+    // Removed TimelineProject::Listener overrides, now handled by PlaybackEngine
+    
     float getMasterPeakLevel() const;
     float getTrackPeakLevel(int trackIndex) const;
 
@@ -80,6 +73,8 @@ private:
     juce::TimeSliceThread recorderThread { "RecorderThread" };
     std::map<int, std::unique_ptr<AudioRecorder>> trackRecorders;
     std::map<int, std::unique_ptr<MidiRecorder>> midiRecorders;
+
+    std::unique_ptr<PlaybackEngine> playbackEngine;
 
     // Temporary storage for our single disk streamer for Phase 4
     std::shared_ptr<DiskStreamer> mainStreamer;

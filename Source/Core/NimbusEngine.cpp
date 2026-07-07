@@ -9,6 +9,8 @@
 #include "AudioEngine/MidiClipNode.h"
 #include "AudioEngine/PluginNode.h"
 
+#include "AudioEngine/PlaybackEngine.h"
+
 namespace Nimbus {
 
 NimbusEngine::NimbusEngine() : deviceManagerWrapper(mainGraph, transport), thumbnailCache(5) {
@@ -16,7 +18,6 @@ NimbusEngine::NimbusEngine() : deviceManagerWrapper(mainGraph, transport), thumb
 }
 
 NimbusEngine::~NimbusEngine() {
-    timelineProject.removeListener(this);
 }
 
 void NimbusEngine::initialise() {
@@ -39,7 +40,7 @@ void NimbusEngine::initialise() {
     // 6. Initialize the audio device manager, which will start pulling audio from the graph
     deviceManagerWrapper.initialise();
 
-    timelineProject.addListener(this);
+    playbackEngine = std::make_unique<PlaybackEngine>(*this, timelineProject, *mixer, pluginManager);
 
     juce::Logger::writeToLog("Engine: Initialise Complete");
 }
@@ -51,13 +52,7 @@ void NimbusEngine::addTrack(bool isMidi) {
     model.isStereo = !isMidi; // Audio track defaults to stereo
     
     timelineProject.addTrack(model);
-
-    if (mixer != nullptr) {
-        auto track = std::make_unique<Track>(&transport);
-        track->setInputChannelIndex(model.inputChannelIndex);
-        // MIDI tracks don't get a source node here - they get one when a clip is added
-        mixer->addTrack(std::move(track));
-    }
+    // Track node is now created by PlaybackEngine observing timelineProject
 }
 
 float NimbusEngine::getMasterPeakLevel() const {
@@ -66,87 +61,6 @@ float NimbusEngine::getMasterPeakLevel() const {
 
 float NimbusEngine::getTrackPeakLevel(int trackIndex) const {
     return mixer ? mixer->getTrackPeakLevel(trackIndex) : 0.0f;
-}
-
-void NimbusEngine::trackMuteChanged(int trackIndex, bool isMuted) {
-    if (mixer) {
-        if (auto* track = mixer->getTrack(trackIndex)) {
-            track->setMuted(isMuted);
-        }
-    }
-}
-
-void NimbusEngine::trackSoloChanged(int trackIndex, bool isSoloed) {
-    if (mixer) {
-        if (auto* track = mixer->getTrack(trackIndex)) {
-            track->setSoloed(isSoloed);
-        }
-    }
-}
-
-void NimbusEngine::trackVolumeChanged(int trackIndex, float volume) {
-    if (mixer) {
-        if (auto* track = mixer->getTrack(trackIndex)) {
-            track->setVolume(volume);
-        }
-    }
-}
-
-void NimbusEngine::trackPanChanged(int trackIndex, float pan) {
-    if (mixer) {
-        if (auto* track = mixer->getTrack(trackIndex)) {
-            track->setPan(pan);
-        }
-    }
-}
-
-void NimbusEngine::trackInputChannelChanged(int trackIndex, int inputChannel) {
-    if (mixer) {
-        if (auto* track = mixer->getTrack(trackIndex)) {
-            track->setInputChannelIndex(inputChannel);
-        }
-    }
-}
-
-void NimbusEngine::trackArmChanged(int trackIndex, bool isArmed) {
-    if (mixer) {
-        if (auto* track = mixer->getTrack(trackIndex)) {
-            track->setArmed(isArmed);
-        }
-    }
-}
-
-void NimbusEngine::trackClipsChanged(int trackIndex) {
-    if (mixer) {
-        if (auto* track = mixer->getTrack(trackIndex)) {
-            const auto& trackModel = timelineProject.getTrack(trackIndex);
-            
-            // For now, we just grab the first clip and assign it to the track's source node
-            // A full implementation would use a TrackClipManagerNode
-            if (timelineProject.getClipsOnTrack(trackIndex).size() > 0) {
-                const auto& anyClip = timelineProject.getClipsOnTrack(trackIndex).front();
-                
-                if (std::holds_alternative<std::shared_ptr<MidiClip>>(anyClip)) {
-                    auto midiClip = std::get<std::shared_ptr<MidiClip>>(anyClip);
-                    auto clipNode = std::make_unique<MidiClipNode>(midiClip, transport);
-                    track->setSourceNode(std::move(clipNode));
-                } else if (std::holds_alternative<std::shared_ptr<AudioClip>>(anyClip)) {
-                    auto audioClip = std::get<std::shared_ptr<AudioClip>>(anyClip);
-                    auto streamer = std::make_shared<DiskStreamer>(audioClip->getSourceFile(), formatManager);
-                    auto clipNode = std::make_unique<AudioClipNode>(audioClip, streamer, transport);
-                    track->setSourceNode(std::move(clipNode));
-                }
-            } else {
-                track->setSourceNode(nullptr); // No clips
-            }
-        }
-    }
-}
-
-void NimbusEngine::trackRemoved(int trackIndex) {
-    if (mixer) {
-        mixer->removeTrack(trackIndex);
-    }
 }
 
 void NimbusEngine::startRecording() {

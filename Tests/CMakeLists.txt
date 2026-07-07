@@ -32,8 +32,22 @@ add_executable(NimbusTests
 target_link_libraries(NimbusTests PRIVATE 
     Catch2::Catch2WithMain
     juce::juce_audio_basics
+    juce::juce_audio_devices
     juce::juce_audio_formats
+    juce::juce_audio_processors
+    juce::juce_audio_utils
     juce::juce_core
+    juce::juce_data_structures
     juce::juce_events
+    juce::juce_graphics
+    juce::juce_gui_basics
+    juce::juce_gui_extra
 )
-target_include_directories(NimbusTests PRIVATE ../Source)
+target_include_directories(NimbusTests PRIVATE 
+    ../Source 
+    ${CMAKE_CURRENT_BINARY_DIR}/../Nimbus_artefacts/JuceLibraryCode
+)
+
+if (MSVC)
+    target_compile_options(NimbusTests PRIVATE /FS)
+endif()

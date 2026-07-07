@@ -146,6 +146,8 @@ target_sources(Nimbus PRIVATE
     Source/DataModel/TimelineProject.cpp
     Source/PluginHost/PluginManager.cpp
     Source/AudioEngine/PluginNode.cpp
+    Source/AudioEngine/PlaybackEngine.cpp
+    Source/AudioEngine/TrackSourceNode.cpp
 )
 
 # Link JUCE modules
