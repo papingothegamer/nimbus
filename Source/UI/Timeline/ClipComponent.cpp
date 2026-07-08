@@ -213,13 +213,7 @@ void ClipComponent::mouseUp(const juce::MouseEvent& event) {
 }
 
 void ClipComponent::mouseDoubleClick(const juce::MouseEvent& event) {
-    if (std::holds_alternative<std::shared_ptr<MidiClip>>(clipData)) {
-        if (auto mc = std::get<std::shared_ptr<MidiClip>>(clipData)) {
-            // Draw a C3 note on double click for testing!
-            mc->addNote(1, 60, 0.8f, 0.0, 48000.0);
-            repaint();
-        }
-    }
+    // Intentionally empty for now, removed test note addition.
 }
 
 } // namespace Nimbus::Timeline
