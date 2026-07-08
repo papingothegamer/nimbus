@@ -21,10 +21,14 @@ public:
     void processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) override;
 
     juce::AudioPluginInstance* getPluginInstance() const { return pluginInstance.get(); }
+    
+    bool isBypassed() const { return bypassed; }
+    void setBypassed(bool b) { bypassed = b; }
 
 private:
     std::unique_ptr<juce::AudioPluginInstance> pluginInstance;
     bool isPrepared = false;
+    bool bypassed = false;
 };
 
 } // namespace Nimbus

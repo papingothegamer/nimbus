@@ -1,6 +1,7 @@
 #include "PianoRollComponent.h"
 #include "Core/NimbusEngine.h"
 #include "UI/DesignSystem/Colors.h"
+#include "UI/DesignSystem/Iconography.h"
 
 namespace Nimbus::DetailView {
 
@@ -234,6 +235,18 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
                         draggedEventIndex = i;
                         dragStartMouseX = event.getPosition().x;
                         dragStartMouseY = event.getPosition().y;
+                        break;
+                    }
+                }
+            }
+            return;
+        }
+    }
+    
+    int contentHeight = 128 * keyHeight;
+    if (event.y > contentHeight) {
+        // We clicked in velocity lane
+        if (draggedEventIndex != -1) {
             selectedEventIndices.addIfNotAlreadyThere(draggedEventIndex);
             
             // Adjust velocity immediately
@@ -278,7 +291,7 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
                     draggedEventIndex = i;
                     
                     if (event.mods.isRightButtonDown() || event.mods.isCtrlDown()) {
-                        if (evt->noteOffObject) seq.deleteEvent(seq.indexOf(evt->noteOffObject), true);
+                        if (evt->noteOffObject) seq.deleteEvent(seq.getIndexOf(evt->noteOffObject), true);
                         seq.deleteEvent(i, true);
                         draggedEventIndex = -1;
                         selectedEventIndices.removeFirstMatchingValue(i);
@@ -384,7 +397,7 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
                 juce::Rectangle<float> rect(x, y, w, static_cast<float>(keyHeight));
                 
                 if (rect.contains(event.position)) {
-                    if (evt->noteOffObject) seq.deleteEvent(seq.indexOf(evt->noteOffObject), true);
+                    if (evt->noteOffObject) seq.deleteEvent(seq.getIndexOf(evt->noteOffObject), true);
                     seq.deleteEvent(i, true);
                     selectedEventIndices.removeFirstMatchingValue(i);
                     engine.getTimelineProject().notifyClipModified();
@@ -530,7 +543,7 @@ void PianoRollContent::mouseDrag(const juce::MouseEvent& event) {
     seq.updateMatchedPairs();
     engine.getTimelineProject().notifyClipModified();
     
-    draggedEventIndex = seq.indexOf(draggedEvt);
+    draggedEventIndex = seq.getIndexOf(draggedEvt);
     repaint();
 }
 

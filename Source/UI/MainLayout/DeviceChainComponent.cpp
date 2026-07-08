@@ -30,67 +30,80 @@ public:
     }
     
     void paint(juce::Graphics& g) override {
-        auto bounds = getLocalBounds().reduced(2);
-        
-        // Main Background
-        g.setColour(DesignSystem::Colors::ModuleBackground);
-        g.fillRoundedRectangle(bounds.toFloat(), 5.0f);
-        
-        // Header Background
-        auto headerBounds = bounds.removeFromTop(24);
-        g.setColour(DesignSystem::Colors::ComponentBackground);
-        g.fillRoundedRectangle(headerBounds.toFloat(), 5.0f);
-        g.fillRect(headerBounds.withTop(headerBounds.getBottom() - 5).toFloat()); // Square off the bottom corners
-        
-        // Border
-        g.setColour(DesignSystem::Colors::ComponentBorder);
-        g.drawRoundedRectangle(getLocalBounds().reduced(2).toFloat(), 5.0f, 1.0f);
-
-        // Bypass button
-        juce::Rectangle<float> bypassRect(headerBounds.getX() + 6.0f, headerBounds.getY() + 6.0f, 12.0f, 12.0f);
+        auto bounds = getLocalBounds().reduced(2).toFloat();
         bool isBypassed = node && node->isBypassed();
-        g.setColour(isBypassed ? DesignSystem::Colors::Divider : juce::Colours::yellow.withAlpha(0.8f));
-        g.fillRoundedRectangle(bypassRect, 2.0f);
+        
+        // Main Device Background
+        g.setColour(DesignSystem::Colors::ModuleBackground.darker(0.05f));
+        g.fillRoundedRectangle(bounds, 4.0f);
+        
+        // Header Background (Darker/tinted title bar)
+        auto headerBounds = bounds.removeFromTop(22.0f);
+        g.setColour(isBypassed ? DesignSystem::Colors::ComponentBackground.darker(0.1f) : DesignSystem::Colors::ComponentBackground.brighter(0.1f));
+        g.fillRoundedRectangle(headerBounds.getX(), headerBounds.getY(), headerBounds.getWidth(), headerBounds.getHeight(), 4.0f);
+        g.fillRect(headerBounds.getX(), headerBounds.getBottom() - 2.0f, headerBounds.getWidth(), 2.0f); // Square bottom corners
+        
+        // Outer Border
         g.setColour(DesignSystem::Colors::ComponentBorder);
-        g.drawRoundedRectangle(bypassRect, 2.0f, 1.0f);
+        g.drawRoundedRectangle(bounds, 4.0f, 1.0f);
+
+        // Bypass toggle (Ableton style small square in top left)
+        juce::Rectangle<float> bypassRect(headerBounds.getX() + 6.0f, headerBounds.getY() + 5.0f, 12.0f, 12.0f);
+        if (!isBypassed) {
+            g.setColour(juce::Colours::yellow.withAlpha(0.9f));
+            g.fillRoundedRectangle(bypassRect, 2.0f);
+        } else {
+            g.setColour(DesignSystem::Colors::ComponentBackground.darker(0.2f));
+            g.fillRoundedRectangle(bypassRect, 2.0f);
+            g.setColour(DesignSystem::Colors::ComponentBorder);
+            g.drawRoundedRectangle(bypassRect, 2.0f, 1.0f);
+        }
 
         // Header Content - Plugin Name
         g.setColour(isBypassed ? DesignSystem::Colors::TextSecondary : DesignSystem::Colors::TextPrimary);
-        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f).withStyle(juce::Font::bold));
-        g.drawText(name.toUpperCase(), headerBounds.withTrimmedLeft(24).withTrimmedRight(48), juce::Justification::centredLeft, true);
+        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(11.0f).withStyle(juce::Font::bold));
+        g.drawText(name.toUpperCase(), headerBounds.withTrimmedLeft(24).withTrimmedRight(40), juce::Justification::centredLeft, true);
         
-        // Settings Icon
-        juce::Rectangle<float> settingsRect(headerBounds.getRight() - 44.0f, headerBounds.getY() + 4.0f, 16.0f, 16.0f);
+        // Settings Icon (Wrench/Gear equivalent)
+        juce::Rectangle<float> settingsRect(headerBounds.getRight() - 36.0f, headerBounds.getY() + 4.0f, 14.0f, 14.0f);
         if (settingsIcon) {
+            settingsIcon->setAlpha(isBypassed ? 0.5f : 0.8f);
             settingsIcon->drawWithin(g, settingsRect, juce::RectanglePlacement::centred, 1.0f);
         }
         
-        // Delete Icon
-        juce::Rectangle<float> deleteRect(headerBounds.getRight() - 22.0f, headerBounds.getY() + 4.0f, 16.0f, 16.0f);
+        // Delete Icon (X)
+        juce::Rectangle<float> deleteRect(headerBounds.getRight() - 18.0f, headerBounds.getY() + 4.0f, 14.0f, 14.0f);
         if (deleteIcon) {
+            deleteIcon->setAlpha(isBypassed ? 0.5f : 0.8f);
             deleteIcon->drawWithin(g, deleteRect, juce::RectanglePlacement::centred, 1.0f);
         }
         
-        // Body Design (Device Icon + Generic Parameters)
-        auto bodyBounds = bounds;
+        // Body Design
+        auto bodyBounds = bounds; // already has header removed
         
         if (!isBypassed) {
+            // Ableton style generic macro area
             auto iconBounds = bodyBounds.removeFromTop(40).reduced(10);
             if (deviceIcon) {
                 deviceIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
-                deviceIcon->drawWithin(g, iconBounds.toFloat(), juce::RectanglePlacement::centred, 1.0f);
+                deviceIcon->setAlpha(0.3f);
+                deviceIcon->drawWithin(g, iconBounds, juce::RectanglePlacement::centred, 1.0f);
             }
 
-            // Generic device graphic (e.g. some knobs or sliders)
-            g.setColour(DesignSystem::Colors::Divider);
-            float cx = bodyBounds.getCentreX();
-            float cy = bodyBounds.getCentreY() - 10;
-            // Two simple "knobs"
-            g.drawEllipse(cx - 20, cy - 8, 16, 16, 2.0f);
-            g.drawEllipse(cx + 4, cy - 8, 16, 16, 2.0f);
+            // Draw some generic minimalist "XY pad" or blank parameter space
+            g.setColour(DesignSystem::Colors::ComponentBackground.darker(0.1f));
+            auto paramArea = bodyBounds.reduced(8);
+            g.fillRoundedRectangle(paramArea, 3.0f);
+            g.setColour(DesignSystem::Colors::ComponentBorder.withAlpha(0.5f));
+            g.drawRoundedRectangle(paramArea, 3.0f, 1.0f);
+            
+            g.setColour(DesignSystem::Colors::TextSecondary.withAlpha(0.4f));
+            g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(10.0f));
+            g.drawText("Open GUI to edit", paramArea, juce::Justification::centred, false);
+            
         } else {
-            g.setColour(DesignSystem::Colors::TextSecondary.withAlpha(0.5f));
-            g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f).withStyle(juce::Font::italic));
+            g.setColour(DesignSystem::Colors::TextSecondary.withAlpha(0.4f));
+            g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f).withStyle(juce::Font::italic));
             g.drawText("Bypassed", bodyBounds, juce::Justification::centred, false);
         }
     }
@@ -99,9 +112,9 @@ public:
         auto bounds = getLocalBounds().reduced(2);
         auto headerBounds = bounds.removeFromTop(24);
         
-        juce::Rectangle<int> bypassRect(headerBounds.getX() + 6, headerBounds.getY() + 6, 12, 12);
-        juce::Rectangle<int> settingsRect(headerBounds.getRight() - 44, headerBounds.getY() + 4, 16, 16);
-        juce::Rectangle<int> deleteRect(headerBounds.getRight() - 22, headerBounds.getY() + 4, 16, 16);
+        juce::Rectangle<int> bypassRect(headerBounds.getX() + 6, headerBounds.getY() + 5, 12, 12);
+        juce::Rectangle<int> settingsRect(headerBounds.getRight() - 36, headerBounds.getY() + 4, 14, 14);
+        juce::Rectangle<int> deleteRect(headerBounds.getRight() - 18, headerBounds.getY() + 4, 14, 14);
         
         if (bypassRect.contains(e.getPosition())) {
             if (node) {

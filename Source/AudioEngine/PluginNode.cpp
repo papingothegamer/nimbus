@@ -30,7 +30,7 @@ void PluginNode::releaseResources() {
 }
 
 void PluginNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
-    if (!pluginInstance || !isPrepared) return;
+    if (!pluginInstance || !isPrepared || bypassed) return;
 
     // The JUCE processBlock expects an AudioBuffer and MidiBuffer.
     // If the plugin acts as an instrument, it might replace the buffer.
