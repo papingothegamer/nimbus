@@ -40,6 +40,7 @@ public:
     // Label
     juce::Font getLabelFont(juce::Label&) override;
     void drawLabel(juce::Graphics&, juce::Label&) override;
+    juce::BorderSize<int> getLabelBorderSize(juce::Label&) override;
     
     // CallOutBox
     void drawCallOutBoxBackground(juce::CallOutBox&, juce::Graphics&, const juce::Path&, juce::Image&) override;

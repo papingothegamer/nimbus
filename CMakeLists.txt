@@ -88,6 +88,17 @@ juce_add_binary_data(Nimbus_Assets
         Assets/Icons/Nimbus/redo.svg
         Assets/Icons/Nimbus/undo.svg
         Assets/Icons/Nimbus/jump-to-start.svg
+        Assets/Icons/Nimbus/copy.svg
+        Assets/Icons/Nimbus/paste.svg
+        Assets/Icons/Nimbus/eraser.svg
+        Assets/Icons/Nimbus/pointer.svg
+        Assets/Icons/Nimbus/cursor-move.svg
+        Assets/Icons/Nimbus/volume-high.svg
+        Assets/Icons/Nimbus/volume-low.svg
+        Assets/Icons/Nimbus/volume-medium.svg
+        Assets/Icons/Nimbus/volume-minus.svg
+        Assets/Icons/Nimbus/volume-plus.svg
+        Assets/Icons/Nimbus/volume-equal.svg
 )
 target_link_libraries(Nimbus PRIVATE Nimbus_Assets)
 
@@ -132,6 +143,7 @@ target_sources(Nimbus PRIVATE
     Source/UI/DetailView/AudioClipViewComponent.h
     Source/UI/DetailView/ClipPropertiesComponent.cpp
     Source/UI/DetailView/ClipPropertiesComponent.h
+    Source/UI/DetailView/ExpandableSection.h
     Source/UI/DetailView/NotesPanelComponent.cpp
     Source/UI/DetailView/NotesPanelComponent.h
     Source/UI/DetailView/PianoRollTimelineComponent.cpp

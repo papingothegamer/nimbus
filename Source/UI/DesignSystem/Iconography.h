@@ -61,6 +61,20 @@ struct Iconography {
     static const inline juce::String Pencil = "penciloutline_svg";
     static const inline juce::String Piano = "piano_svg";
     static const inline juce::String Midi = "midi_svg";
+
+    // Piano Roll Tools
+    static const inline juce::String Pointer = "pointer_svg";
+    static const inline juce::String Eraser = "eraser_svg";
+    static const inline juce::String CursorMove = "cursormove_svg";
+    static const inline juce::String Copy = "copy_svg";
+    static const inline juce::String Paste = "paste_svg";
+    
+    // Volume variants
+    static const inline juce::String VolumeLow = "volumelow_svg";
+    static const inline juce::String VolumeMedium = "volumemedium_svg";
+    static const inline juce::String VolumePlus = "volumeplus_svg";
+    static const inline juce::String VolumeMinus = "volumeminus_svg";
+    static const inline juce::String VolumeEqual = "volumeequal_svg";
 };
 
 } // namespace Nimbus::DesignSystem

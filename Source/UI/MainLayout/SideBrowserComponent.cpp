@@ -238,7 +238,7 @@ void SideBrowserComponent::paint(juce::Graphics& g) {
     // Search icon
     if (searchIcon) {
         auto iconBounds = searchBarBounds.removeFromLeft(24).withSizeKeepingCentre(16, 16).toFloat();
-        searchIcon->drawWithin(g, iconBounds, juce::RectanglePlacement::centred, 1.0f);
+        searchIcon->drawWithin(g, iconBounds, juce::RectanglePlacement::centred | juce::RectanglePlacement::onlyReduceInSize, 1.0f);
     }
 }
 

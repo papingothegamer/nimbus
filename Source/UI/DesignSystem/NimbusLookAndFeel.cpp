@@ -99,6 +99,11 @@ void NimbusLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& bu
     }
 
     bool isIconOnly = button.getButtonText().endsWith("_svg");
+    if (isIconOnly && !isActive && shouldDrawButtonAsHighlighted) {
+        // Do not draw hover background for icon-only buttons, just highlight the icon (handled in drawButtonText)
+        return;
+    }
+
     bool transparentBg = button.getProperties().contains("transparentBackground");
 
     if (!transparentBg) {
@@ -312,6 +317,10 @@ juce::Font NimbusLookAndFeel::getComboBoxFont(juce::ComboBox& box) {
 
 juce::Font NimbusLookAndFeel::getLabelFont(juce::Label& label) {
     return Typography::getPrimaryFont().withHeight(14.0f);
+}
+
+juce::BorderSize<int> NimbusLookAndFeel::getLabelBorderSize(juce::Label&) {
+    return juce::BorderSize<int>(0);
 }
 
 void NimbusLookAndFeel::drawLabel(juce::Graphics& g, juce::Label& label) {

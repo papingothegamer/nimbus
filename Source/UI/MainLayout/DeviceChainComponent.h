@@ -28,6 +28,9 @@ private:
     
     int currentTrackIndex = -1;
     std::unique_ptr<juce::Drawable> addPluginIcon;
+    
+    juce::Viewport viewport;
+    juce::Component content;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DeviceChainComponent)
 };

@@ -18,17 +18,21 @@ public:
             if (deviceIcon) deviceIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
         }
         
-        int delDataSize = 0;
-        if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::Delete.toUTF8(), delDataSize)) {
-            deleteIcon = juce::Drawable::createFromImageData(data, delDataSize);
-            if (deleteIcon) deleteIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::PrimaryAction);
+        if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::Settings.toUTF8(), iconDataSize)) {
+            settingsIcon = juce::Drawable::createFromImageData(data, iconDataSize);
+            if (settingsIcon) settingsIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextPrimary);
+        }
+        
+        if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::Delete.toUTF8(), iconDataSize)) {
+            deleteIcon = juce::Drawable::createFromImageData(data, iconDataSize);
+            if (deleteIcon) deleteIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextPrimary);
         }
     }
     
     void paint(juce::Graphics& g) override {
         auto bounds = getLocalBounds().reduced(2);
         
-        // Main Background (Module Background)
+        // Main Background
         g.setColour(DesignSystem::Colors::ModuleBackground);
         g.fillRoundedRectangle(bounds.toFloat(), 5.0f);
         
@@ -42,33 +46,81 @@ public:
         g.setColour(DesignSystem::Colors::ComponentBorder);
         g.drawRoundedRectangle(getLocalBounds().reduced(2).toFloat(), 5.0f, 1.0f);
 
+        // Bypass button
+        juce::Rectangle<float> bypassRect(headerBounds.getX() + 6.0f, headerBounds.getY() + 6.0f, 12.0f, 12.0f);
+        bool isBypassed = node && node->isBypassed();
+        g.setColour(isBypassed ? DesignSystem::Colors::Divider : juce::Colours::yellow.withAlpha(0.8f));
+        g.fillRoundedRectangle(bypassRect, 2.0f);
+        g.setColour(DesignSystem::Colors::ComponentBorder);
+        g.drawRoundedRectangle(bypassRect, 2.0f, 1.0f);
+
         // Header Content - Plugin Name
-        g.setColour(DesignSystem::Colors::TextPrimary);
+        g.setColour(isBypassed ? DesignSystem::Colors::TextSecondary : DesignSystem::Colors::TextPrimary);
         g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f).withStyle(juce::Font::bold));
-        g.drawText(name.toUpperCase(), headerBounds.reduced(8, 0), juce::Justification::centredLeft, true);
+        g.drawText(name.toUpperCase(), headerBounds.withTrimmedLeft(24).withTrimmedRight(48), juce::Justification::centredLeft, true);
+        
+        // Settings Icon
+        juce::Rectangle<float> settingsRect(headerBounds.getRight() - 44.0f, headerBounds.getY() + 4.0f, 16.0f, 16.0f);
+        if (settingsIcon) {
+            settingsIcon->drawWithin(g, settingsRect, juce::RectanglePlacement::centred, 1.0f);
+        }
+        
+        // Delete Icon
+        juce::Rectangle<float> deleteRect(headerBounds.getRight() - 22.0f, headerBounds.getY() + 4.0f, 16.0f, 16.0f);
+        if (deleteIcon) {
+            deleteIcon->drawWithin(g, deleteRect, juce::RectanglePlacement::centred, 1.0f);
+        }
         
         // Body Design (Device Icon + Generic Parameters)
-        auto iconBounds = bounds.removeFromTop(40).reduced(10);
-        if (deviceIcon) {
-            deviceIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
-            deviceIcon->drawWithin(g, iconBounds.toFloat(), juce::RectanglePlacement::centred, 1.0f);
-        }
+        auto bodyBounds = bounds;
+        
+        if (!isBypassed) {
+            auto iconBounds = bodyBounds.removeFromTop(40).reduced(10);
+            if (deviceIcon) {
+                deviceIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
+                deviceIcon->drawWithin(g, iconBounds.toFloat(), juce::RectanglePlacement::centred, 1.0f);
+            }
 
-        // Generic device graphic (e.g. some knobs or sliders)
-        g.setColour(DesignSystem::Colors::Divider);
-        float cx = bounds.getCentreX();
-        float cy = bounds.getCentreY() - 10;
-        // Two simple "knobs"
-        g.drawEllipse(cx - 20, cy - 8, 16, 16, 2.0f);
-        g.drawEllipse(cx + 4, cy - 8, 16, 16, 2.0f);
-
-        auto bottomBounds = getLocalBounds().reduced(2).removeFromBottom(24).reduced(4);
-        if (deleteIcon) {
-            deleteIcon->drawWithin(g, bottomBounds.removeFromRight(16).toFloat(), juce::RectanglePlacement::centred, 1.0f);
+            // Generic device graphic (e.g. some knobs or sliders)
+            g.setColour(DesignSystem::Colors::Divider);
+            float cx = bodyBounds.getCentreX();
+            float cy = bodyBounds.getCentreY() - 10;
+            // Two simple "knobs"
+            g.drawEllipse(cx - 20, cy - 8, 16, 16, 2.0f);
+            g.drawEllipse(cx + 4, cy - 8, 16, 16, 2.0f);
+        } else {
+            g.setColour(DesignSystem::Colors::TextSecondary.withAlpha(0.5f));
+            g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f).withStyle(juce::Font::italic));
+            g.drawText("Bypassed", bodyBounds, juce::Justification::centred, false);
         }
     }
     
     void mouseDown(const juce::MouseEvent& e) override {
+        auto bounds = getLocalBounds().reduced(2);
+        auto headerBounds = bounds.removeFromTop(24);
+        
+        juce::Rectangle<int> bypassRect(headerBounds.getX() + 6, headerBounds.getY() + 6, 12, 12);
+        juce::Rectangle<int> settingsRect(headerBounds.getRight() - 44, headerBounds.getY() + 4, 16, 16);
+        juce::Rectangle<int> deleteRect(headerBounds.getRight() - 22, headerBounds.getY() + 4, 16, 16);
+        
+        if (bypassRect.contains(e.getPosition())) {
+            if (node) {
+                node->setBypassed(!node->isBypassed());
+                repaint();
+            }
+            return;
+        }
+        
+        if (settingsRect.contains(e.getPosition())) {
+            openPluginWindow();
+            return;
+        }
+        
+        if (deleteRect.contains(e.getPosition())) {
+            deletePlugin();
+            return;
+        }
+        
         if (e.mods.isPopupMenu()) {
             juce::PopupMenu menu;
             menu.addItem(1, "Copy");
@@ -108,57 +160,54 @@ public:
                             track->addInsertPlugin(std::move(newNode));
                         }
                     }
-                } else if (result == 4 && track != nullptr) {
-                    if (track->getInstrumentPlugin() == node) {
-                        track->setInstrumentPlugin(nullptr);
-                    } else {
-                        track->removeInsertPlugin(node);
-                    }
-                    if (window != nullptr) {
-                        window->closeButtonPressed();
-                    }
+                } else if (result == 4) {
+                    deletePlugin();
                 }
             });
         }
     }
     
-    void mouseUp(const juce::MouseEvent& e) override {
-        if (e.mods.isPopupMenu()) return;
-        
-        auto bottomArea = getLocalBounds().reduced(4).removeFromBottom(30);
-        if (bottomArea.contains(e.getPosition())) {
-            if (track != nullptr) {
-                if (track->getInstrumentPlugin() == node) {
-                    track->setInstrumentPlugin(nullptr);
-                } else {
-                    track->removeInsertPlugin(node);
-                }
-                if (window != nullptr) {
-                    window->closeButtonPressed();
-                }
-            }
-        }
-    }
-    
     void mouseDoubleClick(const juce::MouseEvent& e) override {
+        openPluginWindow();
+    }
+
+private:
+    void openPluginWindow() {
         if (window == nullptr) {
             window = new PluginWindow(name, node);
         } else {
             window->toFront(true);
         }
     }
+    
+    void deletePlugin() {
+        if (track != nullptr) {
+            if (track->getInstrumentPlugin() == node) {
+                track->setInstrumentPlugin(nullptr);
+            } else {
+                track->removeInsertPlugin(node);
+            }
+            if (window != nullptr) {
+                window->closeButtonPressed();
+            }
+        }
+    }
 
-private:
     PluginNode* node;
     Track* track;
     NimbusEngine& engine;
     juce::String name;
     juce::Component::SafePointer<PluginWindow> window;
     std::unique_ptr<juce::Drawable> deviceIcon;
+    std::unique_ptr<juce::Drawable> settingsIcon;
     std::unique_ptr<juce::Drawable> deleteIcon;
 };
 
 DeviceChainComponent::DeviceChainComponent(NimbusEngine& e) : engine(e) {
+    addAndMakeVisible(viewport);
+    viewport.setViewedComponent(&content, false);
+    viewport.setScrollBarsShown(true, true, false, false);
+    
     startTimerHz(10); // Check for plugin additions
     
     int iconDataSize = 0;
@@ -217,12 +266,15 @@ void DeviceChainComponent::mouseDown(const juce::MouseEvent& e) {
 }
 
 void DeviceChainComponent::resized() {
-    auto bounds = getLocalBounds();
+    viewport.setBounds(getLocalBounds());
+    
     int x = 5;
     for (auto& box : pluginBoxes) {
-        box->setBounds(x, 5, 120, bounds.getHeight() - 10);
-        x += 120 + 5;
+        box->setBounds(x, 5, 140, viewport.getHeight() - 10 - viewport.getScrollBarThickness());
+        x += 140 + 5;
     }
+    
+    content.setBounds(0, 0, x, viewport.getHeight() - viewport.getScrollBarThickness());
 }
 
 void DeviceChainComponent::updateChain() {
@@ -256,14 +308,14 @@ void DeviceChainComponent::updateChain() {
     // Add instrument first
     if (auto* instr = dynamic_cast<PluginNode*>(track->getInstrumentPlugin())) {
         auto box = std::make_unique<PluginBox>(instr, track, engine);
-        addAndMakeVisible(box.get());
+        content.addAndMakeVisible(box.get());
         pluginBoxes.push_back(std::move(box));
     }
     
     for (auto& n : nodes) {
         if (auto* pluginNode = dynamic_cast<PluginNode*>(n.get())) {
             auto box = std::make_unique<PluginBox>(pluginNode, track, engine);
-            addAndMakeVisible(box.get());
+            content.addAndMakeVisible(box.get());
             pluginBoxes.push_back(std::move(box));
         }
     }

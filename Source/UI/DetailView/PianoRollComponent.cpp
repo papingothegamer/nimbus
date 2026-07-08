@@ -59,6 +59,15 @@ void PianoRollContent::paint(juce::Graphics& g) {
                         int row = 127 - noteNumber;
                         int y = row * keyHeight;
                         
+                        // Velocity bar
+                        if (velocityVisible) {
+                            float vel = event->message.getVelocity() / 127.0f;
+                            float vy = (row * keyHeight) + keyHeight - 5 - (vel * (keyHeight - 2));
+                            float vh = vel * (keyHeight - 2);
+                            g.setColour(selectedEventIndices.contains(i) ? DesignSystem::Colors::PrimaryAction : DesignSystem::Colors::PrimaryAction.withAlpha(0.6f));
+                            g.fillRect(x + w/2 - 2, vy, 4.0f, vh);
+                        }
+                        
                         g.setColour(DesignSystem::Colors::PrimaryAction);
                         g.fillRect(x, static_cast<float>(y), w, static_cast<float>(keyHeight));
                         
@@ -67,6 +76,14 @@ void PianoRollContent::paint(juce::Graphics& g) {
                     }
                 }
             }
+        }
+    
+        // Draw marquee selection
+        if (isMarqueeSelecting) {
+            g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.2f));
+            g.fillRect(marqueeRect);
+            g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.5f));
+            g.drawRect(marqueeRect, 1.0f);
         }
         
         // Draw keyboard on the left, sticky!
@@ -170,6 +187,16 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
                 return;
             }
             
+            // Clicked empty space
+            if (!event.mods.isShiftDown() && !event.mods.isCommandDown()) {
+                selectedEventIndices.clear();
+            }
+            isMarqueeSelecting = true;
+            dragStartMouseX = event.getPosition().x;
+            dragStartMouseY = event.getPosition().y;
+            marqueeRect = juce::Rectangle<float>(static_cast<float>(event.getPosition().x), static_cast<float>(event.getPosition().y), 0.0f, 0.0f);
+            repaint();
+            
             // Add snapped note if not right-clicking
             if (!event.mods.isPopupMenu()) {
                 double snappedTime = std::floor(timeInClip / samplesPer16th) * samplesPer16th;
@@ -194,8 +221,6 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
                     if (auto* track = engine.getMixer()->getTrack(trackIndex)) {
                         juce::MidiMessage noteOn = juce::MidiMessage::noteOn(1, noteNumber, (juce::uint8)100);
                         track->addLiveMidiMessage(noteOn);
-                        // Let's just send the NoteOn for now. It might hang unless the synth auto-releases.
-                        // To fix this properly, we send a note with 0 velocity when mouse is released.
                     }
                 }
 
@@ -209,12 +234,162 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
                         draggedEventIndex = i;
                         dragStartMouseX = event.getPosition().x;
                         dragStartMouseY = event.getPosition().y;
-                        dragStartNoteTime = snappedTime;
-                        dragStartNoteLength = samplesPer16th;
-                        dragStartNoteNumber = noteNumber;
-                        isResizing = false;
-                        break;
+            selectedEventIndices.addIfNotAlreadyThere(draggedEventIndex);
+            
+            // Adjust velocity immediately
+            float vel = juce::jlimit(0.0f, 1.0f, 1.0f - static_cast<float>(event.y - contentHeight) / velocityLaneHeight);
+            currentClip->getSequence().getEventPointer(draggedEventIndex)->message.setVelocity(vel);
+            engine.getTimelineProject().notifyClipModified();
+            repaint();
+        }
+        return;
+    }
+
+    if (currentTool == Tool::Pointer) {
+        if (event.x < keyWidth) return;
+        
+        auto& seq = currentClip->getSequence();
+        draggedEventIndex = -1;
+        isResizing = false;
+        
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0.0) sampleRate = 48000.0;
+        double pixelsPerSecond = 100.0;
+        
+        for (int i = seq.getNumEvents() - 1; i >= 0; --i) {
+            auto* evt = seq.getEventPointer(i);
+            if (evt->message.isNoteOn()) {
+                double t = evt->message.getTimeStamp();
+                double len = 0.25 * sampleRate;
+                if (evt->noteOffObject) {
+                    len = evt->noteOffObject->message.getTimeStamp() - t;
+                }
+                
+                float x = static_cast<float>(keyWidth + (t / sampleRate * pixelsPerSecond));
+                float w = static_cast<float>(len / sampleRate * pixelsPerSecond);
+                
+                int noteNum = evt->message.getNoteNumber();
+                int row = 127 - noteNum;
+                float y = static_cast<float>(row * keyHeight);
+                
+                juce::Rectangle<float> rect(x, y, w, static_cast<float>(keyHeight));
+                
+                if (rect.contains(event.position)) {
+                    draggedEventIndex = i;
+                    
+                    if (event.mods.isRightButtonDown() || event.mods.isCtrlDown()) {
+                        if (evt->noteOffObject) seq.deleteEvent(seq.indexOf(evt->noteOffObject), true);
+                        seq.deleteEvent(i, true);
+                        draggedEventIndex = -1;
+                        selectedEventIndices.removeFirstMatchingValue(i);
+                        engine.getTimelineProject().notifyClipModified();
+                        repaint();
+                        return;
                     }
+                    
+                    if (event.x > rect.getRight() - 5.0f) {
+                        isResizing = true;
+                    }
+                    
+                    dragStartNoteTime = t;
+                    dragStartNoteLength = len;
+                    dragStartMouseX = event.x;
+                    dragStartMouseY = event.y;
+                    dragStartNoteNumber = noteNum;
+                    
+                    if (!selectedEventIndices.contains(draggedEventIndex)) {
+                        if (!event.mods.isShiftDown() && !event.mods.isCommandDown()) {
+                            selectedEventIndices.clear();
+                        }
+                        selectedEventIndices.addIfNotAlreadyThere(draggedEventIndex);
+                    } else if (event.mods.isCommandDown() || event.mods.isShiftDown()) {
+                        selectedEventIndices.removeFirstMatchingValue(draggedEventIndex);
+                        draggedEventIndex = -1;
+                    }
+                    
+                    repaint();
+                    
+                    if (draggedEventIndex != -1 && !isResizing) {
+                        int trackIndex = engine.getTimelineProject().getSelectedTracks().getRange(0).getStart();
+                        if (auto* track = engine.getMixer()->getTrack(trackIndex)) {
+                            juce::MidiMessage shortOn = juce::MidiMessage::noteOn(1, noteNum, (juce::uint8)100);
+                            track->addLiveMidiMessage(shortOn);
+                        }
+                    }
+                    return;
+                }
+            }
+        }
+        
+        // Clicked empty space
+        if (!event.mods.isShiftDown() && !event.mods.isCommandDown()) {
+            selectedEventIndices.clear();
+        }
+        isMarqueeSelecting = true;
+        dragStartMouseX = event.x;
+        dragStartMouseY = event.y;
+        marqueeRect = juce::Rectangle<float>(static_cast<float>(event.x), static_cast<float>(event.y), 0.0f, 0.0f);
+        repaint();
+    } else if (currentTool == Tool::Pencil) {
+        if (event.x < keyWidth) return;
+        
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0.0) sampleRate = 48000.0;
+        double tempo = engine.getTransport().getTempo();
+        double secondsPerBeat = 60.0 / tempo;
+        
+        double snapBeats = 0.25;
+        if (currentSnap == Snap::Bar) snapBeats = 4.0;
+        else if (currentSnap == Snap::Beat) snapBeats = 1.0;
+        else if (currentSnap == Snap::Eighth) snapBeats = 0.5;
+        else if (currentSnap == Snap::Sixteenth) snapBeats = 0.25;
+        else if (currentSnap == Snap::ThirtySecond) snapBeats = 0.125;
+        
+        double snapSeconds = snapBeats * secondsPerBeat;
+        double snapSamples = snapSeconds * sampleRate;
+        double pixelsPerSecond = 100.0;
+        
+        double clickedSeconds = (event.x - keyWidth) / pixelsPerSecond;
+        double snappedSeconds = currentSnap == Snap::Off ? clickedSeconds : std::floor(clickedSeconds / snapSeconds) * snapSeconds;
+        double startSample = snappedSeconds * sampleRate;
+        
+        int row = event.y / keyHeight;
+        int noteNum = 127 - row;
+        
+        currentClip->addNote(1, noteNum, 0.8f, startSample, snapSamples > 0 ? snapSamples : sampleRate * 0.25);
+        currentClip->getSequence().updateMatchedPairs();
+        
+        engine.getTimelineProject().notifyClipModified();
+        repaint();
+    } else if (currentTool == Tool::Eraser) {
+        if (event.x < keyWidth) return;
+        auto& seq = currentClip->getSequence();
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0.0) sampleRate = 48000.0;
+        double pixelsPerSecond = 100.0;
+        
+        for (int i = seq.getNumEvents() - 1; i >= 0; --i) {
+            auto* evt = seq.getEventPointer(i);
+            if (evt->message.isNoteOn()) {
+                double t = evt->message.getTimeStamp();
+                double len = 0.25 * sampleRate;
+                if (evt->noteOffObject) len = evt->noteOffObject->message.getTimeStamp() - t;
+                
+                float x = static_cast<float>(keyWidth + (t / sampleRate * pixelsPerSecond));
+                float w = static_cast<float>(len / sampleRate * pixelsPerSecond);
+                int noteNum = evt->message.getNoteNumber();
+                int row = 127 - noteNum;
+                float y = static_cast<float>(row * keyHeight);
+                
+                juce::Rectangle<float> rect(x, y, w, static_cast<float>(keyHeight));
+                
+                if (rect.contains(event.position)) {
+                    if (evt->noteOffObject) seq.deleteEvent(seq.indexOf(evt->noteOffObject), true);
+                    seq.deleteEvent(i, true);
+                    selectedEventIndices.removeFirstMatchingValue(i);
+                    engine.getTimelineProject().notifyClipModified();
+                    repaint();
+                    return;
                 }
             }
         }
@@ -222,92 +397,215 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
 }
 
 void PianoRollContent::mouseDrag(const juce::MouseEvent& event) {
-    if (!currentClip || draggedEventIndex == -1) return;
+    if (!currentClip) return;
     
-    auto* evt = currentClip->getSequence().getEventPointer(draggedEventIndex);
-    if (!evt || !evt->message.isNoteOn()) return;
+    if (isMarqueeSelecting) {
+        marqueeRect.setSize(event.x - dragStartMouseX, event.y - dragStartMouseY);
+        if (marqueeRect.getWidth() < 0) {
+            marqueeRect.setX(static_cast<float>(event.x));
+            marqueeRect.setWidth(static_cast<float>(dragStartMouseX - event.x));
+        }
+        if (marqueeRect.getHeight() < 0) {
+            marqueeRect.setY(static_cast<float>(event.y));
+            marqueeRect.setHeight(static_cast<float>(dragStartMouseY - event.y));
+        }
+        
+        // Select notes in marquee
+        if (!event.mods.isShiftDown() && !event.mods.isCommandDown()) {
+            selectedEventIndices.clear();
+        }
+        
+        auto& seq = currentClip->getSequence();
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0.0) sampleRate = 48000.0;
+        double pixelsPerSecond = 100.0;
+        
+        for (int i = 0; i < seq.getNumEvents(); ++i) {
+            auto* evt = seq.getEventPointer(i);
+            if (evt->message.isNoteOn()) {
+                double t = evt->message.getTimeStamp();
+                double len = 0.25 * sampleRate;
+                if (evt->noteOffObject) len = evt->noteOffObject->message.getTimeStamp() - t;
+                
+                float x = static_cast<float>(keyWidth + (t / sampleRate * pixelsPerSecond));
+                float w = static_cast<float>(len / sampleRate * pixelsPerSecond);
+                int row = 127 - evt->message.getNoteNumber();
+                float y = static_cast<float>(row * keyHeight);
+                
+                juce::Rectangle<float> rect(x, y, w, static_cast<float>(keyHeight));
+                if (marqueeRect.intersects(rect)) {
+                    selectedEventIndices.addIfNotAlreadyThere(i);
+                }
+            }
+        }
+        repaint();
+        return;
+    }
     
-    double clipSamples = currentClip->getLengthSamples();
+    if (draggedEventIndex == -1) return;
+    
+    if (isDraggingVelocity) {
+        float vel = juce::jlimit(0.0f, 1.0f, 1.0f - static_cast<float>(event.y - (getHeight() - velocityLaneHeight)) / velocityLaneHeight);
+        for (int idx : selectedEventIndices) {
+            auto* evt = currentClip->getSequence().getEventPointer(idx);
+            if (evt && evt->message.isNoteOn()) {
+                evt->message.setVelocity(vel);
+            }
+        }
+        engine.getTimelineProject().notifyClipModified();
+        repaint();
+        return;
+    }
+    
+    auto& seq = currentClip->getSequence();
+    auto* draggedEvt = seq.getEventPointer(draggedEventIndex);
+    if (!draggedEvt || !draggedEvt->message.isNoteOn()) return;
+
     double sampleRate = engine.getTransport().getSampleRate();
-    if (sampleRate <= 0) sampleRate = 48000.0;
+    if (sampleRate <= 0.0) sampleRate = 48000.0;
     
     double tempo = engine.getTransport().getTempo();
     double secondsPerBeat = 60.0 / tempo;
-    double secondsPer16th = secondsPerBeat / 4.0;
-    double samplesPer16th = secondsPer16th * sampleRate;
     
-    int gridWidth = getWidth() - keyWidth;
+    double snapBeats = 0.25;
+    if (currentSnap == Snap::Bar) snapBeats = 4.0;
+    else if (currentSnap == Snap::Beat) snapBeats = 1.0;
+    else if (currentSnap == Snap::Eighth) snapBeats = 0.5;
+    else if (currentSnap == Snap::Sixteenth) snapBeats = 0.25;
+    else if (currentSnap == Snap::ThirtySecond) snapBeats = 0.125;
     
-    int dx = event.getPosition().x - dragStartMouseX;
-    int dy = event.getPosition().y - dragStartMouseY;
+    double snapSeconds = snapBeats * secondsPerBeat;
+    double snapSamples = snapSeconds * sampleRate;
+    double pixelsPerSecond = 100.0;
     
-    double dtSamples = (static_cast<double>(dx) / gridWidth) * clipSamples;
+    double xDeltaSeconds = (event.x - dragStartMouseX) / pixelsPerSecond;
+    double newTimeSeconds = (dragStartNoteTime / sampleRate) + xDeltaSeconds;
+    
+    if (currentSnap != Snap::Off) {
+        newTimeSeconds = std::round(newTimeSeconds / snapSeconds) * snapSeconds;
+    }
+    
+    if (newTimeSeconds < 0) newTimeSeconds = 0;
+    double newTimeSamples = newTimeSeconds * sampleRate;
     
     if (isResizing) {
-        double newLength = dragStartNoteLength + dtSamples;
-        newLength = std::max(newLength, samplesPer16th); // Min length 1/16th
-        double snappedLength = std::round(newLength / samplesPer16th) * samplesPer16th;
+        double newLengthSeconds = (dragStartNoteLength / sampleRate) + xDeltaSeconds;
+        if (currentSnap != Snap::Off) {
+            newLengthSeconds = std::round(newLengthSeconds / snapSeconds) * snapSeconds;
+        }
+        if (newLengthSeconds < snapSeconds && currentSnap != Snap::Off) newLengthSeconds = snapSeconds;
+        if (newLengthSeconds < 0.01) newLengthSeconds = 0.01;
         
-        if (evt->noteOffObject) {
-            evt->noteOffObject->message.setTimeStamp(dragStartNoteTime + snappedLength);
-            currentClip->getSequence().updateMatchedPairs();
-            engine.getTimelineProject().notifyClipModified();
-            repaint();
+        double newLengthSamples = newLengthSeconds * sampleRate;
+        
+        if (draggedEvt->noteOffObject) {
+            draggedEvt->noteOffObject->message.setTimeStamp(draggedEvt->message.getTimeStamp() + newLengthSamples);
         }
     } else {
-        double newTime = dragStartNoteTime + dtSamples;
-        double snappedTime = std::round(newTime / samplesPer16th) * samplesPer16th;
-        snappedTime = std::max(0.0, snappedTime);
-        
-        int dRow = std::round(static_cast<float>(dy) / keyHeight);
-        int newNoteNumber = dragStartNoteNumber - dRow;
+        int yDeltaRows = (event.y - dragStartMouseY) / keyHeight;
+        int newNoteNumber = dragStartNoteNumber - yDeltaRows;
         newNoteNumber = juce::jlimit(0, 127, newNoteNumber);
         
-        if (snappedTime != evt->message.getTimeStamp() || newNoteNumber != evt->message.getNoteNumber()) {
-            evt->message.setTimeStamp(snappedTime);
-            evt->message.setNoteNumber(newNoteNumber);
-            if (evt->noteOffObject) {
-                evt->noteOffObject->message.setTimeStamp(snappedTime + dragStartNoteLength);
-                evt->noteOffObject->message.setNoteNumber(newNoteNumber);
-            }
-            // re-sorting might change indices, but for dragging it might glitch if draggedEventIndex changes.
-            // For now, sorting happens in updateMatchedPairs which sorts the events.
-            currentClip->getSequence().updateMatchedPairs();
-            
-            // update draggedEventIndex to the new index after sort
-            for (int i = 0; i < currentClip->getSequence().getNumEvents(); ++i) {
-                auto* e = currentClip->getSequence().getEventPointer(i);
-                if (e->message.isNoteOn() && e->message.getTimeStamp() == snappedTime && e->message.getNoteNumber() == newNoteNumber) {
-                    draggedEventIndex = i;
-                    break;
+        double deltaSamples = newTimeSamples - dragStartNoteTime;
+        int deltaNoteNumber = newNoteNumber - dragStartNoteNumber;
+        
+        for (int idx : selectedEventIndices) {
+            auto* evt = seq.getEventPointer(idx);
+            if (evt && evt->message.isNoteOn()) {
+                evt->message.setTimeStamp(evt->message.getTimeStamp() + deltaSamples);
+                int p = juce::jlimit(0, 127, evt->message.getNoteNumber() + deltaNoteNumber);
+                evt->message.setNoteNumber(p);
+                
+                if (evt->noteOffObject) {
+                    evt->noteOffObject->message.setTimeStamp(evt->noteOffObject->message.getTimeStamp() + deltaSamples);
+                    evt->noteOffObject->message.setNoteNumber(p);
                 }
             }
-            
-            engine.getTimelineProject().notifyClipModified();
-            repaint();
         }
+        dragStartNoteTime += deltaSamples;
+        dragStartNoteNumber += deltaNoteNumber;
+        dragStartMouseY += yDeltaRows * keyHeight;
     }
+    
+    seq.updateMatchedPairs();
+    engine.getTimelineProject().notifyClipModified();
+    
+    draggedEventIndex = seq.indexOf(draggedEvt);
+    repaint();
 }
 
 void PianoRollContent::mouseUp(const juce::MouseEvent& event) {
-    // Send a generic note off for all notes to stop audition sounds from hanging
-    int trackIndex = -1;
-    auto& sel = engine.getTimelineProject().getSelectedTracks();
-    if (sel.getNumRanges() > 0) {
-        trackIndex = sel.getRange(0).getStart();
+    if (isMarqueeSelecting) {
+        isMarqueeSelecting = false;
+        repaint();
+        return;
     }
-    if (trackIndex >= 0) {
+    if (draggedEventIndex != -1 && !isResizing && !isDraggingVelocity) {
+        int trackIndex = engine.getTimelineProject().getSelectedTracks().getRange(0).getStart();
         if (auto* track = engine.getMixer()->getTrack(trackIndex)) {
-            // We can send an AllNotesOff CC or just note off for the dragged note
-            // Since we auditioned dragStartNoteNumber, let's send a NoteOff for it
             juce::MidiMessage shortOff = juce::MidiMessage::noteOff(1, dragStartNoteNumber, (juce::uint8)0);
             track->addLiveMidiMessage(shortOff);
         }
     }
+    isDraggingVelocity = false;
+    draggedEventIndex = -1;
 }
 
 // ==============================================================================
-PianoRollComponent::PianoRollComponent(NimbusEngine& e) : content(e) {
+PianoRollComponent::PianoRollComponent(NimbusEngine& e) : engine(e), content(e) {
+    addAndMakeVisible(toolbar);
+    
+    int iconSize = 0;
+    if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::Pointer.toUTF8(), iconSize)) {
+        pointerIcon = juce::Drawable::createFromImageData(data, iconSize);
+        if (pointerIcon) pointerIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextPrimary);
+    }
+    if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::Pencil.toUTF8(), iconSize)) {
+        pencilIcon = juce::Drawable::createFromImageData(data, iconSize);
+        if (pencilIcon) pencilIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextPrimary);
+    }
+    if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::Eraser.toUTF8(), iconSize)) {
+        eraserIcon = juce::Drawable::createFromImageData(data, iconSize);
+        if (eraserIcon) eraserIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextPrimary);
+    }
+    
+    if (pointerIcon) pointerButton.setImages(pointerIcon.get());
+    if (pencilIcon) pencilButton.setImages(pencilIcon.get());
+    if (eraserIcon) eraserButton.setImages(eraserIcon.get());
+    
+    pointerButton.onClick = [this] { content.setTool(PianoRollContent::Tool::Pointer); };
+    pencilButton.onClick = [this] { content.setTool(PianoRollContent::Tool::Pencil); };
+    eraserButton.onClick = [this] { content.setTool(PianoRollContent::Tool::Eraser); };
+    
+    toolbar.addAndMakeVisible(pointerButton);
+    toolbar.addAndMakeVisible(pencilButton);
+    toolbar.addAndMakeVisible(eraserButton);
+    
+    snapBox.addItem("Off", 1);
+    snapBox.addItem("Bar", 2);
+    snapBox.addItem("Beat", 3);
+    snapBox.addItem("1/8", 4);
+    snapBox.addItem("1/16", 5);
+    snapBox.addItem("1/32", 6);
+    snapBox.setSelectedId(5);
+    snapBox.onChange = [this] {
+        int id = snapBox.getSelectedId();
+        PianoRollContent::Snap s = PianoRollContent::Snap::Sixteenth;
+        if (id == 1) s = PianoRollContent::Snap::Off;
+        else if (id == 2) s = PianoRollContent::Snap::Bar;
+        else if (id == 3) s = PianoRollContent::Snap::Beat;
+        else if (id == 4) s = PianoRollContent::Snap::Eighth;
+        else if (id == 5) s = PianoRollContent::Snap::Sixteenth;
+        else if (id == 6) s = PianoRollContent::Snap::ThirtySecond;
+        content.setSnap(s);
+    };
+    toolbar.addAndMakeVisible(snapBox);
+    
+    velocityToggle.onClick = [this] {
+        content.setVelocityVisible(velocityToggle.getToggleState());
+    };
+    toolbar.addAndMakeVisible(velocityToggle);
+    
     addAndMakeVisible(viewport);
     viewport.setViewedComponent(&content, false);
 }
@@ -322,8 +620,27 @@ void PianoRollComponent::setMidiClip(std::shared_ptr<MidiClip> clip) {
 }
 
 void PianoRollComponent::resized() {
-    viewport.setBounds(getLocalBounds());
+    auto bounds = getLocalBounds();
+    auto toolBounds = bounds.removeFromTop(30);
+    toolbar.setBounds(toolBounds);
+    
+    int x = 10;
+    pointerButton.setBounds(x, 3, 24, 24); x += 30;
+    pencilButton.setBounds(x, 3, 24, 24); x += 30;
+    eraserButton.setBounds(x, 3, 24, 24); x += 40;
+    
+    snapBox.setBounds(x, 3, 80, 24); x += 90;
+    velocityToggle.setBounds(x, 3, 80, 24);
+    
+    viewport.setBounds(bounds);
     content.setBounds(0, 0, juce::jmax(1000, getWidth()), 128 * 16);
+}
+
+void PianoRollComponent::paint(juce::Graphics& g) {
+    g.setColour(DesignSystem::Colors::ComponentBackground);
+    g.fillRect(toolbar.getBounds());
+    g.setColour(DesignSystem::Colors::Divider);
+    g.drawHorizontalLine(toolbar.getBottom() - 1, 0, static_cast<float>(getWidth()));
 }
 
 } // namespace Nimbus::DetailView
