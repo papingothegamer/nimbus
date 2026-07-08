@@ -10,8 +10,8 @@ class SideBrowserComponent::CategoriesModel : public juce::ListBoxModel {
 public:
     CategoriesModel() {
         categories = {
-            "Sounds", "Drums", "Instruments", "Audio Effects", "MIDI Effects", 
-            "Plugins", "Samples", "Files"
+            "Audio Effects", "MIDI Effects", 
+            "Plugins", "Files"
         };
     }
     
@@ -177,25 +177,28 @@ SideBrowserComponent::SideBrowserComponent(NimbusEngine& e) : engine(e) {
     itemsList.setRowHeight(24);
     addAndMakeVisible(itemsList);
     
+    // Resizer bar between the two columns
+    columnResizer.currentWidth = leftColumnWidth;
+    columnResizer.setMouseCursor(juce::MouseCursor::LeftRightResizeCursor);
+    columnResizer.onWidthChanged = [this](int newWidth) {
+        leftColumnWidth = newWidth;
+        resized();
+    };
+    addAndMakeVisible(columnResizer);
+    
     catModel->onCategorySelected("Plugins"); // Default selection
-    categoriesList.selectRow(5); // Index of "Plugins"
+    categoriesList.selectRow(2); // Index of "Plugins" in trimmed list
     
     searchBox.setTextToShowWhenEmpty("Search...", DesignSystem::Colors::TextSecondary);
-    searchBox.setColour(juce::TextEditor::backgroundColourId, DesignSystem::Colors::AppBackground);
-    searchBox.setColour(juce::TextEditor::outlineColourId, DesignSystem::Colors::ComponentBorder);
+    searchBox.setColour(juce::TextEditor::backgroundColourId, juce::Colours::transparentBlack);
+    searchBox.setColour(juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
+    searchBox.setColour(juce::TextEditor::focusedOutlineColourId, juce::Colours::transparentBlack);
     searchBox.setColour(juce::TextEditor::textColourId, DesignSystem::Colors::TextPrimary);
     addAndMakeVisible(searchBox);
     searchBox.setFont(DesignSystem::Typography::getPrimaryFont());
-
-    addAndMakeVisible(scanButton);
-    scanButton.onClick = [this] {
-        if (!engine.getPluginManager().isScanning()) {
-            engine.getPluginManager().startScanning();
-            // Start a timer to poll for completion
-            startTimer(500);
-        }
-    };
     
+    startTimer(500); // Polling for scan completion
+
     int dataSize = 0;
     if (auto* data = BinaryData::getNamedResource("search_svg", dataSize)) {
         searchIcon = juce::Drawable::createFromImageData(data, dataSize);
@@ -225,9 +228,16 @@ void SideBrowserComponent::paint(juce::Graphics& g) {
     g.setColour(DesignSystem::Colors::Divider);
     g.fillRect(0, 0, 1, getHeight());
     
+    // Draw search bar background
+    auto searchBarBounds = getLocalBounds().removeFromTop(36).reduced(4);
+    g.setColour(DesignSystem::Colors::AppBackground);
+    g.fillRoundedRectangle(searchBarBounds.toFloat(), 4.0f);
+    g.setColour(DesignSystem::Colors::ComponentBorder);
+    g.drawRoundedRectangle(searchBarBounds.toFloat(), 4.0f, 1.0f);
+    
     // Search icon
     if (searchIcon) {
-        auto iconBounds = juce::Rectangle<float>(10, 30 + 10, 16, 16); // Manually position near the search box
+        auto iconBounds = searchBarBounds.removeFromLeft(24).withSizeKeepingCentre(16, 16).toFloat();
         searchIcon->drawWithin(g, iconBounds, juce::RectanglePlacement::centred, 1.0f);
     }
 }
@@ -236,12 +246,13 @@ void SideBrowserComponent::resized() {
     auto bounds = getLocalBounds();
     auto topBar = bounds.removeFromTop(36).reduced(4);
     
-    searchBox.setBounds(topBar.removeFromLeft(bounds.getWidth() - 30).reduced(2));
+    searchBox.setBounds(topBar.withTrimmedLeft(24).reduced(2, 0));
     
-    auto leftCol = bounds.removeFromLeft(110);
+    auto leftCol = bounds.removeFromLeft(leftColumnWidth);
     categoriesList.setBounds(leftCol);
     
-    scanButton.setBounds(bounds.removeFromBottom(30).reduced(2));
+    // Resizer bar
+    columnResizer.setBounds(bounds.removeFromLeft(4));
     
     itemsList.setBounds(bounds);
 }

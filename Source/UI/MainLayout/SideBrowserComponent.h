@@ -2,8 +2,35 @@
 
 #include <JuceHeader.h>
 #include "Core/NimbusEngine.h"
+#include "UI/DesignSystem/Colors.h"
 
 namespace Nimbus::MainLayout {
+
+// A thin draggable bar for resizing the sidebar columns
+class ColumnResizerBar : public juce::Component {
+public:
+    ColumnResizerBar() = default;
+
+    void paint(juce::Graphics& g) override {
+        g.fillAll(DesignSystem::Colors::Divider);
+    }
+
+    void mouseDown(const juce::MouseEvent&) override {
+        dragStartWidth = currentWidth;
+    }
+
+    void mouseDrag(const juce::MouseEvent& e) override {
+        int newWidth = dragStartWidth + e.getDistanceFromDragStartX();
+        currentWidth = juce::jlimit(minWidth, maxWidth, newWidth);
+        if (onWidthChanged) onWidthChanged(currentWidth);
+    }
+
+    int currentWidth = 110;
+    int minWidth = 70;
+    int maxWidth = 200;
+    int dragStartWidth = 110;
+    std::function<void(int)> onWidthChanged;
+};
 
 class SideBrowserComponent : public juce::Component, private juce::Timer {
 public:
@@ -19,7 +46,8 @@ private:
     juce::ListBox categoriesList;
     juce::ListBox itemsList;
     juce::TextEditor searchBox;
-    juce::TextButton scanButton{"Scan for Plugins"};
+    ColumnResizerBar columnResizer;
+    int leftColumnWidth = 110;
     
     std::unique_ptr<juce::Drawable> searchIcon;
 

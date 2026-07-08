@@ -3,6 +3,7 @@
 #include "TrackLaneComponent.h"
 #include "GroupTrackHeaderComponent.h"
 #include "UI/DesignSystem/Colors.h"
+#include "UI/DesignSystem/Typography.h"
 
 namespace Nimbus {
 
@@ -122,10 +123,21 @@ TimelineComponent::~TimelineComponent() {
 void TimelineComponent::paint(juce::Graphics& g) {
     g.fillAll(DesignSystem::Colors::AppBackground);
 
-    // Draw Arrangement View Grid
     int headerWidth = 150;
     int lanesWidth = getWidth() - headerWidth;
-    
+
+    // Draw "TRACKS" header in the top-left corner
+    auto tracksHeaderBounds = juce::Rectangle<int>(0, 0, headerWidth, 24);
+    g.setColour(DesignSystem::Colors::PanelBackground);
+    g.fillRect(tracksHeaderBounds);
+    g.setColour(DesignSystem::Colors::Divider);
+    g.fillRect(tracksHeaderBounds.removeFromBottom(1));
+    g.fillRect(headerWidth - 1, 0, 1, 24); // Right border
+    g.setColour(DesignSystem::Colors::TextSecondary);
+    g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(11.0f).boldened());
+    g.drawText("TRACKS", juce::Rectangle<int>(0, 0, headerWidth, 24).reduced(8, 0), juce::Justification::centredLeft);
+
+    // Draw Arrangement View Grid
     g.setColour(DesignSystem::Colors::Divider.withAlpha(0.2f));
     
     // Grid spacing based on zoom
@@ -349,17 +361,35 @@ void TimelineComponent::timerCallback() {
     }
 }
 
+void TimelineComponent::zoom(double factor) {
+    double positionSamples = engine.getTransport().getCurrentPosition();
+    double sampleRate = engine.getTransport().getSampleRate();
+    if (sampleRate <= 0.0) sampleRate = 48000.0;
+    
+    double positionSeconds = positionSamples / sampleRate;
+    
+    // playhead screen position relative to timeline start
+    int headerWidth = 150;
+    double playheadAbsoluteXBefore = positionSeconds * pixelsPerSecond;
+    double playheadScreenX = playheadAbsoluteXBefore - scrollOffsetX;
+    
+    pixelsPerSecond = juce::jlimit(5.0, 500.0, pixelsPerSecond * factor);
+    
+    double playheadAbsoluteXAfter = positionSeconds * pixelsPerSecond;
+    scrollOffsetX = juce::jmax(0.0, playheadAbsoluteXAfter - playheadScreenX);
+    
+    for (auto* lane : trackLanes) {
+        lane->resized();
+    }
+    repaint();
+}
+
 void TimelineComponent::mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) {
     if (event.mods.isCtrlDown() || event.mods.isCommandDown()) {
         // Zoom
         double zoomDelta = wheel.deltaY > 0 ? 1.1 : 0.9;
         if (wheel.deltaY == 0) zoomDelta = 1.0;
-        
-        pixelsPerSecond = juce::jlimit(5.0, 500.0, pixelsPerSecond * zoomDelta);
-        for (auto* lane : trackLanes) {
-            lane->resized();
-        }
-        repaint();
+        zoom(zoomDelta);
     } else {
         if (std::abs(wheel.deltaX) > 0.0f) {
             scrollOffsetX += wheel.deltaX * 500.0;

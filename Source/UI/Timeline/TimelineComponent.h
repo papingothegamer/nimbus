@@ -46,6 +46,8 @@ public:
     void paintOverChildren(juce::Graphics& g) override;
     void mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) override;
     
+    void zoom(double factor);
+    
     double getPixelsPerSecond() const { return pixelsPerSecond; }
     double getScrollOffsetX() const { return scrollOffsetX; }
 

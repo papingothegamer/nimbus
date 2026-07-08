@@ -7,7 +7,7 @@
 
 namespace Nimbus::MainLayout {
 
-class ChannelStripComponent : public juce::Component, public TimelineProject::Listener {
+class ChannelStripComponent : public juce::Component, public TimelineProject::Listener, public juce::Label::Listener {
 public:
     ChannelStripComponent(NimbusEngine& engine, const juce::String& name, bool isStereo, bool isMaster);
     ~ChannelStripComponent() override;
@@ -22,6 +22,8 @@ public:
 
     // Callbacks for interactivity
     std::function<void()> onSelected;
+
+    void labelTextChanged(juce::Label* labelThatHasChanged) override;
 
 private:
     NimbusEngine& engine;
@@ -58,6 +60,7 @@ private:
     void trackSoloChanged(int track, bool isSoloed) override;
     void trackVolumeChanged(int track, float volume) override;
     void trackPanChanged(int track, float pan) override;
+    void trackNameChanged(int track, const juce::String& newName) override;
     void trackInputChannelChanged(int track, int inputChannel) override;
     
     float currentLevel = 0.0f;

@@ -21,6 +21,11 @@ public:
 
     virtual double getSampleRate() const = 0;
     virtual double getTempo() const = 0;
+    virtual void setTempo(double newTempo) = 0;
+    
+    virtual int getTimeSignatureNumerator() const = 0;
+    virtual int getTimeSignatureDenominator() const = 0;
+    virtual void setTimeSignature(int numerator, int denominator) = 0;
 };
 
 } // namespace Nimbus

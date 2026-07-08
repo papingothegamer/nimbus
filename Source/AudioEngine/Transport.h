@@ -25,6 +25,11 @@ public:
 
     double getSampleRate() const override;
     double getTempo() const override;
+    void setTempo(double newTempo) override;
+
+    int getTimeSignatureNumerator() const override;
+    int getTimeSignatureDenominator() const override;
+    void setTimeSignature(int numerator, int denominator) override;
 
     // Called by the Audio Engine to advance the clock
     void advancePosition(int numSamples);
@@ -38,6 +43,8 @@ private:
     std::atomic<double> currentPosition{0.0};
     std::atomic<double> sampleRate{44100.0};
     std::atomic<double> tempo{120.0};
+    std::atomic<int> timeSigNumerator{4};
+    std::atomic<int> timeSigDenominator{4};
 };
 
 } // namespace Nimbus

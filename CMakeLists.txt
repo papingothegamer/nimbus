@@ -78,6 +78,16 @@ juce_add_binary_data(Nimbus_Assets
         Assets/Icons/Nimbus/volume-source.svg
         Assets/Icons/Nimbus/volume-off.svg
         Assets/Icons/Nimbus/waveform.svg
+        Assets/Icons/Nimbus/loading.svg
+        Assets/Icons/Nimbus/fast-forward-outline.svg
+        Assets/Icons/Nimbus/fast-forward.svg
+        Assets/Icons/Nimbus/rewind-outline.svg
+        Assets/Icons/Nimbus/rewind.svg
+        Assets/Icons/Nimbus/zoom-plus.svg
+        Assets/Icons/Nimbus/zoom-minus.svg
+        Assets/Icons/Nimbus/redo.svg
+        Assets/Icons/Nimbus/undo.svg
+        Assets/Icons/Nimbus/jump-to-start.svg
 )
 target_link_libraries(Nimbus PRIVATE Nimbus_Assets)
 

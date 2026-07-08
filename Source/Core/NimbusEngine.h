@@ -42,6 +42,14 @@ public:
 
     bool isFollowPlayheadEnabled() const { return followPlayhead; }
     void setFollowPlayheadEnabled(bool enabled) { followPlayhead = enabled; }
+    
+    int getSidebarLocation() const { return sidebarLocation; }
+    void setSidebarLocation(int loc) {
+        sidebarLocation = loc;
+        if (onSidebarLocationChanged) onSidebarLocationChanged();
+    } // 0 = left, 1 = right
+
+    std::function<void()> onSidebarLocationChanged;
 
     void addTrack(bool isMidi);
 
@@ -65,6 +73,8 @@ private:
     Mixer* mixer = nullptr; // Raw pointer to the mixer owned by mainGraph
     Transport transport;
     AudioDeviceManagerWrapper deviceManagerWrapper;
+    bool followPlayhead = true;
+    int sidebarLocation = 1; // Default to right
     juce::AudioFormatManager formatManager;
     juce::AudioThumbnailCache thumbnailCache;
     PluginManager pluginManager;
@@ -81,7 +91,6 @@ private:
 
     // Temporary storage for our Phase 5 test plugin
     std::shared_ptr<PluginNode> testPluginNode;
-    bool followPlayhead = true;
     PluginClipboard clipboard;
 };
 

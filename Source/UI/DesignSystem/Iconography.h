@@ -22,11 +22,23 @@ struct Iconography {
     static const inline juce::String RecordArm = "recordarmtrack_svg";
     static const inline juce::String VolumeSource = "volumesource_svg";
     static const inline juce::String VolumeOff = "volumeoff_svg";
+    static const inline juce::String VolumeHigh = "volumehigh_svg";
     
     // Routing/Other
     static const inline juce::String Stereo = "link_svg";
     static const inline juce::String Routing = "tunevertical_svg";
     static const inline juce::String Settings = "settings_svg";
+    
+    // Transport Controls
+    static const inline juce::String Undo = "undo_svg";
+    static const inline juce::String Redo = "redo_svg";
+    static const inline juce::String ZoomIn = "zoomplus_svg";
+    static const inline juce::String ZoomOut = "zoomminus_svg";
+    static const inline juce::String Rewind = "rewind_svg";
+    static const inline juce::String FastForward = "fastforward_svg";
+    static const inline juce::String JumpStart = "jumptostart_svg";
+    
+    // Track Controls
     static const inline juce::String Device = "pluginconfig_svg";
     static const inline juce::String Fold = "chevronup_svg";
     static const inline juce::String Unfold = "chevrondown_svg";
@@ -38,6 +50,7 @@ struct Iconography {
     static const inline juce::String Flat = "musicaccidentalflat_svg";
     static const inline juce::String Sharp = "musicaccidentalsharp_svg";
     static const inline juce::String PianoOff = "pianooff_svg";
+    static const inline juce::String PianoOn = "piano_svg";
     static const inline juce::String Save = "pluginsave_svg";
     static const inline juce::String Search = "search_svg";
     static const inline juce::String Tune = "tune_svg";

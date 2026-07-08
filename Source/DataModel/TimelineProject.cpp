@@ -23,6 +23,13 @@ int TimelineProject::getNumTracks() const {
     return tracks.size();
 }
 
+void TimelineProject::setTrackName(int trackIndex, const juce::String& newName) {
+    if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        tracks[trackIndex].name = newName;
+        listeners.call(&Listener::trackNameChanged, trackIndex, newName);
+    }
+}
+
 void TimelineProject::removeTrack(int index) {
     if (index >= 0 && index < tracks.size()) {
         // Clear selection if the current selected clip belongs to this track

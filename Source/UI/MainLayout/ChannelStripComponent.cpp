@@ -12,6 +12,8 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
     nameLabel.setText(name, juce::dontSendNotification);
     nameLabel.setFont(DesignSystem::Typography::getPrimaryFont());
     nameLabel.setJustificationType(juce::Justification::centred);
+    nameLabel.setEditable(true, false, false);
+    nameLabel.addListener(this);
 
     addAndMakeVisible(inputComboBox);
     int itemIndex = 1;
@@ -138,6 +140,22 @@ void ChannelStripComponent::setTrackIndex(int index) {
             inputComboBox.setSelectedId(1, juce::dontSendNotification);
         } else {
             inputComboBox.setSelectedId(inputChannel + 10, juce::dontSendNotification);
+        }
+    }
+}
+
+void ChannelStripComponent::labelTextChanged(juce::Label* labelThatHasChanged) {
+    if (labelThatHasChanged == &nameLabel) {
+        if (trackIndex != -1 && !master) {
+            engine.getTimelineProject().setTrackName(trackIndex, nameLabel.getText());
+        }
+    }
+}
+
+void ChannelStripComponent::trackNameChanged(int track, const juce::String& newName) {
+    if (track == trackIndex && !master) {
+        if (!nameLabel.isBeingEdited()) {
+            nameLabel.setText(newName, juce::dontSendNotification);
         }
     }
 }

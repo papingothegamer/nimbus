@@ -17,23 +17,46 @@ void MixerResizerBar::mouseDrag(const juce::MouseEvent& e) {
     if (onHeightChanged) onHeightChanged();
 }
 
+SidebarResizerBar::SidebarResizerBar(NimbusEngine& e) : engine(e) {
+    setMouseCursor(juce::MouseCursor::LeftRightResizeCursor);
+}
+void SidebarResizerBar::paint(juce::Graphics& g) {
+    g.fillAll(DesignSystem::Colors::Divider);
+}
+void SidebarResizerBar::mouseDown(const juce::MouseEvent& e) {
+    dragStartW = sidebarWidth;
+}
+void SidebarResizerBar::mouseDrag(const juce::MouseEvent& e) {
+    if (engine.getSidebarLocation() == 0) { // Left
+        sidebarWidth = juce::jlimit(150, 600, dragStartW + e.getDistanceFromDragStartX());
+    } else { // Right
+        sidebarWidth = juce::jlimit(150, 600, dragStartW - e.getDistanceFromDragStartX());
+    }
+    if (onWidthChanged) onWidthChanged();
+}
+
 MainWindow::MainContentComponent::MainContentComponent(NimbusEngine& e)
-    : engine(e), topToolbar(e), sideBrowser(e), bottomMixer(e), detailView(e), timelineComponent(e) {
+    : engine(e), topToolbar(e), sideBrowser(e), bottomMixer(e), detailView(e), timelineComponent(e), sidebarResizerBar(e) {
     juce::Logger::writeToLog("MainContentComponent constructed");
     
     topToolbar.onBrowserToggle = [this]() { toggleBrowser(); };
     topToolbar.onDetailToggle = [this]() { toggleDetailView(); };
+    topToolbar.onZoomIn = [this]() { timelineComponent.zoom(1.1); };
+    topToolbar.onZoomOut = [this]() { timelineComponent.zoom(0.9); };
 
     juce::Logger::writeToLog("Adding children to MainContentComponent");
     addAndMakeVisible(topToolbar);
     addAndMakeVisible(sideBrowser);
     addAndMakeVisible(bottomMixer);
     addAndMakeVisible(mixerResizerBar);
+    addAndMakeVisible(sidebarResizerBar);
     addChildComponent(detailView); // Hidden by default
     addAndMakeVisible(timelineComponent);
     
     juce::Logger::writeToLog("MainContentComponent finished adding children");
     mixerResizerBar.onHeightChanged = [this]() { resized(); };
+    sidebarResizerBar.onWidthChanged = [this]() { resized(); };
+    engine.onSidebarLocationChanged = [this]() { resized(); };
 }
 
 void MainWindow::MainContentComponent::paint(juce::Graphics& g) {
@@ -60,7 +83,16 @@ void MainWindow::MainContentComponent::resized() {
     
     // Side Browser
     if (isBrowserVisible) {
-        sideBrowser.setBounds(bounds.removeFromRight(200));
+        int w = sidebarResizerBar.sidebarWidth;
+        if (engine.getSidebarLocation() == 0) {
+            sideBrowser.setBounds(bounds.removeFromLeft(w));
+            sidebarResizerBar.setBounds(bounds.removeFromLeft(8));
+        } else {
+            sideBrowser.setBounds(bounds.removeFromRight(w));
+            sidebarResizerBar.setBounds(bounds.removeFromRight(8));
+        }
+    } else {
+        sidebarResizerBar.setVisible(false);
     }
     
     // Timeline takes the rest
@@ -70,6 +102,7 @@ void MainWindow::MainContentComponent::resized() {
 void MainWindow::MainContentComponent::toggleBrowser() {
     isBrowserVisible = !isBrowserVisible;
     sideBrowser.setVisible(isBrowserVisible);
+    sidebarResizerBar.setVisible(isBrowserVisible);
     resized();
 }
 

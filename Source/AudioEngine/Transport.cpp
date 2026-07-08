@@ -50,6 +50,23 @@ double Transport::getTempo() const {
     return tempo.load(std::memory_order_relaxed);
 }
 
+void Transport::setTempo(double newTempo) {
+    tempo.store(newTempo, std::memory_order_relaxed);
+}
+
+int Transport::getTimeSignatureNumerator() const {
+    return timeSigNumerator.load(std::memory_order_relaxed);
+}
+
+int Transport::getTimeSignatureDenominator() const {
+    return timeSigDenominator.load(std::memory_order_relaxed);
+}
+
+void Transport::setTimeSignature(int numerator, int denominator) {
+    timeSigNumerator.store(numerator, std::memory_order_relaxed);
+    timeSigDenominator.store(denominator, std::memory_order_relaxed);
+}
+
 void Transport::advancePosition(int numSamples) {
     if (isPlaying()) {
         // We use fetch_add to safely advance the clock lock-free

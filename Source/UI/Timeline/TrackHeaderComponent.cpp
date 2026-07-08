@@ -31,7 +31,7 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     nameLabel.setText("Track " + juce::String(trackIndex + 1), juce::dontSendNotification);
     nameLabel.setFont(DesignSystem::Typography::getPrimaryFont());
     nameLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
-    nameLabel.setEditable(false, true, false);
+    nameLabel.setEditable(true, false, false);
     nameLabel.addListener(this);
 
     addAndMakeVisible(linkIcon);
@@ -110,7 +110,7 @@ TrackHeaderComponent::~TrackHeaderComponent() {
 
 void TrackHeaderComponent::labelTextChanged(juce::Label* labelThatHasChanged) {
     if (labelThatHasChanged == &nameLabel) {
-        // We'd add setTrackName to TimelineProject if needed, skipping for now
+        engine.getTimelineProject().setTrackName(trackIndex, nameLabel.getText());
     }
 }
 
@@ -245,6 +245,14 @@ void TrackHeaderComponent::trackFoldStateChanged(int track, bool isFolded) {
     }
 }
 
+void TrackHeaderComponent::trackNameChanged(int track, const juce::String& newName) {
+    if (track == trackIndex) {
+        if (!nameLabel.isBeingEdited()) {
+            nameLabel.setText(newName, juce::dontSendNotification);
+        }
+    }
+}
+
 void TrackHeaderComponent::setTrackIndex(int newIndex) {
     trackIndex = newIndex;
     numberButton.setButtonText(juce::String(trackIndex + 1));
@@ -332,7 +340,7 @@ void TrackHeaderComponent::resized() {
         topRow.removeFromLeft(4); // Spacing if not group
     }
     
-    numberButton.setBounds(topRow.removeFromLeft(20).reduced(2));
+    numberButton.setBounds(topRow.removeFromLeft(24).reduced(2));
     
     if (!isGroup && !isFolded) {
         armButton.setBounds(topRow.removeFromRight(20).reduced(2));

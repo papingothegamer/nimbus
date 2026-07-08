@@ -32,6 +32,7 @@ public:
     void trackMuteChanged(int track, bool isMuted) override;
     void trackSoloChanged(int track, bool isSoloed) override;
     void trackArmChanged(int track, bool isArmed) override;
+    void trackNameChanged(int track, const juce::String& newName) override;
     void trackSelectionChanged() override;
 
     void trackFoldStateChanged(int track, bool isFolded) override;

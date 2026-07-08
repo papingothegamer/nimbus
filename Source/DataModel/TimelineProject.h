@@ -57,6 +57,7 @@ public:
         virtual void trackMuteChanged(int trackIndex, bool isMuted) {}
         virtual void trackArmChanged(int trackIndex, bool isArmed) {}
         virtual void trackStereoChanged(int trackIndex, bool isStereo) {}
+        virtual void trackNameChanged(int trackIndex, const juce::String& newName) {}
         virtual void trackSelectionChanged() {}
         virtual void trackFoldStateChanged(int trackIndex, bool isFolded) {}
         virtual void tracksGrouped() {}
@@ -80,6 +81,8 @@ public:
     int getNumTracks() const;
     
     void removeTrack(int index);
+    
+    void setTrackName(int trackIndex, const juce::String& newName);
 
     void groupTracks(const juce::SparseSet<int>& trackIndices);
     void ungroupTracks(int groupTrackIndex);
@@ -113,7 +116,22 @@ public:
     void toggleTrackSelection(int trackIndex);
     void selectTrackRange(int fromIndex, int toIndex);
     bool isTrackSelected(int trackIndex) const;
+    void deselectAllTracks();
     const juce::SparseSet<int>& getSelectedTracks() const { return selectedTracks; }
+    
+    // Project Metadata
+    const juce::String& getProjectName() const { return projectName; }
+    void setProjectName(const juce::String& name) { projectName = name; }
+    
+    const juce::String& getKeySignature() const { return keySignature; }
+    void setKeySignature(const juce::String& key) { keySignature = key; }
+    
+    int getTimeSigNumerator() const { return timeSigNumerator; }
+    void setTimeSigNumerator(int num) { timeSigNumerator = num; }
+    
+    int getTimeSigDenominator() const { return timeSigDenominator; }
+    void setTimeSigDenominator(int den) { timeSigDenominator = den; }
+    
     int getLastSelectedTrack() const { return lastSelectedTrack; }
 
     void addClipToTrack(int trackIndex, AnyClipPtr clip);
@@ -132,6 +150,11 @@ private:
     juce::SparseSet<int> selectedTracks;
     int lastSelectedTrack = -1; // For shift-select logic
     AnyClipPtr currentSelectedClip;
+
+    juce::String projectName = "Untitled Project";
+    juce::String keySignature = "C MAJ";
+    int timeSigNumerator = 4;
+    int timeSigDenominator = 4;
 };
 
 } // namespace Nimbus

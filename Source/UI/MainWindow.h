@@ -25,6 +25,20 @@ private:
     int dragStartH = 300;
 };
 
+class SidebarResizerBar : public juce::Component {
+public:
+    SidebarResizerBar(NimbusEngine& engine);
+    void paint(juce::Graphics& g) override;
+    void mouseDown(const juce::MouseEvent& e) override;
+    void mouseDrag(const juce::MouseEvent& e) override;
+    
+    int sidebarWidth = 250;
+    std::function<void()> onWidthChanged;
+private:
+    NimbusEngine& engine;
+    int dragStartW = 250;
+};
+
 class MainWindow : public juce::DocumentWindow {
 public:
     class MainContentComponent : public juce::Component {
@@ -51,6 +65,7 @@ public:
         bool isDetailViewVisible = false;
 
         MixerResizerBar mixerResizerBar;
+        SidebarResizerBar sidebarResizerBar;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainContentComponent)
     };
