@@ -27,6 +27,7 @@ private:
 };
 
 class TimelineComponent : public juce::Component, 
+                        public juce::FileDragAndDropTarget,
                         private juce::Timer,
                         public TimelineProject::Listener {
 public:
@@ -45,6 +46,10 @@ public:
 
     void paintOverChildren(juce::Graphics& g) override;
     void mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) override;
+    
+    // juce::FileDragAndDropTarget
+    bool isInterestedInFileDrag(const juce::StringArray& files) override;
+    void filesDropped(const juce::StringArray& files, int x, int y) override;
     
     void zoom(double factor);
     

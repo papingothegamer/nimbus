@@ -4,11 +4,10 @@
 
 namespace Nimbus::MainLayout {
 
-DetailViewComponent::DetailViewComponent(NimbusEngine& e) : engine(e), pianoRoll(e), pianoRollTimeline(e), clipProperties(e), notesPanel(e), audioClipView(e), deviceChain(e) {
+DetailViewComponent::DetailViewComponent(NimbusEngine& e) : engine(e), pianoRoll(e), pianoRollTimeline(e), clipProperties(e), audioClipView(e), deviceChain(e) {
     juce::Logger::writeToLog("DetailViewComponent constructor start");
     addChildComponent(placeholderLabel);
     addChildComponent(clipProperties);
-    addChildComponent(notesPanel);
     addChildComponent(pianoRollTimeline);
     addChildComponent(pianoRoll);
     addChildComponent(audioClipView);
@@ -62,7 +61,6 @@ void DetailViewComponent::resized() {
         pianoRoll.setVisible(false);
         pianoRollTimeline.setVisible(false);
         clipProperties.setVisible(false);
-        notesPanel.setVisible(false);
         audioClipView.setVisible(false);
         
         deviceChain.setVisible(true);
@@ -70,10 +68,8 @@ void DetailViewComponent::resized() {
     } else {
         deviceChain.setVisible(false);
         
-        int propsWidth = 120;
-        int notesWidth = 120;
+        int propsWidth = 180;
         clipProperties.setBounds(area.removeFromLeft(propsWidth));
-        notesPanel.setBounds(area.removeFromLeft(notesWidth));
         
         auto timelineArea = area.removeFromTop(20);
         pianoRollTimeline.setBounds(timelineArea);
@@ -100,7 +96,6 @@ void DetailViewComponent::trackSelectionChanged() {
         pianoRoll.setVisible(false);
         pianoRollTimeline.setVisible(false);
         clipProperties.setVisible(false);
-        notesPanel.setVisible(false);
         audioClipView.setVisible(false);
         
         placeholderLabel.setVisible(true);
@@ -139,9 +134,6 @@ void DetailViewComponent::selectedClipChanged() {
             clipProperties.setMidiMode(true);
             clipProperties.updateClipInfo("MIDI Clip", midiClip->getStartSample(), midiClip->getLengthSamples());
             
-            notesPanel.setVisible(true);
-            notesPanel.setMidiClip(midiClip);
-            
             pianoRollTimeline.setVisible(true);
             pianoRollTimeline.setMidiClip(midiClip);
             
@@ -157,7 +149,6 @@ void DetailViewComponent::selectedClipChanged() {
             hasValidClip = true;
             pianoRoll.setVisible(false);
             pianoRollTimeline.setVisible(false);
-            notesPanel.setVisible(false);
             clipProperties.setVisible(true);
             clipProperties.setMidiMode(false);
             clipProperties.updateClipInfo("Audio Clip", audioClip->getStartSample(), audioClip->getLengthSamples());
@@ -174,8 +165,6 @@ void DetailViewComponent::selectedClipChanged() {
         pianoRollTimeline.setMidiClip(nullptr);
         pianoRoll.setVisible(false);
         pianoRollTimeline.setVisible(false);
-        notesPanel.setVisible(false);
-        notesPanel.setMidiClip(nullptr);
         audioClipView.setVisible(false);
         audioClipView.setAudioClip(nullptr);
         clipProperties.setVisible(false);

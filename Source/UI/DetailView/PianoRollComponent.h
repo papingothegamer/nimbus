@@ -26,7 +26,8 @@ public:
     enum class Snap { Off, Bar, Beat, Eighth, Sixteenth, ThirtySecond };
     void setSnap(Snap s) { currentSnap = s; }
     
-    void setVelocityVisible(bool v) { velocityVisible = v; resized(); repaint(); }
+    void setVelocityVisible(bool v) { velocityVisible = v; repaint(); }
+    int getDesiredHeight() const { return (128 * keyHeight) + (velocityVisible ? velocityLaneHeight : 0); }
 
 private:
     NimbusEngine& engine;

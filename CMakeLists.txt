@@ -144,8 +144,6 @@ target_sources(Nimbus PRIVATE
     Source/UI/DetailView/ClipPropertiesComponent.cpp
     Source/UI/DetailView/ClipPropertiesComponent.h
     Source/UI/DetailView/ExpandableSection.h
-    Source/UI/DetailView/NotesPanelComponent.cpp
-    Source/UI/DetailView/NotesPanelComponent.h
     Source/UI/DetailView/PianoRollTimelineComponent.cpp
     Source/UI/DetailView/PianoRollTimelineComponent.h
     Source/UI/PluginWindow.cpp

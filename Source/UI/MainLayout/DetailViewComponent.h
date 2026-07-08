@@ -5,7 +5,6 @@
 #include "UI/DetailView/PianoRollComponent.h"
 #include "UI/DetailView/AudioClipViewComponent.h"
 #include "UI/DetailView/ClipPropertiesComponent.h"
-#include "UI/DetailView/NotesPanelComponent.h"
 #include "UI/DetailView/PianoRollTimelineComponent.h"
 #include "UI/MainLayout/DeviceChainComponent.h"
 
@@ -33,7 +32,6 @@ private:
     juce::Viewport pianoRollViewport;
     DetailView::PianoRollTimelineComponent pianoRollTimeline;
     DetailView::ClipPropertiesComponent clipProperties;
-    DetailView::NotesPanelComponent notesPanel;
     DetailView::AudioClipViewComponent audioClipView;
     DeviceChainComponent deviceChain;
     

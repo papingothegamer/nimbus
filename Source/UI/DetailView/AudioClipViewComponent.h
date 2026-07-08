@@ -18,6 +18,8 @@ public:
 
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
 
+    double getTotalLength() const { return thumbnail.getTotalLength(); }
+
 private:
     NimbusEngine& engine;
     std::shared_ptr<AudioClip> currentClip;

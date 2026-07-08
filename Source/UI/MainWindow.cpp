@@ -71,15 +71,17 @@ void MainWindow::MainContentComponent::resized() {
     
     // Bottom Section
     int h = mixerResizerBar.mixerHeight;
-    mixerResizerBar.setBounds(bounds.removeFromBottom(4));
+    auto bottomArea = bounds.removeFromBottom(h);
     
     if (isDetailViewVisible) {
-        auto bottomArea = bounds.removeFromBottom(h);
         detailView.setBounds(bottomArea.removeFromLeft(bottomArea.getWidth() / 2));
         bottomMixer.setBounds(bottomArea);
     } else {
-        bottomMixer.setBounds(bounds.removeFromBottom(h));
+        bottomMixer.setBounds(bottomArea);
     }
+    
+    // Resizer bar sits directly above the bottom mixer section
+    mixerResizerBar.setBounds(bounds.removeFromBottom(4));
     
     // Side Browser
     if (isBrowserVisible) {

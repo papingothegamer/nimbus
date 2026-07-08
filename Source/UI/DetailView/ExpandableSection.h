@@ -65,7 +65,8 @@ public:
         for (auto* comp : contentComponents) {
             comp->setVisible(expanded);
             if (expanded) {
-                comp->setBounds(area.removeFromTop(comp->getHeight() > 0 ? comp->getHeight() : 22).reduced(4, 1));
+                // Fixed row height to prevent recursive shrinking
+                comp->setBounds(area.removeFromTop(28).reduced(4, 2));
             }
         }
     }
@@ -74,9 +75,9 @@ public:
         if (!expanded) return headerHeight;
         int h = headerHeight;
         for (auto* comp : contentComponents) {
-            h += (comp->getHeight() > 0 ? comp->getHeight() : 22) + 2;
+            h += 28;
         }
-        return h;
+        return h + 4; // small padding at bottom
     }
     
     bool isExpanded() const { return expanded; }

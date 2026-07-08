@@ -156,6 +156,8 @@ void TrackLaneComponent::filesDropped(const juce::StringArray& files, int x, int
                 reader.reset(); // Close the file handle to prevent Windows file locking
                 
                 auto audioClip = std::make_shared<AudioClip>(file, static_cast<int>(startSamples), numSamples);
+                audioClip->setName(file.getFileNameWithoutExtension());
+                engine.getTimelineProject().setTrackName(trackIndex, file.getFileNameWithoutExtension());
                 engine.getTimelineProject().addClipToTrack(trackIndex, audioClip);
                 return; // Only process the first valid file
             }
@@ -177,6 +179,8 @@ void TrackLaneComponent::filesDropped(const juce::StringArray& files, int x, int
                 if (numSamples <= 0) numSamples = static_cast<int>(sampleRate);
                 
                 auto midiClip = std::make_shared<MidiClip>(static_cast<int>(startSamples), numSamples);
+                midiClip->setName(file.getFileNameWithoutExtension());
+                engine.getTimelineProject().setTrackName(trackIndex, file.getFileNameWithoutExtension());
                 
                 for (int i = 0; i < midiFile.getNumTracks(); ++i) {
                     auto* midiTrack = midiFile.getTrack(i);

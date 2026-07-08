@@ -31,17 +31,18 @@ void PianoRollContent::paint(juce::Graphics& g) {
             double secondsPerBeat = 60.0 / tempo;
             double secondsPer16th = secondsPerBeat / 4.0;
             
-            int gridWidth = getWidth() - keyWidth;
+            double pixelsPerSecond = 100.0;
             int num16ths = static_cast<int>(clipSeconds / secondsPer16th);
             
             g.setColour(DesignSystem::Colors::Divider.withAlpha(0.3f));
             for (int i = 0; i <= num16ths; ++i) {
-                float x = keyWidth + static_cast<float>((i * secondsPer16th / clipSeconds) * gridWidth);
+                float x = keyWidth + static_cast<float>((i * secondsPer16th) * pixelsPerSecond);
                 g.drawVerticalLine(static_cast<int>(x), 0, static_cast<float>(getHeight()));
             }
             
             // Draw notes
             if (clipSamples > 0) {
+                double pixelsPerSecond = 100.0;
                 for (int i = 0; i < currentClip->getSequence().getNumEvents(); ++i) {
                     auto* event = currentClip->getSequence().getEventPointer(i);
                     if (event->message.isNoteOn()) {
@@ -53,27 +54,47 @@ void PianoRollContent::paint(juce::Graphics& g) {
                         }
                         if (noteLength == 0.0) noteLength = 48000.0 * 0.25;
                         
-                        float x = keyWidth + static_cast<float>((noteStart / clipSamples) * gridWidth);
-                        float w = static_cast<float>((noteLength / clipSamples) * gridWidth);
+                        float x = keyWidth + static_cast<float>((noteStart / sampleRate) * pixelsPerSecond);
+                        float w = static_cast<float>((noteLength / sampleRate) * pixelsPerSecond);
                         
                         int noteNumber = event->message.getNoteNumber();
                         int row = 127 - noteNumber;
                         int y = row * keyHeight;
-                        
-                        // Velocity bar
-                        if (velocityVisible) {
-                            float vel = event->message.getVelocity() / 127.0f;
-                            float vy = (row * keyHeight) + keyHeight - 5 - (vel * (keyHeight - 2));
-                            float vh = vel * (keyHeight - 2);
-                            g.setColour(selectedEventIndices.contains(i) ? DesignSystem::Colors::PrimaryAction : DesignSystem::Colors::PrimaryAction.withAlpha(0.6f));
-                            g.fillRect(x + w/2 - 2, vy, 4.0f, vh);
-                        }
                         
                         g.setColour(DesignSystem::Colors::PrimaryAction);
                         g.fillRect(x, static_cast<float>(y), w, static_cast<float>(keyHeight));
                         
                         g.setColour(juce::Colours::black.withAlpha(0.8f));
                         g.drawRect(x, static_cast<float>(y), w, static_cast<float>(keyHeight), 1.0f);
+                        
+                        // Wait, velocity is handled differently now.
+                    }
+                }
+            }
+            
+            // Draw velocity lane at the bottom if visible
+            if (velocityVisible) {
+                int contentHeight = 128 * keyHeight;
+                g.setColour(DesignSystem::Colors::ModuleBackground.darker(0.1f));
+                g.fillRect(0.0f, static_cast<float>(contentHeight), static_cast<float>(getWidth()), static_cast<float>(velocityLaneHeight));
+                g.setColour(DesignSystem::Colors::Divider);
+                g.drawHorizontalLine(contentHeight, 0.0f, static_cast<float>(getWidth()));
+                
+                double pixelsPerSecond = 100.0;
+                for (int i = 0; i < currentClip->getSequence().getNumEvents(); ++i) {
+                    auto* event = currentClip->getSequence().getEventPointer(i);
+                    if (event->message.isNoteOn()) {
+                        double noteStart = event->message.getTimeStamp();
+                        float x = keyWidth + static_cast<float>((noteStart / sampleRate) * pixelsPerSecond);
+                        
+                        float vel = event->message.getVelocity() / 127.0f;
+                        float vh = vel * (velocityLaneHeight - 4);
+                        float vy = contentHeight + velocityLaneHeight - vh;
+                        
+                        g.setColour(selectedEventIndices.contains(i) ? DesignSystem::Colors::PrimaryAction : DesignSystem::Colors::PrimaryAction.withAlpha(0.6f));
+                        g.fillRect(x - 2.0f, vy, 4.0f, vh);
+                        g.setColour(juce::Colours::black.withAlpha(0.5f));
+                        g.drawRect(x - 2.0f, vy, 4.0f, vh, 1.0f);
                     }
                 }
             }
@@ -93,21 +114,28 @@ void PianoRollContent::paint(juce::Graphics& g) {
             int midiNote = 127 - note;
             bool isBlack = juce::MidiMessage::isMidiNoteBlack(midiNote);
             
-            g.setColour(isBlack ? juce::Colours::black : juce::Colours::white);
-            g.fillRect(vx, y, keyWidth, keyHeight);
+            juce::Rectangle<float> keyRect(vx, y, keyWidth, keyHeight);
             
-            g.setColour(juce::Colours::black.withAlpha(0.5f));
-            g.drawRect(vx, y, keyWidth, keyHeight, 1);
+            if (isBlack) {
+                g.setColour(juce::Colour::fromString("#FF2A2A2E")); // Dark grey
+                g.fillRoundedRectangle(keyRect.reduced(0, 1).withTrimmedRight(2), 3.0f);
+            } else {
+                g.setColour(juce::Colour::fromString("#FFF4F4F4")); // Off-white
+                g.fillRoundedRectangle(keyRect.reduced(0, 0.5f).withTrimmedRight(2), 2.0f);
+            }
+            
+            // Draw horizontal grid lines extended from white keys
+            if (!isBlack) {
+                g.setColour(DesignSystem::Colors::Divider.withAlpha(0.2f));
+                g.drawHorizontalLine(y + keyHeight, vx + keyWidth, static_cast<float>(getWidth()));
+            }
             
             // Draw C note labels
             if (midiNote % 12 == 0 && !isBlack) {
-                g.setColour(juce::Colours::black);
-                g.drawText("C" + juce::String((midiNote / 12) - 2), vx + 2, y, keyWidth - 4, keyHeight, juce::Justification::centredRight, false);
+                g.setColour(juce::Colours::black.withAlpha(0.7f));
+                g.setFont(juce::Font(10.0f).boldened());
+                g.drawText("C" + juce::String((midiNote / 12) - 2), vx + 2, y, keyWidth - 8, keyHeight, juce::Justification::centredRight, false);
             }
-            
-            // Draw horizontal grid lines
-            g.setColour(DesignSystem::Colors::Divider.withAlpha(isBlack ? 0.3f : 0.6f));
-            g.drawHorizontalLine(y + keyHeight, vx + keyWidth, static_cast<float>(getWidth()));
         }
     }
 }
@@ -136,9 +164,9 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
             double secondsPerBeat = 60.0 / tempo;
             double secondsPer16th = secondsPerBeat / 4.0;
             double samplesPer16th = secondsPer16th * sampleRate;
-            
             int gridWidth = getWidth() - keyWidth;
-            double timeInClip = (static_cast<double>(x) / gridWidth) * clipSamples;
+            double pixelsPerSecond = 100.0;
+            double timeInClip = (static_cast<double>(x) / pixelsPerSecond) * sampleRate;
             if (timeInClip < 0.0) timeInClip = 0.0;
             
             // Look for existing note under mouse
@@ -180,7 +208,7 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
                     dragStartNoteNumber = noteNumber;
                     
                     double noteRightEdgeTime = foundNoteStart + foundNoteLength;
-                    double noteRightEdgeX = (noteRightEdgeTime / clipSamples) * gridWidth;
+                    double noteRightEdgeX = (noteRightEdgeTime / sampleRate) * pixelsPerSecond;
                     if (x >= noteRightEdgeX - 5.0) {
                         isResizing = true;
                     }
@@ -614,8 +642,12 @@ PianoRollComponent::PianoRollComponent(NimbusEngine& e) : engine(e), content(e) 
     };
     toolbar.addAndMakeVisible(snapBox);
     
+    velocityToggle.setToggleState(true, juce::dontSendNotification);
+    content.setVelocityVisible(true);
     velocityToggle.onClick = [this] {
         content.setVelocityVisible(velocityToggle.getToggleState());
+        content.setBounds(0, 0, juce::jmax(1000, getWidth()), content.getDesiredHeight());
+        resized();
     };
     toolbar.addAndMakeVisible(velocityToggle);
     
@@ -646,7 +678,7 @@ void PianoRollComponent::resized() {
     velocityToggle.setBounds(x, 3, 80, 24);
     
     viewport.setBounds(bounds);
-    content.setBounds(0, 0, juce::jmax(1000, getWidth()), 128 * 16);
+    content.setBounds(0, 0, juce::jmax(1000, getWidth()), content.getDesiredHeight());
 }
 
 void PianoRollComponent::paint(juce::Graphics& g) {

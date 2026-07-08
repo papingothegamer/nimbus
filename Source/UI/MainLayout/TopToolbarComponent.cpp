@@ -72,8 +72,6 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     setupIconBtn(recordButton);
     setupIconBtn(fastForwardButton);
     
-    playButton.setClickingTogglesState(true);
-    
     addAndMakeVisible(jumpStartButton);
     addAndMakeVisible(rewindButton);
     addAndMakeVisible(playButton);
@@ -180,10 +178,17 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         if (onDetailToggle) onDetailToggle();
     };
     playButton.onClick = [this]() {
-        if (playButton.getToggleState()) {
-            engine.getTransport().play();
-        } else {
+        if (engine.getTransport().isPlaying()) {
             engine.getTransport().stop();
+        } else {
+            engine.getTransport().play();
+        }
+    };
+    recordButton.onClick = [this]() {
+        if (engine.getTransport().isRecording()) {
+            engine.getTransport().stopRecording();
+        } else {
+            engine.getTransport().record();
         }
     };
     jumpStartButton.onClick = [this]() {
@@ -266,7 +271,12 @@ void TopToolbarComponent::resized() {
 }
 
 void TopToolbarComponent::timerCallback() {
-    playButton.setToggleState(engine.getTransport().isPlaying(), juce::dontSendNotification);
+    bool isPlaying = engine.getTransport().isPlaying();
+    playButton.setToggleState(isPlaying, juce::dontSendNotification);
+    playButton.setButtonText(isPlaying ? DesignSystem::Iconography::Pause : DesignSystem::Iconography::Play);
+    
+    bool isRecording = engine.getTransport().isRecording();
+    recordButton.setToggleState(isRecording, juce::dontSendNotification);
     
     double posSamples = engine.getTransport().getCurrentPosition();
     double sampleRate = engine.getTransport().getSampleRate();

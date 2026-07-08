@@ -339,8 +339,7 @@ void TrackHeaderComponent::resized() {
     } else {
         topRow.removeFromLeft(4); // Spacing if not group
     }
-    
-    numberButton.setBounds(topRow.removeFromLeft(24).reduced(2));
+    numberButton.setBounds(topRow.removeFromLeft(36).reduced(2));
     
     if (!isGroup && !isFolded) {
         armButton.setBounds(topRow.removeFromRight(20).reduced(2));

@@ -38,7 +38,14 @@ void ClipComponent::paint(juce::Graphics& g) {
     if (isAudio) {
         g.setColour(juce::Colours::white.withAlpha(0.9f));
         if (thumbnail.getTotalLength() > 0.0) {
-            thumbnail.drawChannels(g, getLocalBounds().reduced(4), 0.0, thumbnail.getTotalLength(), 1.0f);
+            auto audioClip = std::get<std::shared_ptr<AudioClip>>(clipData);
+            double sampleRate = engine.getTransport().getSampleRate();
+            if (sampleRate <= 0) sampleRate = 48000.0;
+            
+            double startSecs = audioClip->getSourceOffsetSamples() / sampleRate;
+            double endSecs = startSecs + (audioClip->getLengthSamples() / sampleRate);
+            
+            thumbnail.drawChannels(g, getLocalBounds().withTrimmedTop(4).withTrimmedBottom(4), startSecs, endSecs, 1.0f);
         } else {
             g.setFont(DesignSystem::Typography::getPrimaryFont());
             g.drawText("Loading...", getLocalBounds(), juce::Justification::centred, false);

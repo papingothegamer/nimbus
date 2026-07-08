@@ -39,8 +39,31 @@ void AudioClipContent::paint(juce::Graphics& g) {
     }
     
     if (thumbnail.getTotalLength() > 0.0) {
+        // Draw the full waveform dimmed
+        g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.3f));
+        thumbnail.drawChannels(g, getLocalBounds().reduced(2), 0.0, thumbnail.getTotalLength(), 1.0f);
+        
+        // Highlight the active cropped region
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0) sampleRate = 48000.0;
+        
+        double startSecs = currentClip->getSourceOffsetSamples() / sampleRate;
+        double endSecs = startSecs + (currentClip->getLengthSamples() / sampleRate);
+        
+        float x1 = static_cast<float>((startSecs / thumbnail.getTotalLength()) * getWidth());
+        float x2 = static_cast<float>((endSecs / thumbnail.getTotalLength()) * getWidth());
+        
+        // Draw the active portion fully opaque
+        g.saveState();
+        g.reduceClipRegion(juce::Rectangle<int>(static_cast<int>(x1), 0, static_cast<int>(x2 - x1), getHeight()));
         g.setColour(DesignSystem::Colors::PrimaryAction);
         thumbnail.drawChannels(g, getLocalBounds().reduced(2), 0.0, thumbnail.getTotalLength(), 1.0f);
+        g.restoreState();
+        
+        // Draw region borders
+        g.setColour(juce::Colours::white.withAlpha(0.8f));
+        g.drawVerticalLine(static_cast<int>(x1), 0.0f, static_cast<float>(getHeight()));
+        g.drawVerticalLine(static_cast<int>(x2), 0.0f, static_cast<float>(getHeight()));
     } else {
         g.setColour(DesignSystem::Colors::TextSecondary);
         g.drawText("Loading waveform...", getLocalBounds(), juce::Justification::centred, true);
@@ -49,6 +72,9 @@ void AudioClipContent::paint(juce::Graphics& g) {
 
 void AudioClipContent::changeListenerCallback(juce::ChangeBroadcaster* source) {
     if (source == &thumbnail) {
+        if (auto* parent = getParentComponent()) {
+            parent->resized(); // Trigger re-layout when thumbnail loads
+        }
         repaint();
     }
 }
@@ -64,11 +90,19 @@ AudioClipViewComponent::~AudioClipViewComponent() = default;
 
 void AudioClipViewComponent::setAudioClip(std::shared_ptr<AudioClip> clip) {
     content.setAudioClip(clip);
+    resized();
 }
 
 void AudioClipViewComponent::resized() {
     viewport.setBounds(getLocalBounds());
-    content.setBounds(0, 0, juce::jmax(1000, getWidth()), getHeight() - viewport.getScrollBarThickness());
+    
+    // Scale width based on length, 100 pixels per second
+    int desiredWidth = getWidth();
+    if (content.getTotalLength() > 0.0) {
+        desiredWidth = juce::jmax(getWidth(), static_cast<int>(content.getTotalLength() * 100.0));
+    }
+    
+    content.setBounds(0, 0, desiredWidth, getHeight() - viewport.getScrollBarThickness());
 }
 
 } // namespace Nimbus::DetailView

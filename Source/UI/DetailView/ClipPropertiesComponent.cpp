@@ -361,36 +361,36 @@ void ClipPropertiesComponent::layoutSections() {
     int w = juce::jmax(120, scrollView.getWidth() - 10);
     
     clipNameLabel.setBounds(4, y, w, 22);
-    y += 26;
+    y += 30;
     
     positionSection.setBounds(0, y, w + 8, positionSection.getDesiredHeight());
     positionSection.resized();
-    y += positionSection.getDesiredHeight();
+    y += positionSection.getDesiredHeight() + 8;
     
     if (isMidiMode) {
         midiNotesSection.setBounds(0, y, w + 8, midiNotesSection.getDesiredHeight());
         midiNotesSection.resized();
-        y += midiNotesSection.getDesiredHeight();
+        y += midiNotesSection.getDesiredHeight() + 8;
         
         midiTimingSection.setBounds(0, y, w + 8, midiTimingSection.getDesiredHeight());
         midiTimingSection.resized();
-        y += midiTimingSection.getDesiredHeight();
+        y += midiTimingSection.getDesiredHeight() + 8;
         
         midiTransformSection.setBounds(0, y, w + 8, midiTransformSection.getDesiredHeight());
         midiTransformSection.resized();
-        y += midiTransformSection.getDesiredHeight();
+        y += midiTransformSection.getDesiredHeight() + 8;
     } else {
         audioSampleSection.setBounds(0, y, w + 8, audioSampleSection.getDesiredHeight());
         audioSampleSection.resized();
-        y += audioSampleSection.getDesiredHeight();
+        y += audioSampleSection.getDesiredHeight() + 8;
         
         audioGainSection.setBounds(0, y, w + 8, audioGainSection.getDesiredHeight());
         audioGainSection.resized();
-        y += audioGainSection.getDesiredHeight();
+        y += audioGainSection.getDesiredHeight() + 8;
         
         audioFadesSection.setBounds(0, y, w + 8, audioFadesSection.getDesiredHeight());
         audioFadesSection.resized();
-        y += audioFadesSection.getDesiredHeight();
+        y += audioFadesSection.getDesiredHeight() + 8;
     }
     
     contentContainer.setBounds(0, 0, scrollView.getWidth(), y + 10);

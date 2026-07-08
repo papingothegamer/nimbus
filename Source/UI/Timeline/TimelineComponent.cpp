@@ -402,6 +402,68 @@ void TimelineComponent::mouseWheelMove(const juce::MouseEvent& event, const juce
     }
 }
 
+bool TimelineComponent::isInterestedInFileDrag(const juce::StringArray& files) {
+    for (auto& file : files) {
+        if (file.endsWithIgnoreCase(".wav") || file.endsWithIgnoreCase(".mp3") || 
+            file.endsWithIgnoreCase(".mid") || file.endsWithIgnoreCase(".midi")) {
+            return true;
+        }
+    }
+    return false;
+}
 
+void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int y) {
+    int headerWidth = 150;
+    double sampleRate = engine.getTransport().getSampleRate();
+    if (sampleRate <= 0.0) sampleRate = 48000.0;
+    
+    double droppedTimeSeconds = static_cast<double>(juce::jmax(0, x - headerWidth) + scrollOffsetX) / pixelsPerSecond;
+    double droppedSample = droppedTimeSeconds * sampleRate;
+    
+    int yOffset = viewport.getViewPositionY() + y - 24; // 24 is seeking bar height
+    int currentY = 0;
+    int targetTrackIndex = -1;
+    
+    for (int i = 0; i < trackHeaders.size(); ++i) {
+        if (!trackHeaders[i]->isVisible()) continue;
+        int height = trackHeaders[i]->getHeight();
+        if (yOffset >= currentY && yOffset < currentY + height) {
+            targetTrackIndex = i;
+            break;
+        }
+        currentY += height;
+    }
+    
+    for (auto& filePath : files) {
+        juce::File file(filePath);
+        if (!file.existsAsFile()) continue;
+        
+        bool isAudio = file.hasFileExtension(".wav") || file.hasFileExtension(".mp3");
+        bool isMidi = file.hasFileExtension(".mid") || file.hasFileExtension(".midi");
+        
+        if (!isAudio && !isMidi) continue;
+        
+        if (targetTrackIndex == -1) {
+            TrackModel newTrack;
+            newTrack.name = file.getFileNameWithoutExtension();
+            targetTrackIndex = engine.getTimelineProject().getNumTracks();
+            engine.getTimelineProject().addTrack(newTrack);
+        } else {
+            engine.getTimelineProject().setTrackName(targetTrackIndex, file.getFileNameWithoutExtension());
+        }
+        
+        if (isAudio) {
+            auto clip = std::make_shared<AudioClip>(file, static_cast<int>(droppedSample), static_cast<int>(sampleRate * 4.0));
+            clip->setName(file.getFileNameWithoutExtension());
+            engine.getTimelineProject().addClipToTrack(targetTrackIndex, clip);
+        } else if (isMidi) {
+            auto clip = std::make_shared<MidiClip>(static_cast<int>(droppedSample), static_cast<int>(sampleRate * 4.0));
+            clip->setName(file.getFileNameWithoutExtension());
+            engine.getTimelineProject().addClipToTrack(targetTrackIndex, clip);
+        }
+        
+        droppedSample += sampleRate * 4.0;
+    }
+}
 
 } // namespace Nimbus
