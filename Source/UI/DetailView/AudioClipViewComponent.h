@@ -21,6 +21,8 @@ public:
     double getTotalLength() const { return thumbnail.getTotalLength(); }
 
 private:
+    void mouseDoubleClick(const juce::MouseEvent& e) override;
+
     NimbusEngine& engine;
     std::shared_ptr<AudioClip> currentClip;
     juce::AudioThumbnail thumbnail;

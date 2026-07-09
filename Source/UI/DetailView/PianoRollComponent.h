@@ -27,7 +27,7 @@ public:
     void setSnap(Snap s) { currentSnap = s; }
     
     void setVelocityVisible(bool v) { velocityVisible = v; repaint(); }
-    int getDesiredHeight() const { return (128 * keyHeight) + (velocityVisible ? velocityLaneHeight : 0); }
+    int getDesiredHeight() const { return (128 * keyHeight); }
 
 private:
     NimbusEngine& engine;

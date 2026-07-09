@@ -57,6 +57,10 @@ public:
     
     bool isPreservePitch() const { return preservePitch; }
     void setPreservePitch(bool p) { preservePitch = p; }
+    
+    const std::vector<double>& getWarpMarkers() const { return warpMarkers; }
+    void addWarpMarker(double samplePos) { warpMarkers.push_back(samplePos); }
+    void clearWarpMarkers() { warpMarkers.clear(); }
 
 private:
     juce::File sourceFile;
@@ -75,6 +79,9 @@ private:
     float timeStretch = 1.0f;     // 1.0 = original speed
     bool warpEnabled = false;
     bool preservePitch = true;
+    
+    // Warp markers (positions in source samples)
+    std::vector<double> warpMarkers;
 };
 
 } // namespace Nimbus

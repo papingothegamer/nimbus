@@ -64,6 +64,23 @@ void AudioClipContent::paint(juce::Graphics& g) {
         g.setColour(juce::Colours::white.withAlpha(0.8f));
         g.drawVerticalLine(static_cast<int>(x1), 0.0f, static_cast<float>(getHeight()));
         g.drawVerticalLine(static_cast<int>(x2), 0.0f, static_cast<float>(getHeight()));
+        
+        // Draw warp markers
+        if (currentClip->isWarpEnabled()) {
+            g.setColour(juce::Colours::yellow);
+            for (double markerSample : currentClip->getWarpMarkers()) {
+                double markerSecs = markerSample / sampleRate;
+                float mx = static_cast<float>((markerSecs / thumbnail.getTotalLength()) * getWidth());
+                
+                // Draw vertical line
+                g.drawVerticalLine(static_cast<int>(mx), 0.0f, static_cast<float>(getHeight()));
+                
+                // Draw triangle marker at the top
+                juce::Path p;
+                p.addTriangle(mx - 4.0f, 0.0f, mx + 4.0f, 0.0f, mx, 8.0f);
+                g.fillPath(p);
+            }
+        }
     } else {
         g.setColour(DesignSystem::Colors::TextSecondary);
         g.drawText("Loading waveform...", getLocalBounds(), juce::Justification::centred, true);
@@ -75,6 +92,23 @@ void AudioClipContent::changeListenerCallback(juce::ChangeBroadcaster* source) {
         if (auto* parent = getParentComponent()) {
             parent->resized(); // Trigger re-layout when thumbnail loads
         }
+        repaint();
+    }
+}
+
+void AudioClipContent::mouseDoubleClick(const juce::MouseEvent& e) {
+    if (!currentClip || !currentClip->isWarpEnabled() || thumbnail.getTotalLength() <= 0.0) return;
+    
+    // Only allow inserting markers in the top region
+    if (e.y <= 20) {
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0) sampleRate = 48000.0;
+        
+        float proportion = e.x / static_cast<float>(getWidth());
+        double markerSecs = proportion * thumbnail.getTotalLength();
+        double markerSamples = markerSecs * sampleRate;
+        
+        currentClip->addWarpMarker(markerSamples);
         repaint();
     }
 }

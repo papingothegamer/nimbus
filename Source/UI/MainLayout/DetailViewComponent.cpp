@@ -68,7 +68,7 @@ void DetailViewComponent::resized() {
     } else {
         deviceChain.setVisible(false);
         
-        int propsWidth = 180;
+        int propsWidth = 260;
         clipProperties.setBounds(area.removeFromLeft(propsWidth));
         
         auto timelineArea = area.removeFromTop(20);

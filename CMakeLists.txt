@@ -145,6 +145,8 @@ target_sources(Nimbus PRIVATE
     Source/UI/DetailView/ClipPropertiesComponent.cpp
     Source/UI/DetailView/ClipPropertiesComponent.h
     Source/UI/DetailView/ExpandableSection.h
+    Source/UI/DetailView/AbletonWidgets.cpp
+    Source/UI/DetailView/AbletonWidgets.h
     Source/UI/DetailView/PianoRollTimelineComponent.cpp
     Source/UI/DetailView/PianoRollTimelineComponent.h
     Source/UI/PluginWindow.cpp

@@ -72,9 +72,9 @@ void PianoRollContent::paint(juce::Graphics& g) {
                 }
             }
             
-            // Draw velocity lane at the bottom if visible
+            // Draw velocity lane at the bottom of the viewport if visible
             if (velocityVisible) {
-                int contentHeight = 128 * keyHeight;
+                int contentHeight = vp->getViewPositionY() + vp->getHeight() - velocityLaneHeight;
                 g.setColour(DesignSystem::Colors::ModuleBackground.darker(0.1f));
                 g.fillRect(0.0f, static_cast<float>(contentHeight), static_cast<float>(getWidth()), static_cast<float>(velocityLaneHeight));
                 g.setColour(DesignSystem::Colors::Divider);
@@ -272,7 +272,11 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
     }
     
     int contentHeight = 128 * keyHeight;
-    if (event.y > contentHeight) {
+    if (auto* vp = findParentComponentOfClass<juce::Viewport>()) {
+        contentHeight = vp->getViewPositionY() + vp->getHeight() - velocityLaneHeight;
+    }
+    
+    if (velocityVisible && event.y > contentHeight) {
         // We clicked in velocity lane
         if (draggedEventIndex != -1) {
             selectedEventIndices.addIfNotAlreadyThere(draggedEventIndex);
@@ -486,7 +490,11 @@ void PianoRollContent::mouseDrag(const juce::MouseEvent& event) {
     if (draggedEventIndex == -1) return;
     
     if (isDraggingVelocity) {
-        float vel = juce::jlimit(0.0f, 1.0f, 1.0f - static_cast<float>(event.y - (getHeight() - velocityLaneHeight)) / velocityLaneHeight);
+        int contentHeight = 128 * keyHeight;
+        if (auto* vp = findParentComponentOfClass<juce::Viewport>()) {
+            contentHeight = vp->getViewPositionY() + vp->getHeight() - velocityLaneHeight;
+        }
+        float vel = juce::jlimit(0.0f, 1.0f, 1.0f - static_cast<float>(event.y - contentHeight) / velocityLaneHeight);
         for (int idx : selectedEventIndices) {
             auto* evt = currentClip->getSequence().getEventPointer(idx);
             if (evt && evt->message.isNoteOn()) {
