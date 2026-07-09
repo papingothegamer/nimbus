@@ -71,6 +71,7 @@ void PianoRollContent::paint(juce::Graphics& g) {
                     }
                 }
             }
+        }
             
         // Draw keyboard on the left, sticky!
         for (int note = 0; note < totalKeys; ++note) {
@@ -110,21 +111,26 @@ void PianoRollContent::paint(juce::Graphics& g) {
             g.setColour(DesignSystem::Colors::Divider);
             g.drawHorizontalLine(contentHeight, 0.0f, static_cast<float>(getWidth()));
             
-            double pixelsPerSecond = 100.0;
-            for (int i = 0; i < currentClip->getSequence().getNumEvents(); ++i) {
-                auto* event = currentClip->getSequence().getEventPointer(i);
-                if (event->message.isNoteOn()) {
-                    double noteStart = event->message.getTimeStamp();
-                    float x = keyWidth + static_cast<float>((noteStart / sampleRate) * pixelsPerSecond);
-                    
-                    float vel = event->message.getVelocity() / 127.0f;
-                    float vh = vel * (velocityLaneHeight - 4);
-                    float vy = contentHeight + velocityLaneHeight - vh;
-                    
-                    g.setColour(selectedEventIndices.contains(i) ? DesignSystem::Colors::PrimaryAction : DesignSystem::Colors::PrimaryAction.withAlpha(0.6f));
-                    g.fillRect(x - 2.0f, vy, 4.0f, vh);
-                    g.setColour(juce::Colours::black.withAlpha(0.5f));
-                    g.drawRect(x - 2.0f, vy, 4.0f, vh, 1.0f);
+            if (currentClip) {
+                double sampleRate = engine.getTransport().getSampleRate();
+                if (sampleRate <= 0) sampleRate = 48000.0;
+                double pixelsPerSecond = 100.0;
+                
+                for (int i = 0; i < currentClip->getSequence().getNumEvents(); ++i) {
+                    auto* event = currentClip->getSequence().getEventPointer(i);
+                    if (event->message.isNoteOn()) {
+                        double noteStart = event->message.getTimeStamp();
+                        float x = keyWidth + static_cast<float>((noteStart / sampleRate) * pixelsPerSecond);
+                        
+                        float vel = event->message.getVelocity() / 127.0f;
+                        float vh = vel * (velocityLaneHeight - 4);
+                        float vy = contentHeight + velocityLaneHeight - vh;
+                        
+                        g.setColour(selectedEventIndices.contains(i) ? DesignSystem::Colors::PrimaryAction : DesignSystem::Colors::PrimaryAction.withAlpha(0.6f));
+                        g.fillRect(x - 2.0f, vy, 4.0f, vh);
+                        g.setColour(juce::Colours::black.withAlpha(0.5f));
+                        g.drawRect(x - 2.0f, vy, 4.0f, vh, 1.0f);
+                    }
                 }
             }
             
