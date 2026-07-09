@@ -52,6 +52,11 @@ public:
                            const juce::String& text, const juce::String& shortcutKeyText,
                            const juce::Drawable* icon, const juce::Colour* textColour) override;
     int getPopupMenuBorderSize() override;
+    
+    // Scrollbar
+    void drawScrollbar(juce::Graphics& g, juce::ScrollBar& scrollbar, int x, int y, int width, int height,
+                       bool isScrollbarVertical, int thumbStartPosition, int thumbSize,
+                       bool isMouseOver, bool isMouseDown) override;
 
 private:
     juce::Drawable* getOrCacheSvg(const juce::String& resourceName);

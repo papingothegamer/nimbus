@@ -45,6 +45,7 @@ juce_add_binary_data(Nimbus_Assets
         Assets/Fonts/Inter-Regular.ttf
         Assets/Fonts/MaterialSymbolsRounded.ttf
         Assets/Icons/Nimbus/alert-outline.svg
+        Assets/Icons/Nimbus/arrow-up-drop-circle-outline.svg
         Assets/Icons/Nimbus/arrow-right-thick.svg
         Assets/Icons/Nimbus/chevron-down.svg
         Assets/Icons/Nimbus/chevron-right.svg
@@ -168,6 +169,17 @@ target_sources(Nimbus PRIVATE
     Source/AudioEngine/PluginNode.cpp
     Source/AudioEngine/PlaybackEngine.cpp
     Source/AudioEngine/TrackSourceNode.cpp
+    Source/Core/Plugins/StockPluginFactory.cpp
+    Source/Core/Plugins/Stock/GainPlugin.cpp
+    Source/Core/Plugins/Stock/FilterPlugin.cpp
+    Source/Core/Plugins/Stock/CompressorPlugin.cpp
+    Source/Core/Plugins/Stock/ChorusPlugin.cpp
+    Source/Core/Plugins/Stock/DelayPlugin.cpp
+    Source/Core/Plugins/Stock/ReverbPlugin.cpp
+    Source/Core/Plugins/Stock/StockPluginUI.h
+    Source/Core/Plugins/Stock/CloudEQPlugin.cpp
+    Source/Core/Plugins/Stock/MultibandCompressorPlugin.cpp
+    Source/Core/Plugins/Stock/PitchCorrectionPlugin.cpp
 )
 
 # Link JUCE modules
@@ -183,6 +195,7 @@ target_link_libraries(Nimbus PRIVATE
     juce::juce_graphics
     juce::juce_gui_basics
     juce::juce_gui_extra
+    juce::juce_dsp
 )
 
 # Include directories

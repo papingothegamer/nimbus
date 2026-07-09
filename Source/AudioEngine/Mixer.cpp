@@ -2,7 +2,7 @@
 
 namespace Nimbus {
 
-Mixer::Mixer() : trackAddQueue(128), trackRemoveQueue(128) {
+Mixer::Mixer() {
 }
 
 void Mixer::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) {
@@ -25,23 +25,6 @@ void Mixer::releaseResources() {
 }
 
 void Mixer::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
-    // 1. Pick up any new tracks added from the UI
-    std::unique_ptr<Track> pendingTrack;
-    while (trackAddQueue.pop(pendingTrack)) {
-        if (pendingTrack) {
-            pendingTrack->prepareToPlay(currentSampleRate, currentBlockSize);
-            tracks.push_back(std::move(pendingTrack));
-        }
-    }
-
-    int removeIndex;
-    while (trackRemoveQueue.pop(removeIndex)) {
-        if (removeIndex >= 0 && removeIndex < (int)tracks.size()) {
-            tracks[removeIndex]->releaseResources();
-            tracks.erase(tracks.begin() + removeIndex);
-        }
-    }
-
     // 2. Copy the live input from buffer before clearing it
     if (buffer.getNumChannels() > 0 && buffer.getNumSamples() > 0) {
         inputBufferCopy.setSize(buffer.getNumChannels(), buffer.getNumSamples(), false, false, true);
@@ -52,6 +35,8 @@ void Mixer::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
 
     // 3. Clear master buffer
     buffer.clear();
+
+    const juce::SpinLock::ScopedLockType sl(processLock);
 
     // 4. Process and sum all tracks
     bool anySoloed = false;
@@ -84,12 +69,21 @@ int Mixer::getLatencySamples() const {
 }
 
 void Mixer::addTrack(std::unique_ptr<Track> track) {
-    bool success = trackAddQueue.push(std::move(track));
-    jassert(success && "Track add queue is full!");
+    if (track) {
+        if (currentSampleRate > 0) {
+            track->prepareToPlay(currentSampleRate, currentBlockSize);
+        }
+        const juce::SpinLock::ScopedLockType sl(processLock);
+        tracks.push_back(std::move(track));
+    }
 }
 
 void Mixer::removeTrack(int index) {
-    trackRemoveQueue.push(index);
+    const juce::SpinLock::ScopedLockType sl(processLock);
+    if (index >= 0 && index < (int)tracks.size()) {
+        tracks[index]->releaseResources();
+        tracks.erase(tracks.begin() + index);
+    }
 }
 
 void Mixer::setMasterVolume(float gainLinear) {

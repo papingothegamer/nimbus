@@ -57,6 +57,9 @@ private:
     class PluginItemsModel;
     std::unique_ptr<PluginItemsModel> pluginModel;
 
+    class StockEffectsModel;
+    std::unique_ptr<StockEffectsModel> stockEffectsModel;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SideBrowserComponent)
 };
 

@@ -3,6 +3,7 @@
 #include "UI/DesignSystem/Typography.h"
 #include "UI/DesignSystem/Iconography.h"
 #include <algorithm>
+#include "Core/Plugins/StockPluginFactory.h"
 
 namespace Nimbus::MainLayout {
 
@@ -148,6 +149,89 @@ private:
     std::set<juce::String> expandedMakers;
 };
 
+class SideBrowserComponent::StockEffectsModel : public juce::ListBoxModel {
+public:
+    StockEffectsModel(NimbusEngine& e) : engine(e) {}
+    
+    struct ListItem {
+        bool isHeader = false;
+        juce::String headerText;
+        juce::String pluginName;
+    };
+    
+    void updateList() {
+        items.clear();
+        auto categories = StockPluginFactory::getCategories();
+        for (const auto& cat : categories) {
+            items.push_back({true, cat, ""});
+            if (expandedCats.count(cat) > 0) {
+                auto plugins = StockPluginFactory::getPluginsInCategory(cat);
+                for (const auto& p : plugins) {
+                    items.push_back({false, "", p});
+                }
+            }
+        }
+    }
+
+    int getNumRows() override { return items.size(); }
+    
+    void paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected) override {
+        auto& item = items[rowNumber];
+        if (item.isHeader) {
+            g.fillAll(DesignSystem::Colors::ComponentBackground);
+            g.setColour(DesignSystem::Colors::TextSecondary);
+            g.setFont(juce::Font(11.0f, juce::Font::bold));
+            
+            bool isExpanded = expandedCats.count(item.headerText) > 0;
+            g.drawText("  " + item.headerText.toUpperCase(), 24, 0, width - 24, height, juce::Justification::centredLeft, true);
+            g.drawText(isExpanded ? "-" : "+", 8, 0, 16, height, juce::Justification::centred, true);
+        } else {
+            if (rowIsSelected) g.fillAll(DesignSystem::Colors::PrimaryAction.withAlpha(0.2f));
+            g.setColour(DesignSystem::Colors::TextPrimary);
+            g.setFont(DesignSystem::Typography::getPrimaryFont());
+            g.drawText("        " + item.pluginName, 0, 0, width, height, juce::Justification::centredLeft, true);
+        }
+    }
+    
+    void listBoxItemClicked(int row, const juce::MouseEvent&) override {
+        if (row < 0 || row >= (int)items.size()) return;
+        auto& item = items[row];
+        if (item.isHeader) {
+            if (expandedCats.count(item.headerText) > 0) {
+                expandedCats.erase(item.headerText);
+            } else {
+                expandedCats.insert(item.headerText);
+            }
+            if (onModelChanged) onModelChanged();
+        }
+    }
+    
+    void listBoxItemDoubleClicked(int row, const juce::MouseEvent&) override {
+        if (row < 0 || row >= (int)items.size()) return;
+        auto& item = items[row];
+        if (item.isHeader) return;
+        
+        auto selectedTracks = engine.getTimelineProject().getSelectedTracks();
+        if (!selectedTracks.isEmpty()) {
+            int trackIndex = selectedTracks.getRange(0).getStart();
+            auto track = engine.getMixer()->getTrack(trackIndex);
+            if (track) {
+                auto node = StockPluginFactory::createPlugin(item.pluginName);
+                if (node) {
+                    track->addInsertPlugin(std::move(node));
+                }
+            }
+        }
+    }
+
+    std::function<void()> onModelChanged;
+
+private:
+    NimbusEngine& engine;
+    std::vector<ListItem> items;
+    std::set<juce::String> expandedCats;
+};
+
 SideBrowserComponent::SideBrowserComponent(NimbusEngine& e) : engine(e) {
     catModel = std::make_unique<CategoriesModel>();
     pluginModel = std::make_unique<PluginItemsModel>(engine);
@@ -157,10 +241,20 @@ SideBrowserComponent::SideBrowserComponent(NimbusEngine& e) : engine(e) {
         itemsList.updateContent();
     };
     
+    stockEffectsModel = std::make_unique<StockEffectsModel>(engine);
+    stockEffectsModel->onModelChanged = [this]() {
+        stockEffectsModel->updateList();
+        itemsList.updateContent();
+    };
+    
     catModel->onCategorySelected = [this](const juce::String& cat) {
+        itemsList.setVisible(true);
         if (cat == "Plugins") {
             pluginModel->updateList(false);
             itemsList.setModel(pluginModel.get());
+        } else if (cat == "Audio Effects") {
+            stockEffectsModel->updateList();
+            itemsList.setModel(stockEffectsModel.get());
         } else {
             itemsList.setModel(nullptr); // Empty placeholder for other categories
         }
@@ -186,8 +280,7 @@ SideBrowserComponent::SideBrowserComponent(NimbusEngine& e) : engine(e) {
     };
     addAndMakeVisible(columnResizer);
     
-    catModel->onCategorySelected("Plugins"); // Default selection
-    categoriesList.selectRow(2); // Index of "Plugins" in trimmed list
+    itemsList.setVisible(false);
     
     searchBox.setTextToShowWhenEmpty("Search...", DesignSystem::Colors::TextSecondary);
     searchBox.setColour(juce::TextEditor::backgroundColourId, juce::Colours::transparentBlack);
@@ -239,6 +332,17 @@ void SideBrowserComponent::paint(juce::Graphics& g) {
     if (searchIcon) {
         auto iconBounds = searchBarBounds.removeFromLeft(24).withSizeKeepingCentre(16, 16).toFloat();
         searchIcon->drawWithin(g, iconBounds, juce::RectanglePlacement::centred | juce::RectanglePlacement::onlyReduceInSize, 1.0f);
+    }
+    
+    if (!itemsList.isVisible()) {
+        auto welcomeBounds = getLocalBounds().withTrimmedLeft(leftColumnWidth + 4).withTrimmedTop(36);
+        g.setColour(DesignSystem::Colors::TextPrimary);
+        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(18.0f).boldened());
+        g.drawText("Welcome to Nimbus", welcomeBounds.removeFromTop(40).translated(0, 20), juce::Justification::centred, true);
+        
+        g.setColour(DesignSystem::Colors::TextSecondary);
+        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
+        g.drawText("Select a category to browse plugins & effects.", welcomeBounds.removeFromTop(30).translated(0, 20), juce::Justification::centred, true);
     }
 }
 

@@ -2,15 +2,27 @@
 #include "UI/DesignSystem/Typography.h"
 #include "UI/PluginWindow.h"
 #include "UI/DesignSystem/Iconography.h"
+#include "Core/Plugins/IStockPlugin.h"
+#include "Core/Plugins/StockPluginFactory.h"
 
 namespace Nimbus::MainLayout {
 
 class DeviceChainComponent::PluginBox : public juce::Component {
 public:
-    PluginBox(PluginNode* pNode, Track* pTrack, NimbusEngine& e) : node(pNode), track(pTrack), engine(e) {
-        if (node && node->getPluginInstance()) {
-            name = node->getPluginInstance()->getName();
+    PluginBox(IAudioNode* pNode, Track* pTrack, NimbusEngine& e) : node(pNode), track(pTrack), engine(e) {
+        if (auto* vst = dynamic_cast<PluginNode*>(node)) {
+            if (vst->getPluginInstance()) {
+                name = vst->getPluginInstance()->getName();
+            }
+        } else if (auto* stock = dynamic_cast<IStockPlugin*>(node)) {
+            name = stock->getName();
+            embeddedEditor.reset(stock->createEditor());
+            if (embeddedEditor) {
+                addAndMakeVisible(embeddedEditor.get());
+                editorWidth = embeddedEditor->getWidth();
+            }
         }
+
         
         int iconDataSize = 0;
         if (auto* data = BinaryData::getNamedResource(DesignSystem::Iconography::Device.toUTF8(), iconDataSize)) {
@@ -30,8 +42,11 @@ public:
     }
     
     void paint(juce::Graphics& g) override {
+        if (node == nullptr) return;
         auto bounds = getLocalBounds().reduced(2).toFloat();
-        bool isBypassed = node && node->isBypassed();
+        bool isBypassed = false;
+        if (auto* vst = dynamic_cast<PluginNode*>(node)) isBypassed = vst->isBypassed();
+        else if (auto* stock = dynamic_cast<IStockPlugin*>(node)) isBypassed = stock->isBypassed();
         
         // Main Device Background
         g.setColour(DesignSystem::Colors::ModuleBackground.darker(0.05f));
@@ -82,7 +97,11 @@ public:
         auto bodyBounds = bounds; // already has header removed
         
         if (!isBypassed) {
-            // Ableton style generic macro area
+            if (embeddedEditor) {
+                // If it's a stock plugin, we don't draw the generic macro area.
+                // The editor is already positioned in resized().
+            } else {
+                // Ableton style generic macro area
             auto iconBounds = bodyBounds.removeFromTop(40).reduced(10);
             if (deviceIcon) {
                 deviceIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
@@ -101,6 +120,7 @@ public:
             g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(10.0f));
             g.drawText("Open GUI to edit", paramArea, juce::Justification::centred, false);
             
+            }
         } else {
             g.setColour(DesignSystem::Colors::TextSecondary.withAlpha(0.4f));
             g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f).withStyle(juce::Font::italic));
@@ -108,7 +128,16 @@ public:
         }
     }
     
+    void resized() override {
+        if (embeddedEditor) {
+            auto bounds = getLocalBounds().reduced(2);
+            bounds.removeFromTop(24); // header
+            embeddedEditor->setBounds(bounds);
+        }
+    }
+    
     void mouseDown(const juce::MouseEvent& e) override {
+        if (node == nullptr) return;
         auto bounds = getLocalBounds().reduced(2);
         auto headerBounds = bounds.removeFromTop(24);
         
@@ -117,10 +146,9 @@ public:
         juce::Rectangle<int> deleteRect(headerBounds.getRight() - 18, headerBounds.getY() + 4, 14, 14);
         
         if (bypassRect.contains(e.getPosition())) {
-            if (node) {
-                node->setBypassed(!node->isBypassed());
-                repaint();
-            }
+            if (auto* vst = dynamic_cast<PluginNode*>(node)) vst->setBypassed(!vst->isBypassed());
+            else if (auto* stock = dynamic_cast<IStockPlugin*>(node)) stock->setBypassed(!stock->isBypassed());
+            repaint();
             return;
         }
         
@@ -144,11 +172,13 @@ public:
             
             menu.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
                 if (result == 1) { // Copy
-                    if (node && node->getPluginInstance()) {
-                        auto& cb = engine.getPluginClipboard();
-                        cb.description = node->getPluginInstance()->getPluginDescription();
-                        node->getPluginInstance()->getStateInformation(cb.state);
-                        cb.hasData = true;
+                    if (auto* vst = dynamic_cast<PluginNode*>(node)) {
+                        if (vst->getPluginInstance()) {
+                            auto& cb = engine.getPluginClipboard();
+                            cb.description = vst->getPluginInstance()->getPluginDescription();
+                            vst->getPluginInstance()->getStateInformation(cb.state);
+                            cb.hasData = true;
+                        }
                     }
                 } else if (result == 2) { // Paste
                     auto& cb = engine.getPluginClipboard();
@@ -162,15 +192,17 @@ public:
                         }
                     }
                 } else if (result == 3) { // Duplicate
-                    if (node && node->getPluginInstance() && track) {
-                        juce::MemoryBlock state;
-                        node->getPluginInstance()->getStateInformation(state);
-                        juce::String err;
-                        auto newInstance = engine.getPluginManager().loadPlugin(node->getPluginInstance()->getPluginDescription().fileOrIdentifier, err);
-                        if (newInstance) {
-                            newInstance->setStateInformation(state.getData(), (int)state.getSize());
-                            auto newNode = std::make_unique<PluginNode>(std::move(newInstance));
-                            track->addInsertPlugin(std::move(newNode));
+                    if (auto* vst = dynamic_cast<PluginNode*>(node)) {
+                        if (vst->getPluginInstance() && track) {
+                            juce::MemoryBlock state;
+                            vst->getPluginInstance()->getStateInformation(state);
+                            juce::String err;
+                            auto newInstance = engine.getPluginManager().loadPlugin(vst->getPluginInstance()->getPluginDescription().fileOrIdentifier, err);
+                            if (newInstance) {
+                                newInstance->setStateInformation(state.getData(), (int)state.getSize());
+                                auto newNode = std::make_unique<PluginNode>(std::move(newInstance));
+                                track->addInsertPlugin(std::move(newNode));
+                            }
                         }
                     }
                 } else if (result == 4) {
@@ -184,21 +216,33 @@ public:
         openPluginWindow();
     }
 
+public:
+    int getEditorWidth() const { return editorWidth; }
+
 private:
     void openPluginWindow() {
-        if (window == nullptr) {
-            window = new PluginWindow(name, node);
-        } else {
-            window->toFront(true);
+        if (auto* vst = dynamic_cast<PluginNode*>(node)) {
+            if (window == nullptr) {
+                window = new PluginWindow(name, vst);
+            } else {
+                window->toFront(true);
+            }
         }
     }
     
     void deletePlugin() {
-        if (track != nullptr) {
-            if (track->getInstrumentPlugin() == node) {
+        if (track != nullptr && node != nullptr) {
+            // CRITICAL: Destroy the editor synchronously BEFORE destroying the plugin node.
+            // This stops any timers in the editor from firing and accessing a freed plugin.
+            embeddedEditor.reset();
+            
+            auto* nodeToDelete = node;
+            node = nullptr; // PREVENT DANGLING POINTER ACCESS!
+            
+            if (track->getInstrumentPlugin() == nodeToDelete) {
                 track->setInstrumentPlugin(nullptr);
             } else {
-                track->removeInsertPlugin(node);
+                track->removeInsertPlugin(nodeToDelete);
             }
             if (window != nullptr) {
                 window->closeButtonPressed();
@@ -206,10 +250,12 @@ private:
         }
     }
 
-    PluginNode* node;
+    IAudioNode* node = nullptr;
     Track* track;
     NimbusEngine& engine;
     juce::String name;
+    std::unique_ptr<juce::Component> embeddedEditor;
+    int editorWidth = 0;
     juce::Component::SafePointer<PluginWindow> window;
     std::unique_ptr<juce::Drawable> deviceIcon;
     std::unique_ptr<juce::Drawable> settingsIcon;
@@ -257,8 +303,23 @@ void DeviceChainComponent::paint(juce::Graphics& g) {
 void DeviceChainComponent::mouseDown(const juce::MouseEvent& e) {
     if (e.mods.isPopupMenu() && currentTrackIndex != -1) {
         juce::PopupMenu menu;
+        
+        juce::PopupMenu stockMenu;
+        auto categories = StockPluginFactory::getCategories();
+        int stockId = 1000;
+        for (const auto& cat : categories) {
+            juce::PopupMenu catMenu;
+            auto plugins = StockPluginFactory::getPluginsInCategory(cat);
+            for (const auto& plug : plugins) {
+                catMenu.addItem(stockId++, plug);
+            }
+            stockMenu.addSubMenu(cat, catMenu);
+        }
+        menu.addSubMenu("Add Audio Effect", stockMenu);
+        menu.addSeparator();
+        
         menu.addItem(1, "Paste", engine.getPluginClipboard().hasData);
-        menu.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
+        menu.showMenuAsync(juce::PopupMenu::Options(), [this, categories](int result) {
             if (result == 1) {
                 auto& cb = engine.getPluginClipboard();
                 if (cb.hasData) {
@@ -273,6 +334,30 @@ void DeviceChainComponent::mouseDown(const juce::MouseEvent& e) {
                         }
                     }
                 }
+            } else if (result >= 1000) {
+                // Find which stock plugin was selected
+                int id = 1000;
+                juce::String selectedPlugin;
+                for (const auto& cat : categories) {
+                    auto plugins = StockPluginFactory::getPluginsInCategory(cat);
+                    for (const auto& plug : plugins) {
+                        if (id == result) {
+                            selectedPlugin = plug;
+                            break;
+                        }
+                        id++;
+                    }
+                }
+                
+                if (selectedPlugin.isNotEmpty()) {
+                    auto track = engine.getMixer()->getTrack(currentTrackIndex);
+                    if (track) {
+                        auto stockPlug = StockPluginFactory::createPlugin(selectedPlugin);
+                        if (stockPlug) {
+                            track->addInsertPlugin(std::move(stockPlug));
+                        }
+                    }
+                }
             }
         });
     }
@@ -283,8 +368,9 @@ void DeviceChainComponent::resized() {
     
     int x = 5;
     for (auto& box : pluginBoxes) {
-        box->setBounds(x, 5, 140, viewport.getHeight() - 10 - viewport.getScrollBarThickness());
-        x += 140 + 5;
+        int w = box->getEditorWidth() > 0 ? box->getEditorWidth() + 4 : 140;
+        box->setBounds(x, 5, w, viewport.getHeight() - 10 - viewport.getScrollBarThickness());
+        x += w + 5;
     }
     
     content.setBounds(0, 0, x, viewport.getHeight() - viewport.getScrollBarThickness());
@@ -305,10 +391,8 @@ void DeviceChainComponent::updateChain() {
     auto track = engine.getMixer()->getTrack(trackIndex);
     if (!track) return;
     
-    const auto& nodes = track->getInsertGraph().getNodes();
-    
     // Count total expected nodes
-    int expectedNodes = (track->getInstrumentPlugin() != nullptr ? 1 : 0) + nodes.size();
+    int expectedNodes = (track->getInstrumentPlugin() != nullptr ? 1 : 0) + track->getInsertGraph().getNodes().size();
     
     // Quick check if it's the same
     if (currentTrackIndex == trackIndex && pluginBoxes.size() == expectedNodes) {
@@ -325,12 +409,11 @@ void DeviceChainComponent::updateChain() {
         pluginBoxes.push_back(std::move(box));
     }
     
+    const auto& nodes = track->getInsertGraph().getNodes();
     for (auto& n : nodes) {
-        if (auto* pluginNode = dynamic_cast<PluginNode*>(n.get())) {
-            auto box = std::make_unique<PluginBox>(pluginNode, track, engine);
-            content.addAndMakeVisible(box.get());
-            pluginBoxes.push_back(std::move(box));
-        }
+        auto box = std::make_unique<PluginBox>(n.get(), track, engine);
+        content.addAndMakeVisible(box.get());
+        pluginBoxes.push_back(std::move(box));
     }
     
     resized();

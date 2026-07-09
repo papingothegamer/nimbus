@@ -1,9 +1,9 @@
 #pragma once
 
 #include "IAudioNode.h"
-#include "Concurrency/LockFreeQueue.h"
 #include <vector>
 #include <memory>
+#include <juce_core/juce_core.h>
 
 namespace Nimbus {
 
@@ -34,14 +34,12 @@ public:
     
     // Returns the current active nodes in the graph
     const std::vector<std::unique_ptr<IAudioNode>>& getNodes() const { return nodes; }
+    juce::SpinLock& getProcessLock() const { return processLock; }
 
 private:
     std::vector<std::unique_ptr<IAudioNode>> nodes;
+    mutable juce::SpinLock processLock;
     
-    // Queue for adding nodes safely from the UI thread
-    LockFreeQueue<std::unique_ptr<IAudioNode>> nodeAddQueue;
-    LockFreeQueue<IAudioNode*> nodeRemoveQueue;
-
     double currentSampleRate = 44100.0;
     int currentBlockSize = 512;
 };

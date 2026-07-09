@@ -84,7 +84,7 @@ private:
     juce::TextButton metronomeToggle{DesignSystem::Iconography::Metronome};
     
     // --- Right Section ---
-    juce::Label keySignatureLabel;
+    juce::TextButton followButton{DesignSystem::Iconography::Follow};
     juce::TextButton pianoRollToggle{DesignSystem::Iconography::PianoOff};
     juce::TextButton mixerToggle{DesignSystem::Iconography::Tune};
     juce::TextButton settingsButton{DesignSystem::Iconography::Settings};

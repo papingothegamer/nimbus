@@ -4,8 +4,9 @@
 #include "Track.h"
 #include "DSP/GainNode.h"
 #include "DSP/LevelMeter.h"
-#include "Concurrency/LockFreeQueue.h"
 #include <vector>
+#include <memory>
+#include <juce_core/juce_core.h>
 #include <memory>
 
 namespace Nimbus {
@@ -48,14 +49,16 @@ public:
     }
     
     Track* getTrack(int index) const {
-        if (index >= 0 && index < tracks.size()) return tracks[index].get();
+        const juce::SpinLock::ScopedLockType sl(processLock);
+        if (index >= 0 && index < (int)tracks.size()) return tracks[index].get();
         return nullptr;
     }
+    
+    juce::SpinLock& getProcessLock() const { return processLock; }
 
 private:
     std::vector<std::unique_ptr<Track>> tracks;
-    LockFreeQueue<std::unique_ptr<Track>> trackAddQueue;
-    LockFreeQueue<int> trackRemoveQueue;
+    mutable juce::SpinLock processLock;
 
     GainNode masterFader;
     LevelMeter meter;

@@ -9,6 +9,9 @@ NimbusLookAndFeel::NimbusLookAndFeel() {
     setColour(juce::Slider::thumbColourId, Colors::PrimaryAction);
     setColour(juce::Slider::rotarySliderFillColourId, Colors::PrimaryAction);
     setColour(juce::Slider::rotarySliderOutlineColourId, Colors::ComponentBorder);
+    setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+    setColour(juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
+    setColour(juce::Slider::textBoxTextColourId, Colors::TextSecondary);
     setColour(juce::TextButton::buttonColourId, Colors::ComponentBackground);
     setColour(juce::TextButton::buttonOnColourId, Colors::PrimaryAction);
     setColour(juce::TextButton::textColourOffId, Colors::TextPrimary);
@@ -50,8 +53,8 @@ void NimbusLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int wi
     // Draw flat background arc
     juce::Path backgroundArc;
     backgroundArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, rotaryStartAngle, rotaryEndAngle, true);
-    g.setColour(Colors::TextSecondary.withAlpha(0.2f));
-    g.strokePath(backgroundArc, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    g.setColour(Colors::ComponentBorder.withAlpha(0.3f));
+    g.strokePath(backgroundArc, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     // Draw filled arc
     bool isPan = slider.getProperties().contains("isPan");
@@ -68,16 +71,15 @@ void NimbusLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int wi
             filledArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, rotaryStartAngle, angle, true);
         }
         g.setColour(Colors::PrimaryAction);
-        g.strokePath(filledArc, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.strokePath(filledArc, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
-    // Draw pointer
-    juce::Path p;
-    auto pointerLength = radius * 0.8f;
-    p.addRectangle(-1.0f, -radius, 2.0f, pointerLength);
-    p.applyTransform(juce::AffineTransform::rotation(angle).translated(centreX, centreY));
+    // Draw indicator dot
+    auto dotRadius = 2.5f;
+    juce::Point<float> dotCenter(centreX + (radius - 8.0f) * std::cos(angle - juce::MathConstants<float>::halfPi),
+                                 centreY + (radius - 8.0f) * std::sin(angle - juce::MathConstants<float>::halfPi));
     g.setColour(Colors::TextPrimary);
-    g.fillPath(p);
+    g.fillEllipse(dotCenter.x - dotRadius, dotCenter.y - dotRadius, dotRadius * 2, dotRadius * 2);
 }
 
 void NimbusLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
@@ -442,6 +444,21 @@ juce::Drawable* NimbusLookAndFeel::getOrCacheSvg(const juce::String& resourceNam
         }
     }
     return nullptr;
+}
+void NimbusLookAndFeel::drawScrollbar(juce::Graphics& g, juce::ScrollBar& scrollbar, int x, int y, int width, int height,
+                                       bool isScrollbarVertical, int thumbStartPosition, int thumbSize,
+                                       bool isMouseOver, bool isMouseDown) {
+    juce::ignoreUnused(scrollbar);
+    g.fillAll(Colors::AppBackground);
+    juce::Rectangle<float> thumbBounds;
+    if (isScrollbarVertical) {
+        thumbBounds = juce::Rectangle<float>((float)x + 2.0f, (float)thumbStartPosition, (float)width - 4.0f, (float)thumbSize);
+    } else {
+        thumbBounds = juce::Rectangle<float>((float)thumbStartPosition, (float)y + 2.0f, (float)thumbSize, (float)height - 4.0f);
+    }
+    auto thumbColor = Colors::TextSecondary.withAlpha(isMouseDown ? 0.6f : (isMouseOver ? 0.4f : 0.2f));
+    g.setColour(thumbColor);
+    g.fillRoundedRectangle(thumbBounds, 1.5f);
 }
 
 } // namespace Nimbus::DesignSystem

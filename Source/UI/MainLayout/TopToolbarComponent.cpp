@@ -116,11 +116,13 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     addAndMakeVisible(loopButton);
     addAndMakeVisible(metronomeToggle);
 
-    // Setup Right Toggles
-    keySignatureLabel.setJustificationType(juce::Justification::centredRight);
-    keySignatureLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f).boldened());
-    keySignatureLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
-    addAndMakeVisible(keySignatureLabel);
+    setupIconBtn(followButton);
+    followButton.setClickingTogglesState(true);
+    followButton.setToggleState(engine.isFollowPlayheadEnabled(), juce::dontSendNotification);
+    followButton.onClick = [this]() {
+        engine.setFollowPlayheadEnabled(followButton.getToggleState());
+    };
+    addAndMakeVisible(followButton);
 
     setupIconBtn(pianoRollToggle);
     setupIconBtn(mixerToggle);
@@ -267,7 +269,7 @@ void TopToolbarComponent::resized() {
     mixerToggle.setBounds(rightEdge - 138, 8, 24, 24);
     pianoRollToggle.setBounds(rightEdge - 166, 8, 24, 24);
     
-    keySignatureLabel.setBounds(centerX + 305, 0, 60, getHeight());
+    followButton.setBounds(centerX + 305, 4, 24, groupHeight);
 }
 
 void TopToolbarComponent::timerCallback() {
@@ -312,7 +314,8 @@ void TopToolbarComponent::timerCallback() {
     if (!projectNameLabel.isBeingEdited()) {
         projectNameLabel.setText(project.getProjectName(), juce::dontSendNotification);
     }
-    keySignatureLabel.setText(project.getKeySignature(), juce::dontSendNotification);
+    
+    followButton.setToggleState(engine.isFollowPlayheadEnabled(), juce::dontSendNotification);
 }
 
 } // namespace Nimbus::MainLayout
