@@ -77,7 +77,7 @@ private:
     int fadeOutCurve = 0;
     float pitchShift = 0.0f;      // In semitones (-24 to +24)
     float timeStretch = 1.0f;     // 1.0 = original speed
-    bool warpEnabled = false;
+    bool warpEnabled = true;
     bool preservePitch = true;
     
     // Warp markers (positions in source samples)

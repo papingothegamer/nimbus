@@ -249,6 +249,16 @@ void TimelineProject::setTrackSelected(int trackIndex, bool clearExisting) {
     if (trackIndex >= 0) {
         selectedTracks.addRange(juce::Range<int>(trackIndex, trackIndex + 1));
         lastSelectedTrack = trackIndex;
+        
+        if (clearExisting) { // Only auto-select clip on single-click (not multi-select)
+            if (trackIndex < trackClips.size() && !trackClips[trackIndex].empty()) {
+                currentSelectedClip = trackClips[trackIndex][0];
+                listeners.call(&Listener::selectedClipChanged);
+            } else {
+                currentSelectedClip = std::shared_ptr<AudioClip>{nullptr};
+                listeners.call(&Listener::selectedClipChanged);
+            }
+        }
     }
     listeners.call(&Listener::trackSelectionChanged);
 }

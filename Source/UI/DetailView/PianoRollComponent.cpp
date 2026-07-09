@@ -72,42 +72,6 @@ void PianoRollContent::paint(juce::Graphics& g) {
                 }
             }
             
-            // Draw velocity lane at the bottom of the viewport if visible
-            if (velocityVisible) {
-                int contentHeight = vp->getViewPositionY() + vp->getHeight() - velocityLaneHeight;
-                g.setColour(DesignSystem::Colors::ModuleBackground.darker(0.1f));
-                g.fillRect(0.0f, static_cast<float>(contentHeight), static_cast<float>(getWidth()), static_cast<float>(velocityLaneHeight));
-                g.setColour(DesignSystem::Colors::Divider);
-                g.drawHorizontalLine(contentHeight, 0.0f, static_cast<float>(getWidth()));
-                
-                double pixelsPerSecond = 100.0;
-                for (int i = 0; i < currentClip->getSequence().getNumEvents(); ++i) {
-                    auto* event = currentClip->getSequence().getEventPointer(i);
-                    if (event->message.isNoteOn()) {
-                        double noteStart = event->message.getTimeStamp();
-                        float x = keyWidth + static_cast<float>((noteStart / sampleRate) * pixelsPerSecond);
-                        
-                        float vel = event->message.getVelocity() / 127.0f;
-                        float vh = vel * (velocityLaneHeight - 4);
-                        float vy = contentHeight + velocityLaneHeight - vh;
-                        
-                        g.setColour(selectedEventIndices.contains(i) ? DesignSystem::Colors::PrimaryAction : DesignSystem::Colors::PrimaryAction.withAlpha(0.6f));
-                        g.fillRect(x - 2.0f, vy, 4.0f, vh);
-                        g.setColour(juce::Colours::black.withAlpha(0.5f));
-                        g.drawRect(x - 2.0f, vy, 4.0f, vh, 1.0f);
-                    }
-                }
-            }
-        }
-    
-        // Draw marquee selection
-        if (isMarqueeSelecting) {
-            g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.2f));
-            g.fillRect(marqueeRect);
-            g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.5f));
-            g.drawRect(marqueeRect, 1.0f);
-        }
-        
         // Draw keyboard on the left, sticky!
         for (int note = 0; note < totalKeys; ++note) {
             int y = note * keyHeight;
@@ -136,6 +100,46 @@ void PianoRollContent::paint(juce::Graphics& g) {
                 g.setFont(juce::Font(10.0f).boldened());
                 g.drawText("C" + juce::String((midiNote / 12) - 2), vx + 2, y, keyWidth - 8, keyHeight, juce::Justification::centredRight, false);
             }
+        }
+
+        // Draw velocity lane at the bottom of the viewport if visible
+        if (velocityVisible) {
+            int contentHeight = vp->getViewPositionY() + vp->getHeight() - velocityLaneHeight;
+            g.setColour(DesignSystem::Colors::ModuleBackground.darker(0.1f));
+            g.fillRect(0.0f, static_cast<float>(contentHeight), static_cast<float>(getWidth()), static_cast<float>(velocityLaneHeight));
+            g.setColour(DesignSystem::Colors::Divider);
+            g.drawHorizontalLine(contentHeight, 0.0f, static_cast<float>(getWidth()));
+            
+            double pixelsPerSecond = 100.0;
+            for (int i = 0; i < currentClip->getSequence().getNumEvents(); ++i) {
+                auto* event = currentClip->getSequence().getEventPointer(i);
+                if (event->message.isNoteOn()) {
+                    double noteStart = event->message.getTimeStamp();
+                    float x = keyWidth + static_cast<float>((noteStart / sampleRate) * pixelsPerSecond);
+                    
+                    float vel = event->message.getVelocity() / 127.0f;
+                    float vh = vel * (velocityLaneHeight - 4);
+                    float vy = contentHeight + velocityLaneHeight - vh;
+                    
+                    g.setColour(selectedEventIndices.contains(i) ? DesignSystem::Colors::PrimaryAction : DesignSystem::Colors::PrimaryAction.withAlpha(0.6f));
+                    g.fillRect(x - 2.0f, vy, 4.0f, vh);
+                    g.setColour(juce::Colours::black.withAlpha(0.5f));
+                    g.drawRect(x - 2.0f, vy, 4.0f, vh, 1.0f);
+                }
+            }
+            
+            // Draw velocity label on the left
+            g.setColour(DesignSystem::Colors::TextSecondary);
+            g.setFont(juce::Font(12.0f));
+            g.drawText("Velocity", vx + 5, contentHeight + 5, keyWidth - 10, 20, juce::Justification::centredLeft, false);
+        }
+    
+        // Draw marquee selection
+        if (isMarqueeSelecting) {
+            g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.2f));
+            g.fillRect(marqueeRect);
+            g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.5f));
+            g.drawRect(marqueeRect, 1.0f);
         }
     }
 }

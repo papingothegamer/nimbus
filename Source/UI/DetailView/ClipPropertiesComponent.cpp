@@ -70,11 +70,12 @@ void ClipPropertiesComponent::resized() {
 void ClipPropertiesComponent::layoutPanels() {
     auto bounds = getLocalBounds();
     
-    int panelWidth = 125;
+    int panelWidth = getWidth(); // Take full width
+    int panelHeight = 85;
     int margin = 5;
     
     // Layout Clip Panel
-    auto clipBounds = bounds.removeFromLeft(panelWidth).reduced(margin);
+    auto clipBounds = bounds.removeFromTop(panelHeight).reduced(margin);
     clipPanel.setBounds(clipBounds);
     
     // Position inside clipPanel
@@ -87,7 +88,7 @@ void ClipPropertiesComponent::layoutPanels() {
         audioPanel.setVisible(false);
         notesPanel.setVisible(true);
         
-        auto notesBounds = bounds.removeFromLeft(panelWidth).reduced(margin);
+        auto notesBounds = bounds.removeFromTop(panelHeight).reduced(margin);
         notesPanel.setBounds(notesBounds);
         
         quantizeButton.setBounds(5, 5, 60, 20);
@@ -100,7 +101,7 @@ void ClipPropertiesComponent::layoutPanels() {
         notesPanel.setVisible(false);
         audioPanel.setVisible(true);
         
-        auto audioBounds = bounds.removeFromLeft(panelWidth).reduced(margin);
+        auto audioBounds = bounds.removeFromTop(panelHeight).reduced(margin);
         audioPanel.setBounds(audioBounds);
         
         warpButton.setBounds(5, 5, 50, 20);

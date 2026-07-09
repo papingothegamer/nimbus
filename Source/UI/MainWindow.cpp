@@ -74,8 +74,7 @@ void MainWindow::MainContentComponent::resized() {
     auto bottomArea = bounds.removeFromBottom(h);
     
     if (isDetailViewVisible) {
-        int mixerWidth = 340;
-        detailView.setBounds(bottomArea.removeFromLeft(bottomArea.getWidth() - mixerWidth));
+        detailView.setBounds(bottomArea.removeFromLeft(bottomArea.getWidth() / 2));
         bottomMixer.setBounds(bottomArea);
     } else {
         bottomMixer.setBounds(bottomArea);
