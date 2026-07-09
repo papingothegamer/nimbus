@@ -12,6 +12,11 @@ public:
         attackSlider = std::make_unique<PluginDial>("Attack", 0.1, 500.0, plugin.getAttack(), [this](float v) { plugin.setAttack(v); }, " ms");
         releaseSlider = std::make_unique<PluginDial>("Release", 10.0, 2000.0, plugin.getRelease(), [this](float v) { plugin.setRelease(v); }, " ms");
         
+        threshSlider->setDefaultValue(-20.0);
+        ratioSlider->setDefaultValue(2.0);
+        attackSlider->setDefaultValue(10.0);
+        releaseSlider->setDefaultValue(100.0);
+        
         addAndMakeVisible(threshSlider.get());
         addAndMakeVisible(ratioSlider.get());
         addAndMakeVisible(attackSlider.get());

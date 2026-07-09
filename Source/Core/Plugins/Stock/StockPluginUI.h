@@ -13,6 +13,7 @@ public:
         slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
         slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 16);
         slider.setTextValueSuffix(suffix);
+        slider.setNumDecimalPlacesToDisplay(2);
         slider.setRange(min, max);
         slider.setValue(start, juce::dontSendNotification);
         slider.setDoubleClickReturnValue(true, start);
@@ -30,6 +31,10 @@ public:
         }
     }
     
+    void setDefaultValue(double val) {
+        slider.setDoubleClickReturnValue(true, val);
+    }
+    
     void paint(juce::Graphics& g) override {
         g.setColour(DesignSystem::Colors::TextSecondary);
         g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(11.0f));
@@ -39,7 +44,9 @@ public:
     void resized() override {
         auto bounds = getLocalBounds();
         bounds.removeFromTop(16); // label space
-        slider.setBounds(bounds);
+        int size = juce::jmin(bounds.getWidth(), bounds.getHeight());
+        if (size > 80) size = 80;
+        slider.setBounds(bounds.getCentreX() - size/2, bounds.getY() + (bounds.getHeight() - size)/2, size, size);
     }
     
 private:

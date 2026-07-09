@@ -335,14 +335,14 @@ void SideBrowserComponent::paint(juce::Graphics& g) {
     }
     
     if (!itemsList.isVisible()) {
-        auto welcomeBounds = getLocalBounds().withTrimmedLeft(leftColumnWidth + 4).withTrimmedTop(36);
+        auto welcomeBounds = getLocalBounds().withTrimmedLeft(leftColumnWidth + 4).withTrimmedTop(36).reduced(10);
         g.setColour(DesignSystem::Colors::TextPrimary);
-        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(18.0f).boldened());
-        g.drawText("Welcome to Nimbus", welcomeBounds.removeFromTop(40).translated(0, 20), juce::Justification::centred, true);
+        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(16.0f).boldened());
+        g.drawFittedText("Welcome to Nimbus", welcomeBounds.removeFromTop(30).translated(0, 20), juce::Justification::centred, 2);
         
         g.setColour(DesignSystem::Colors::TextSecondary);
         g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
-        g.drawText("Select a category to browse plugins & effects.", welcomeBounds.removeFromTop(30).translated(0, 20), juce::Justification::centred, true);
+        g.drawFittedText("Your creative workspace.\n\nSelect a category from the list to browse and load instruments, audio effects, and plugins into your tracks.", welcomeBounds.removeFromTop(100).translated(0, 20), juce::Justification::centred, 5);
     }
 }
 

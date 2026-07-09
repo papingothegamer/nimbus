@@ -69,25 +69,86 @@ void SeekingBarComponent::paint(juce::Graphics& g) {
             }
         }
     }
+    
+    // Draw Loop Brace
+    if (engine.getTransport().isLooping()) {
+        double loopStart = engine.getTransport().getLoopStartSamples();
+        double loopEnd = engine.getTransport().getLoopEndSamples();
+        if (loopEnd > loopStart) {
+            double startRate = loopStart / engine.getTransport().getSampleRate();
+            double endRate = loopEnd / engine.getTransport().getSampleRate();
+            float startX = static_cast<float>(startRate * pixelsPerSecond - scrollOffsetX);
+            float endX = static_cast<float>(endRate * pixelsPerSecond - scrollOffsetX);
+            
+            if (endX > 0 && startX < getWidth()) {
+                g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.3f));
+                g.fillRect(startX, 0.0f, endX - startX, static_cast<float>(getHeight()));
+                
+                g.setColour(DesignSystem::Colors::PrimaryAction);
+                g.fillRect(startX, 0.0f, endX - startX, 3.0f);
+                
+                g.fillRect(startX, 0.0f, 2.0f, 6.0f);
+                g.fillRect(endX - 2.0f, 0.0f, 2.0f, 6.0f);
+            }
+        }
+    }
 }
 
 void SeekingBarComponent::mouseDown(const juce::MouseEvent& event) {
-    isDragging = true;
-    lastDragX = event.position.x;
-    if (onSeek) {
-        onSeek(event.position.x);
+    float x = event.position.x;
+    float y = event.position.y;
+    double loopStart = engine.getTransport().getLoopStartSamples();
+    double loopEnd = engine.getTransport().getLoopEndSamples();
+    double sr = engine.getTransport().getSampleRate();
+    if (sr <= 0) sr = 44100.0;
+    
+    float startX = static_cast<float>((loopStart / sr) * pixelsPerSecond - scrollOffsetX);
+    float endX = static_cast<float>((loopEnd / sr) * pixelsPerSecond - scrollOffsetX);
+    
+    dragMode = Seeking;
+    lastDragX = x;
+    if (y < 12.0f) {
+        if (std::abs(x - startX) < 5.0f && engine.getTransport().isLooping()) {
+            dragMode = DraggingLoopStart;
+        } else if (std::abs(x - endX) < 5.0f && engine.getTransport().isLooping()) {
+            dragMode = DraggingLoopEnd;
+        } else {
+            dragMode = CreatingLoop;
+            double posSeconds = (x + scrollOffsetX) / pixelsPerSecond;
+            dragStartSamples = static_cast<float>(posSeconds * sr);
+            engine.getTransport().setLoopRegion(dragStartSamples, dragStartSamples);
+            engine.getTransport().setLooping(true);
+        }
+    }
+    
+    if (dragMode == Seeking && onSeek) {
+        onSeek(x);
     }
 }
 
 void SeekingBarComponent::mouseDrag(const juce::MouseEvent& event) {
-    lastDragX = event.position.x;
-    if (onSeek) {
-        onSeek(event.position.x);
+    float x = event.position.x;
+    lastDragX = x;
+    double sr = engine.getTransport().getSampleRate();
+    if (sr <= 0) sr = 44100.0;
+    double currentSamples = ((x + scrollOffsetX) / pixelsPerSecond) * sr;
+    
+    if (dragMode == Seeking && onSeek) {
+        onSeek(x);
+    } else if (dragMode == DraggingLoopStart) {
+        double currentEnd = engine.getTransport().getLoopEndSamples();
+        engine.getTransport().setLoopRegion(std::min(currentSamples, currentEnd - 1.0), currentEnd);
+    } else if (dragMode == DraggingLoopEnd) {
+        double currentStart = engine.getTransport().getLoopStartSamples();
+        engine.getTransport().setLoopRegion(currentStart, std::max(currentSamples, currentStart + 1.0));
+    } else if (dragMode == CreatingLoop) {
+        engine.getTransport().setLoopRegion(std::min((double)dragStartSamples, currentSamples), std::max((double)dragStartSamples, currentSamples));
     }
+    repaint();
 }
 
 void SeekingBarComponent::mouseUp(const juce::MouseEvent& event) {
-    isDragging = false;
+    dragMode = None;
 }
 
 TimelineComponent::TimelineComponent(NimbusEngine& e) 
@@ -327,7 +388,7 @@ void TimelineComponent::timerCallback() {
             lane->resized();
         }
         shouldRepaint = true;
-    } else if (seekingBar.isDragging) {
+    } else if (seekingBar.dragMode != SeekingBarComponent::DragMode::None) {
         // Auto-scroll when dragging playhead off-screen
         float x = seekingBar.lastDragX;
         bool scrolled = false;

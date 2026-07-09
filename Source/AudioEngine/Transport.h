@@ -23,6 +23,13 @@ public:
     bool isPlaying() const override;
     bool isRecording() const override;
 
+    bool isLooping() const;
+    void setLooping(bool shouldLoop);
+    
+    void setLoopRegion(double startSamples, double endSamples);
+    double getLoopStartSamples() const;
+    double getLoopEndSamples() const;
+
     double getSampleRate() const override;
     double getTempo() const override;
     void setTempo(double newTempo) override;
@@ -45,6 +52,10 @@ private:
     std::atomic<double> tempo{120.0};
     std::atomic<int> timeSigNumerator{4};
     std::atomic<int> timeSigDenominator{4};
+    
+    std::atomic<bool> looping{false};
+    std::atomic<double> loopStartSamples{0.0};
+    std::atomic<double> loopEndSamples{0.0};
 };
 
 } // namespace Nimbus

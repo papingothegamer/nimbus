@@ -111,6 +111,11 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
 
 
     setupIconBtn(loopButton);
+    loopButton.setClickingTogglesState(true);
+    loopButton.onClick = [this]() {
+        engine.getTransport().setLooping(loopButton.getToggleState());
+    };
+    
     setupIconBtn(metronomeToggle);
     metronomeToggle.setClickingTogglesState(true);
     addAndMakeVisible(loopButton);
@@ -316,6 +321,10 @@ void TopToolbarComponent::timerCallback() {
     }
     
     followButton.setToggleState(engine.isFollowPlayheadEnabled(), juce::dontSendNotification);
+    
+    bool isLooping = engine.getTransport().isLooping();
+    loopButton.setToggleState(isLooping, juce::dontSendNotification);
+    loopButton.setButtonText(DesignSystem::Iconography::Loop);
 }
 
 } // namespace Nimbus::MainLayout

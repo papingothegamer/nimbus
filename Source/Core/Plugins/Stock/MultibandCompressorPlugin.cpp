@@ -5,13 +5,38 @@
 
 namespace Nimbus {
 
+class GRMeter : public juce::Component {
+public:
+    void setGR(float grDb) {
+        currentGR = juce::jlimit(-30.0f, 0.0f, grDb);
+        repaint();
+    }
+    void paint(juce::Graphics& g) override {
+        auto bounds = getLocalBounds().toFloat();
+        g.setColour(DesignSystem::Colors::PanelBackground.darker(0.2f));
+        g.fillRoundedRectangle(bounds, 2.0f);
+        float width = juce::jmap(currentGR, 0.0f, -30.0f, 0.0f, bounds.getWidth());
+        if (width > 0) {
+            juce::Rectangle<float> grBounds(bounds.getWidth() - width, 0, width, bounds.getHeight());
+            g.setColour(juce::Colour::fromString("#4CAF50")); // Green for OTT
+            g.fillRoundedRectangle(grBounds, 2.0f);
+        }
+    }
+private:
+    float currentGR = 0.0f;
+};
+
 class MultibandCompressorPluginEditor : public juce::Component, private juce::Timer {
 public:
     MultibandCompressorPluginEditor(MultibandCompressorPlugin& p) : plugin(p) {
         lowMidSlider = std::make_unique<PluginDial>("Low/Mid", 20.0, 1000.0, plugin.getLowMidFreq(), [this](float v) { plugin.setLowMidFreq(v); }, " Hz");
         midHighSlider = std::make_unique<PluginDial>("Mid/High", 500.0, 15000.0, plugin.getMidHighFreq(), [this](float v) { plugin.setMidHighFreq(v); }, " Hz");
+        lowMidSlider->setDefaultValue(150.0);
+        midHighSlider->setDefaultValue(2500.0);
         lowMidSlider->getSlider().setSkewFactorFromMidPoint(200.0);
         midHighSlider->getSlider().setSkewFactorFromMidPoint(2000.0);
+        lowMidSlider->getSlider().setNumDecimalPlacesToDisplay(0);
+        midHighSlider->getSlider().setNumDecimalPlacesToDisplay(0);
         
         addAndMakeVisible(lowMidSlider.get());
         addAndMakeVisible(midHighSlider.get());
@@ -22,16 +47,23 @@ public:
             ratioSliders[i] = std::make_unique<PluginDial>("Ratio", 1.0, 20.0, band.ratio.load(), [this, i](float v) { plugin.getBand(i).ratio.store(v); plugin.updateDSP(); }, ":1");
             gainSliders[i] = std::make_unique<PluginDial>("Gain", -24.0, 24.0, band.gainDb.load(), [this, i](float v) { plugin.getBand(i).gainDb.store(v); plugin.updateDSP(); }, " dB");
             
+            threshSliders[i]->setDefaultValue(-40.0);
+            ratioSliders[i]->setDefaultValue(4.0);
+            gainSliders[i]->setDefaultValue(0.0);
+            
+            grMeters[i] = std::make_unique<GRMeter>();
+            
             addAndMakeVisible(threshSliders[i].get());
             addAndMakeVisible(ratioSliders[i].get());
             addAndMakeVisible(gainSliders[i].get());
+            addAndMakeVisible(grMeters[i].get());
         }
         
         header = std::make_unique<PluginHeader>("Multiband Compressor");
         addAndMakeVisible(header.get());
         
-        startTimerHz(20);
-        setSize(420, 300);
+        startTimerHz(30);
+        setSize(480, 320);
     }
     
     ~MultibandCompressorPluginEditor() override { stopTimer(); }
@@ -44,6 +76,7 @@ public:
             threshSliders[i]->setValue(band.threshold.load());
             ratioSliders[i]->setValue(band.ratio.load());
             gainSliders[i]->setValue(band.gainDb.load());
+            grMeters[i]->setGR(band.currentGR.load());
         }
     }
     
@@ -55,12 +88,22 @@ public:
         g.fillRoundedRectangle(bounds.withTrimmedTop(25).toFloat(), 4.0f);
         
         const char* titles[] = {"Low Band", "Mid Band", "High Band"};
-        int w = bounds.getWidth() / 3;
+        int h = (bounds.getHeight() - 25) / 3;
         for (int i = 0; i < 3; ++i) {
-            juce::Rectangle<int> col(bounds.getX() + i * w, bounds.getY() + 75, w, bounds.getHeight() - 75);
+            juce::Rectangle<int> row(bounds.getX(), bounds.getY() + 25 + i * h, bounds.getWidth(), h);
             g.setColour(DesignSystem::Colors::TextPrimary.withAlpha(0.6f));
             g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f).boldened());
-            g.drawText(titles[i], col.removeFromTop(20), juce::Justification::centred, false);
+            
+            juce::Rectangle<int> titleArea = row.removeFromLeft(80);
+            if (i == 0 || i == 2) {
+                titleArea = titleArea.removeFromTop(20); // Make space for the crossover dial
+            }
+            g.drawText(titles[2 - i], titleArea, juce::Justification::centred, false);
+            
+            if (i > 0) {
+                g.setColour(DesignSystem::Colors::Divider);
+                g.fillRect(bounds.getX(), bounds.getY() + 25 + i * h, bounds.getWidth(), 1);
+            }
         }
     }
     
@@ -68,24 +111,24 @@ public:
         auto bounds = getLocalBounds().reduced(10);
         header->setBounds(bounds.removeFromTop(25));
         
-        auto topRow = bounds.removeFromTop(50);
-        lowMidSlider->setBounds(topRow.removeFromLeft(getWidth() / 2).withSizeKeepingCentre(80, 80));
-        midHighSlider->setBounds(topRow.withSizeKeepingCentre(80, 80));
-        
-        int w = bounds.getWidth() / 3;
-        bounds.removeFromTop(20); // space for titles
-        for (int i = 0; i < 3; ++i) {
-            auto col = bounds.removeFromLeft(w).reduced(2);
-            juce::FlexBox fb;
-            fb.flexDirection = juce::FlexBox::Direction::column;
-            fb.justifyContent = juce::FlexBox::JustifyContent::spaceAround;
-            fb.alignItems = juce::FlexBox::AlignItems::center;
+        int h = bounds.getHeight() / 3;
+        for (int i = 2; i >= 0; --i) { // 2=High on top, 1=Mid, 0=Low on bottom
+            auto row = bounds.removeFromTop(h).reduced(5);
             
-            fb.items.add(juce::FlexItem(*threshSliders[i]).withWidth(60).withHeight(60));
-            fb.items.add(juce::FlexItem(*ratioSliders[i]).withWidth(60).withHeight(60));
-            fb.items.add(juce::FlexItem(*gainSliders[i]).withWidth(60).withHeight(60));
+            auto leftCol = row.removeFromLeft(80);
+            leftCol.removeFromTop(20); // offset for title
+            if (i == 2) {
+                midHighSlider->setBounds(leftCol.withSizeKeepingCentre(70, 70));
+            } else if (i == 0) {
+                lowMidSlider->setBounds(leftCol.withSizeKeepingCentre(70, 70));
+            }
             
-            fb.performLayout(col);
+            auto rightDials = row.removeFromRight(180);
+            threshSliders[i]->setBounds(rightDials.removeFromLeft(60).withSizeKeepingCentre(60, 60));
+            ratioSliders[i]->setBounds(rightDials.removeFromLeft(60).withSizeKeepingCentre(60, 60));
+            gainSliders[i]->setBounds(rightDials.removeFromLeft(60).withSizeKeepingCentre(60, 60));
+            
+            grMeters[i]->setBounds(row.reduced(10, 15)); // padding left/right and top/bottom
         }
     }
 
@@ -95,6 +138,7 @@ private:
     std::array<std::unique_ptr<PluginDial>, 3> threshSliders;
     std::array<std::unique_ptr<PluginDial>, 3> ratioSliders;
     std::array<std::unique_ptr<PluginDial>, 3> gainSliders;
+    std::array<std::unique_ptr<GRMeter>, 3> grMeters;
     std::unique_ptr<PluginHeader> header;
 };
 
@@ -152,16 +196,41 @@ void MultibandCompressorPlugin::processBlock(juce::AudioBuffer<float>& buffer, j
     hp1.process(highContext); // Temp hold Mid+High in highBuffer
     
     // Split High1 into Mid and High
-    midBuffer.copyFrom(0, 0, highBuffer, 0, 0, highBuffer.getNumSamples());
-    midBuffer.copyFrom(1, 0, highBuffer, 1, 0, highBuffer.getNumSamples());
+    for (int ch = 0; ch < midBuffer.getNumChannels(); ++ch) {
+        if (ch < highBuffer.getNumChannels()) {
+            midBuffer.copyFrom(ch, 0, highBuffer, ch, 0, highBuffer.getNumSamples());
+        }
+    }
     
     lp2.process(midContext);
     hp2.process(highContext);
     
-    // Compress each band
-    dspComps[0].process(lowContext);
-    dspComps[1].process(midContext);
-    dspComps[2].process(highContext);
+    // Compress each band and measure GR
+    auto measureGR = [&](juce::AudioBuffer<float>& buf, juce::dsp::Compressor<float>& comp, int bandIdx, juce::dsp::ProcessContextReplacing<float>& ctx) {
+        float inPeak = 0.0f;
+        for (int ch = 0; ch < buf.getNumChannels(); ++ch) {
+            inPeak = juce::jmax(inPeak, buf.getMagnitude(ch, 0, buf.getNumSamples()));
+        }
+        
+        comp.process(ctx);
+        
+        float outPeak = 0.0f;
+        for (int ch = 0; ch < buf.getNumChannels(); ++ch) {
+            outPeak = juce::jmax(outPeak, buf.getMagnitude(ch, 0, buf.getNumSamples()));
+        }
+        
+        if (inPeak > 0.0001f && outPeak > 0.0001f) {
+            float gr = juce::Decibels::gainToDecibels(outPeak / inPeak);
+            float current = bands[bandIdx].currentGR.load();
+            bands[bandIdx].currentGR.store(current * 0.8f + gr * 0.2f);
+        } else {
+            bands[bandIdx].currentGR.store(bands[bandIdx].currentGR.load() * 0.9f);
+        }
+    };
+    
+    measureGR(lowBuffer, dspComps[0], 0, lowContext);
+    measureGR(midBuffer, dspComps[1], 1, midContext);
+    measureGR(highBuffer, dspComps[2], 2, highContext);
     
     // Apply make-up gains
     lowBuffer.applyGain(juce::Decibels::decibelsToGain(bands[0].gainDb.load()));

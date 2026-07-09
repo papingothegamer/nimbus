@@ -392,6 +392,7 @@ public:
             plugin.updateDSP();
             graph->repaint();
         }, " Hz");
+        slFreq->setDefaultValue(1000.0f);
         slFreq->getSlider().setSkewFactorFromMidPoint(1000.0f);
         
         slGain = std::make_unique<PluginDial>("Gain", -24.0f, 24.0f, 0.0f, [this](float v) {
@@ -399,12 +400,14 @@ public:
             plugin.updateDSP();
             graph->repaint();
         }, " dB");
+        slGain->setDefaultValue(0.0f);
         
         slQ = std::make_unique<PluginDial>("Q", 0.1f, 18.0f, 0.707f, [this](float v) {
             plugin.getBand(currentBand).q.store(v);
             plugin.updateDSP();
             graph->repaint();
         });
+        slQ->setDefaultValue(0.707f);
         
         addAndMakeVisible(slFreq.get());
         addAndMakeVisible(slGain.get());

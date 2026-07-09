@@ -17,7 +17,9 @@ public:
     
     std::function<void(float)> onSeek;
     
-    bool isDragging = false;
+    enum DragMode { None, Seeking, DraggingLoopStart, DraggingLoopEnd, CreatingLoop };
+    DragMode dragMode = None;
+    float dragStartSamples = 0.0f;
     float lastDragX = 0.0f;
     
 private:

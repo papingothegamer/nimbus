@@ -1,4 +1,5 @@
 #include "Transport.h"
+#include <cmath>
 
 namespace Nimbus {
 
@@ -42,6 +43,27 @@ bool Transport::isRecording() const {
     return recording.load(std::memory_order_relaxed);
 }
 
+bool Transport::isLooping() const {
+    return looping.load(std::memory_order_relaxed);
+}
+
+void Transport::setLooping(bool shouldLoop) {
+    looping.store(shouldLoop, std::memory_order_relaxed);
+}
+
+void Transport::setLoopRegion(double startSamples, double endSamples) {
+    loopStartSamples.store(startSamples, std::memory_order_relaxed);
+    loopEndSamples.store(endSamples, std::memory_order_relaxed);
+}
+
+double Transport::getLoopStartSamples() const {
+    return loopStartSamples.load(std::memory_order_relaxed);
+}
+
+double Transport::getLoopEndSamples() const {
+    return loopEndSamples.load(std::memory_order_relaxed);
+}
+
 double Transport::getSampleRate() const {
     return sampleRate.load(std::memory_order_relaxed);
 }
@@ -69,11 +91,16 @@ void Transport::setTimeSignature(int numerator, int denominator) {
 
 void Transport::advancePosition(int numSamples) {
     if (isPlaying()) {
-        // We use fetch_add to safely advance the clock lock-free
-        // Note: fetch_add on double is not natively supported in std::atomic before C++20,
-        // but C++20 standardizes std::atomic<float> and std::atomic<double>.
-        // Since we target C++20, this is perfectly valid.
-        currentPosition.fetch_add(static_cast<double>(numSamples), std::memory_order_relaxed);
+        double oldPos = currentPosition.load(std::memory_order_relaxed);
+        double newPos = oldPos + static_cast<double>(numSamples);
+        if (looping.load(std::memory_order_relaxed)) {
+            double endPos = loopEndSamples.load(std::memory_order_relaxed);
+            double startPos = loopStartSamples.load(std::memory_order_relaxed);
+            if (endPos > startPos && oldPos < endPos && newPos >= endPos) {
+                newPos = startPos + (newPos - endPos);
+            }
+        }
+        currentPosition.store(newPos, std::memory_order_relaxed);
     }
 }
 

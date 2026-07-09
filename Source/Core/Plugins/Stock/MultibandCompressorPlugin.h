@@ -26,11 +26,12 @@ public:
     void processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) override;
 
     struct BandParams {
-        std::atomic<float> threshold{-20.0f};
-        std::atomic<float> ratio{2.0f};
+        std::atomic<float> threshold{-40.0f};
+        std::atomic<float> ratio{4.0f};
         std::atomic<float> attack{10.0f};
         std::atomic<float> release{100.0f};
         std::atomic<float> gainDb{0.0f};
+        std::atomic<float> currentGR{0.0f};
     };
 
     BandParams& getBand(int index) { return bands[index]; } // 0=Low, 1=Mid, 2=High

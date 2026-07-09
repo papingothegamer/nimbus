@@ -13,6 +13,7 @@ struct Iconography {
     static const inline juce::String Record = "record_svg";
     static const inline juce::String RecordGlobal = "recordglobal_svg";
     static const inline juce::String Loop = "loop_svg";
+    static const inline juce::String LoopOff = "loopoff_svg";
     static const inline juce::String Metronome = "metronometick_svg";
     static const inline juce::String Follow = "arrowrightthick_svg";
 
