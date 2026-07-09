@@ -43,86 +43,90 @@ public:
     
     void paint(juce::Graphics& g) override {
         if (node == nullptr) return;
-        auto bounds = getLocalBounds().reduced(2).toFloat();
+        auto bounds = getLocalBounds().toFloat();
         bool isBypassed = false;
+        
         if (auto* vst = dynamic_cast<PluginNode*>(node)) isBypassed = vst->isBypassed();
         else if (auto* stock = dynamic_cast<IStockPlugin*>(node)) isBypassed = stock->isBypassed();
         
-        // Main Device Background
-        g.setColour(DesignSystem::Colors::ModuleBackground.darker(0.05f));
-        g.fillRoundedRectangle(bounds, 4.0f);
+        // Sleek Main Background
+        g.setColour(isBypassed ? DesignSystem::Colors::AppBackground.brighter(0.02f) 
+                               : DesignSystem::Colors::ModuleBackground);
+        g.fillRoundedRectangle(bounds, 6.0f);
         
-        // Header Background (Darker/tinted title bar)
-        auto headerBounds = bounds.removeFromTop(22.0f);
-        g.setColour(isBypassed ? DesignSystem::Colors::ComponentBackground.darker(0.1f) : DesignSystem::Colors::ComponentBackground.brighter(0.1f));
-        g.fillRoundedRectangle(headerBounds.getX(), headerBounds.getY(), headerBounds.getWidth(), headerBounds.getHeight(), 4.0f);
-        g.fillRect(headerBounds.getX(), headerBounds.getBottom() - 2.0f, headerBounds.getWidth(), 2.0f); // Square bottom corners
+        // Header Area
+        auto headerBounds = bounds.removeFromTop(26.0f);
+        g.setColour(isBypassed ? DesignSystem::Colors::ComponentBackground 
+                               : DesignSystem::Colors::ModuleBackground.brighter(0.12f));
+        g.fillRoundedRectangle(headerBounds.getX(), headerBounds.getY(), headerBounds.getWidth(), headerBounds.getHeight(), 6.0f);
+        // Square off bottom corners to connect seamlessly with the body
+        g.fillRect(headerBounds.getX(), headerBounds.getBottom() - 3.0f, headerBounds.getWidth(), 3.0f);
+        
+        // Subtle Header Divider
+        g.setColour(DesignSystem::Colors::ComponentBorder.withAlpha(0.4f));
+        g.fillRect(headerBounds.getX(), headerBounds.getBottom() - 1.0f, headerBounds.getWidth(), 1.0f);
         
         // Outer Border
-        g.setColour(DesignSystem::Colors::ComponentBorder);
-        g.drawRoundedRectangle(bounds, 4.0f, 1.0f);
+        g.setColour(DesignSystem::Colors::ComponentBorder.withAlpha(isBypassed ? 0.3f : 0.8f));
+        g.drawRoundedRectangle(getLocalBounds().toFloat(), 6.0f, 1.0f);
 
-        // Bypass toggle (Ableton style small square in top left)
-        juce::Rectangle<float> bypassRect(headerBounds.getX() + 6.0f, headerBounds.getY() + 5.0f, 12.0f, 12.0f);
+        // Bypass Toggle (Left)
+        juce::Rectangle<float> bypassRect(headerBounds.getX() + 8.0f, headerBounds.getY() + 7.0f, 12.0f, 12.0f);
         if (!isBypassed) {
-            g.setColour(juce::Colours::yellow.withAlpha(0.9f));
-            g.fillRoundedRectangle(bypassRect, 2.0f);
+            g.setColour(juce::Colours::orange.withAlpha(0.9f));
+            g.fillRoundedRectangle(bypassRect, 3.0f);
         } else {
             g.setColour(DesignSystem::Colors::ComponentBackground.darker(0.2f));
-            g.fillRoundedRectangle(bypassRect, 2.0f);
+            g.fillRoundedRectangle(bypassRect, 3.0f);
             g.setColour(DesignSystem::Colors::ComponentBorder);
-            g.drawRoundedRectangle(bypassRect, 2.0f, 1.0f);
+            g.drawRoundedRectangle(bypassRect, 3.0f, 1.0f);
         }
 
         // Header Content - Plugin Name
         g.setColour(isBypassed ? DesignSystem::Colors::TextSecondary : DesignSystem::Colors::TextPrimary);
-        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(11.0f).withStyle(juce::Font::bold));
-        g.drawText(name.toUpperCase(), headerBounds.withTrimmedLeft(24).withTrimmedRight(40), juce::Justification::centredLeft, true);
+        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f).withStyle(juce::Font::bold));
+        // Ensure name isn't converted to full uppercase for a cleaner, modern look
+        g.drawText(name, headerBounds.withTrimmedLeft(28).withTrimmedRight(48), juce::Justification::centredLeft, true);
         
-        // Settings Icon (Wrench/Gear equivalent)
-        juce::Rectangle<float> settingsRect(headerBounds.getRight() - 36.0f, headerBounds.getY() + 4.0f, 14.0f, 14.0f);
+        // Settings Icon
+        juce::Rectangle<float> settingsRect(headerBounds.getRight() - 40.0f, headerBounds.getY() + 6.0f, 14.0f, 14.0f);
         if (settingsIcon) {
-            settingsIcon->setAlpha(isBypassed ? 0.5f : 0.8f);
+            settingsIcon->setAlpha(isBypassed ? 0.4f : 0.8f);
             settingsIcon->drawWithin(g, settingsRect, juce::RectanglePlacement::centred, 1.0f);
         }
         
-        // Delete Icon (X)
-        juce::Rectangle<float> deleteRect(headerBounds.getRight() - 18.0f, headerBounds.getY() + 4.0f, 14.0f, 14.0f);
+        // Delete Icon
+        juce::Rectangle<float> deleteRect(headerBounds.getRight() - 22.0f, headerBounds.getY() + 6.0f, 14.0f, 14.0f);
         if (deleteIcon) {
-            deleteIcon->setAlpha(isBypassed ? 0.5f : 0.8f);
+            deleteIcon->setAlpha(isBypassed ? 0.4f : 0.8f);
             deleteIcon->drawWithin(g, deleteRect, juce::RectanglePlacement::centred, 1.0f);
         }
         
         // Body Design
-        auto bodyBounds = bounds; // already has header removed
+        auto bodyBounds = bounds;
         
         if (!isBypassed) {
-            if (embeddedEditor) {
-                // If it's a stock plugin, we don't draw the generic macro area.
-                // The editor is already positioned in resized().
-            } else {
-                // Ableton style generic macro area
-            auto iconBounds = bodyBounds.removeFromTop(40).reduced(10);
-            if (deviceIcon) {
-                deviceIcon->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
-                deviceIcon->setAlpha(0.3f);
-                deviceIcon->drawWithin(g, iconBounds, juce::RectanglePlacement::centred, 1.0f);
-            }
+            if (!embeddedEditor) {
+                // Sleek minimalist XY pad styling
+                auto paramArea = bodyBounds.reduced(12.0f);
+                g.setColour(DesignSystem::Colors::ComponentBackground.darker(0.15f));
+                g.fillRoundedRectangle(paramArea, 4.0f);
 
-            // Draw some generic minimalist "XY pad" or blank parameter space
-            g.setColour(DesignSystem::Colors::ComponentBackground.darker(0.1f));
-            auto paramArea = bodyBounds.reduced(8);
-            g.fillRoundedRectangle(paramArea, 3.0f);
-            g.setColour(DesignSystem::Colors::ComponentBorder.withAlpha(0.5f));
-            g.drawRoundedRectangle(paramArea, 3.0f, 1.0f);
-            
-            g.setColour(DesignSystem::Colors::TextSecondary.withAlpha(0.4f));
-            g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(10.0f));
-            g.drawText("Open GUI to edit", paramArea, juce::Justification::centred, false);
-            
+                // Crosshairs
+                g.setColour(DesignSystem::Colors::ComponentBorder.withAlpha(0.15f));
+                g.fillRect(paramArea.getCentreX() - 0.5f, paramArea.getY(), 1.0f, paramArea.getHeight());
+                g.fillRect(paramArea.getX(), paramArea.getCentreY() - 0.5f, paramArea.getWidth(), 1.0f);
+                
+                g.setColour(DesignSystem::Colors::ComponentBorder.withAlpha(0.4f));
+                g.drawRoundedRectangle(paramArea, 4.0f, 1.0f);
+                
+                if (deviceIcon) {
+                    deviceIcon->setAlpha(0.2f);
+                    deviceIcon->drawWithin(g, paramArea.withSizeKeepingCentre(24, 24), juce::RectanglePlacement::centred, 1.0f);
+                }
             }
         } else {
-            g.setColour(DesignSystem::Colors::TextSecondary.withAlpha(0.4f));
+            g.setColour(DesignSystem::Colors::TextSecondary.withAlpha(0.5f));
             g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f).withStyle(juce::Font::italic));
             g.drawText("Bypassed", bodyBounds, juce::Justification::centred, false);
         }
@@ -139,12 +143,12 @@ public:
     void mouseDown(const juce::MouseEvent& e) override {
         if (node == nullptr) return;
         auto bounds = getLocalBounds().reduced(2);
-        auto headerBounds = bounds.removeFromTop(24);
+        auto headerBounds = bounds.removeFromTop(26); // Match new header size
         
-        juce::Rectangle<int> bypassRect(headerBounds.getX() + 6, headerBounds.getY() + 5, 12, 12);
-        juce::Rectangle<int> settingsRect(headerBounds.getRight() - 36, headerBounds.getY() + 4, 14, 14);
-        juce::Rectangle<int> deleteRect(headerBounds.getRight() - 18, headerBounds.getY() + 4, 14, 14);
-        
+        // Updated Click Zones
+        juce::Rectangle<int> bypassRect(headerBounds.getX() + 8, headerBounds.getY() + 7, 12, 12);
+        juce::Rectangle<int> settingsRect(headerBounds.getRight() - 40, headerBounds.getY() + 6, 14, 14);
+        juce::Rectangle<int> deleteRect(headerBounds.getRight() - 22, headerBounds.getY() + 6, 14, 14);
         if (bypassRect.contains(e.getPosition())) {
             if (auto* vst = dynamic_cast<PluginNode*>(node)) vst->setBypassed(!vst->isBypassed());
             else if (auto* stock = dynamic_cast<IStockPlugin*>(node)) stock->setBypassed(!stock->isBypassed());
@@ -366,11 +370,12 @@ void DeviceChainComponent::mouseDown(const juce::MouseEvent& e) {
 void DeviceChainComponent::resized() {
     viewport.setBounds(getLocalBounds());
     
-    int x = 5;
+    int x = 10; // Increased left margin
     for (auto& box : pluginBoxes) {
-        int w = box->getEditorWidth() > 0 ? box->getEditorWidth() + 4 : 140;
-        box->setBounds(x, 5, w, viewport.getHeight() - 10 - viewport.getScrollBarThickness());
-        x += w + 5;
+        // Increased default width for a better aspect ratio
+        int w = box->getEditorWidth() > 0 ? box->getEditorWidth() + 4 : 160; 
+        box->setBounds(x, 10, w, viewport.getHeight() - 20 - viewport.getScrollBarThickness());
+        x += w + 8; // Wider gap between plugins
     }
     
     content.setBounds(0, 0, x, viewport.getHeight() - viewport.getScrollBarThickness());

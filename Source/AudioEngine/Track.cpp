@@ -37,7 +37,9 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
         return;
     }
 
-    trackBuffer.setSize(2, buffer.getNumSamples(), true, false, true);
+// FIX: Set avoidReallocating to false (the last parameter).
+    // This guarantees the buffer sizes correctly even if dynamically added mid-playback.
+    trackBuffer.setSize(2, buffer.getNumSamples(), false, false, false);
     trackBuffer.clear();
     trackMidiBuffer.clear();
 
