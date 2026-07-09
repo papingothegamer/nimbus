@@ -62,6 +62,27 @@ void PianoRollTimelineComponent::paint(juce::Graphics& g) {
             }
         }
     }
+    
+    // Draw playhead
+    if (engine.getTransport().isPlaying()) {
+        double positionSamples = engine.getTransport().getCurrentPosition();
+        
+        double clipGlobalStart = currentClip->getStartSample();
+        double clipGlobalEnd = clipGlobalStart + currentClip->getLengthSamples();
+        
+        if (positionSamples >= clipGlobalStart && positionSamples <= clipGlobalEnd) {
+            double timeIntoClip = (positionSamples - clipGlobalStart) / sampleRate;
+            double pixelsPerSecond = 100.0;
+            float px = keyWidth + static_cast<float>(timeIntoClip * pixelsPerSecond);
+            
+            g.setColour(DesignSystem::Colors::PrimaryAction);
+            g.drawVerticalLine(static_cast<int>(px), 0.0f, static_cast<float>(getHeight()));
+            
+            juce::Path p;
+            p.addTriangle(px - 5.0f, 0.0f, px + 5.0f, 0.0f, px, 8.0f);
+            g.fillPath(p);
+        }
+    }
 }
 
 } // namespace Nimbus::DetailView

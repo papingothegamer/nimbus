@@ -85,6 +85,33 @@ void AudioClipContent::paint(juce::Graphics& g) {
         g.setColour(DesignSystem::Colors::TextSecondary);
         g.drawText("Loading waveform...", getLocalBounds(), juce::Justification::centred, true);
     }
+    
+    // Draw playhead
+    if (engine.getTransport().isPlaying()) {
+        double positionSamples = engine.getTransport().getCurrentPosition();
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0.0) sampleRate = 48000.0;
+        
+        double clipGlobalStart = currentClip->getStartSample();
+        double clipGlobalEnd = clipGlobalStart + currentClip->getLengthSamples();
+        
+        if (positionSamples >= clipGlobalStart && positionSamples <= clipGlobalEnd) {
+            double timeIntoClip = (positionSamples - clipGlobalStart) / sampleRate;
+            double sourceSecs = (currentClip->getSourceOffsetSamples() / sampleRate) + timeIntoClip;
+            
+            float px = 0.0f;
+            if (thumbnail.getTotalLength() > 0.0) {
+                px = static_cast<float>((sourceSecs / thumbnail.getTotalLength()) * getWidth());
+            }
+            
+            g.setColour(DesignSystem::Colors::PrimaryAction);
+            g.drawVerticalLine(static_cast<int>(px), 0.0f, static_cast<float>(getHeight()));
+            
+            juce::Path p;
+            p.addTriangle(px - 5.0f, 0.0f, px + 5.0f, 0.0f, px, 8.0f);
+            g.fillPath(p);
+        }
+    }
 }
 
 void AudioClipContent::changeListenerCallback(juce::ChangeBroadcaster* source) {

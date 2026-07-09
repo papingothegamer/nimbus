@@ -147,6 +147,25 @@ void PianoRollContent::paint(juce::Graphics& g) {
             g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.5f));
             g.drawRect(marqueeRect, 1.0f);
         }
+        
+        // Draw playhead
+        if (currentClip && engine.getTransport().isPlaying()) {
+            double positionSamples = engine.getTransport().getCurrentPosition();
+            double sampleRate = engine.getTransport().getSampleRate();
+            if (sampleRate <= 0.0) sampleRate = 48000.0;
+            
+            double clipGlobalStart = currentClip->getStartSample();
+            double clipGlobalEnd = clipGlobalStart + currentClip->getLengthSamples();
+            
+            if (positionSamples >= clipGlobalStart && positionSamples <= clipGlobalEnd) {
+                double timeIntoClip = (positionSamples - clipGlobalStart) / sampleRate;
+                double pixelsPerSecond = 100.0;
+                float px = keyWidth + static_cast<float>(timeIntoClip * pixelsPerSecond);
+                
+                g.setColour(DesignSystem::Colors::PrimaryAction);
+                g.drawVerticalLine(static_cast<int>(px), 0.0f, static_cast<float>(getHeight()));
+            }
+        }
     }
 }
 
@@ -155,6 +174,50 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
     
     draggedEventIndex = -1;
     isResizing = false;
+    isDraggingVelocity = false;
+    
+    int contentHeight = 128 * keyHeight;
+    int vx = 0;
+    if (auto* vp = findParentComponentOfClass<juce::Viewport>()) {
+        contentHeight = vp->getViewPositionY() + vp->getHeight() - velocityLaneHeight;
+        vx = vp->getViewPositionX();
+    }
+    
+    if (velocityVisible && event.y > contentHeight) {
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0) sampleRate = 48000.0;
+        double pixelsPerSecond = 100.0;
+        
+        for (int i = 0; i < currentClip->getSequence().getNumEvents(); ++i) {
+            auto* evt = currentClip->getSequence().getEventPointer(i);
+            if (evt->message.isNoteOn()) {
+                double noteStart = evt->message.getTimeStamp();
+                float x = keyWidth + static_cast<float>((noteStart / sampleRate) * pixelsPerSecond);
+                if (std::abs(event.x - x) <= 4.0f) {
+                    draggedEventIndex = i;
+                    isDraggingVelocity = true;
+                    if (!event.mods.isShiftDown() && !event.mods.isCommandDown()) {
+                        selectedEventIndices.clear();
+                    }
+                    selectedEventIndices.addIfNotAlreadyThere(i);
+                    break;
+                }
+            }
+        }
+        
+        if (draggedEventIndex != -1) {
+            float vel = juce::jlimit(0.0f, 1.0f, 1.0f - static_cast<float>(event.y - contentHeight) / velocityLaneHeight);
+            for (int idx : selectedEventIndices) {
+                auto* evt = currentClip->getSequence().getEventPointer(idx);
+                if (evt && evt->message.isNoteOn()) {
+                    evt->message.setVelocity(vel);
+                }
+            }
+            engine.getTimelineProject().notifyClipModified();
+            repaint();
+        }
+        return;
+    }
     
     if (auto* vp = findParentComponentOfClass<juce::Viewport>()) {
         int vx = vp->getViewPositionX();
@@ -279,25 +342,6 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
             }
             return;
         }
-    }
-    
-    int contentHeight = 128 * keyHeight;
-    if (auto* vp = findParentComponentOfClass<juce::Viewport>()) {
-        contentHeight = vp->getViewPositionY() + vp->getHeight() - velocityLaneHeight;
-    }
-    
-    if (velocityVisible && event.y > contentHeight) {
-        // We clicked in velocity lane
-        if (draggedEventIndex != -1) {
-            selectedEventIndices.addIfNotAlreadyThere(draggedEventIndex);
-            
-            // Adjust velocity immediately
-            float vel = juce::jlimit(0.0f, 1.0f, 1.0f - static_cast<float>(event.y - contentHeight) / velocityLaneHeight);
-            currentClip->getSequence().getEventPointer(draggedEventIndex)->message.setVelocity(vel);
-            engine.getTimelineProject().notifyClipModified();
-            repaint();
-        }
-        return;
     }
 
     if (currentTool == Tool::Pointer) {

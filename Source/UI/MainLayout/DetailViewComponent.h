@@ -10,7 +10,7 @@
 
 namespace Nimbus::MainLayout {
 
-class DetailViewComponent : public juce::Component, public TimelineProject::Listener {
+class DetailViewComponent : public juce::Component, public TimelineProject::Listener, private juce::Timer {
 public:
     DetailViewComponent(NimbusEngine& engine);
     ~DetailViewComponent() override;
@@ -23,6 +23,8 @@ public:
     void trackRemoved(int trackIndex) override;
     void trackSelectionChanged() override;
     void selectedClipChanged() override;
+    
+    void timerCallback() override;
 
 private:
     NimbusEngine& engine;

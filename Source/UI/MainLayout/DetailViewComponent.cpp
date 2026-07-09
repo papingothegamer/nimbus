@@ -33,6 +33,8 @@ DetailViewComponent::DetailViewComponent(NimbusEngine& e) : engine(e), pianoRoll
     placeholderLabel.setVisible(true);
     
     engine.getTimelineProject().addListener(this);
+    
+    startTimerHz(60);
     juce::Logger::writeToLog("DetailViewComponent constructor end");
 }
 
@@ -68,7 +70,7 @@ void DetailViewComponent::resized() {
     } else {
         deviceChain.setVisible(false);
         
-        int propsWidth = 260;
+        int propsWidth = 180;
         clipProperties.setBounds(area.removeFromLeft(propsWidth));
         
         auto timelineArea = area.removeFromTop(20);
@@ -82,6 +84,14 @@ void DetailViewComponent::resized() {
 
 void DetailViewComponent::trackAdded(int trackIndex, const TrackModel& track) {}
 void DetailViewComponent::trackRemoved(int trackIndex) {}
+
+void DetailViewComponent::timerCallback() {
+    if (!showDeviceView && engine.getTransport().isPlaying() && engine.isFollowPlayheadEnabled()) {
+        pianoRollTimeline.repaint();
+        pianoRoll.repaint();
+        audioClipView.repaint();
+    }
+}
 
 void DetailViewComponent::trackSelectionChanged() {
     if (showDeviceView) {
