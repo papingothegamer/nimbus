@@ -123,6 +123,7 @@ target_sources(Nimbus PRIVATE
     Source/UI/Timeline/ClipComponent.cpp
     Source/UI/Timeline/ClipComponent.h
     Source/UI/DesignSystem/Colors.h
+    Source/UI/DesignSystem/ThemeManager.h
     Source/UI/DesignSystem/Typography.h
     Source/UI/DesignSystem/NimbusLookAndFeel.cpp
     Source/UI/DesignSystem/NimbusLookAndFeel.h
@@ -132,6 +133,8 @@ target_sources(Nimbus PRIVATE
     Source/UI/MainLayout/SideBrowserComponent.h
     Source/UI/MainLayout/BottomMixerComponent.cpp
     Source/UI/MainLayout/BottomMixerComponent.h
+    Source/UI/MainLayout/MainBottomPanelWrapper.cpp
+    Source/UI/MainLayout/MainBottomPanelWrapper.h
     Source/UI/MainLayout/ChannelStripComponent.cpp
     Source/UI/MainLayout/ChannelStripComponent.h
     Source/UI/MainLayout/DetailViewComponent.cpp

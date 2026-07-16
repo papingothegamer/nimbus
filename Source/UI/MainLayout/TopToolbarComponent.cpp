@@ -26,14 +26,22 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         btn.setWantsKeyboardFocus(false);
     };
 
-    // Setup left section
+
+    // --- Row 2 Structural Group Enclosures ---
+    addAndMakeVisible(transportGroupContainer);
+    addAndMakeVisible(toolsGroupContainer);
+    addAndMakeVisible(actionGroupContainer);
+
+    // Setup action group buttons
     setupIconBtn(undoButton);
     setupIconBtn(redoButton);
-    addAndMakeVisible(undoButton);
-    addAndMakeVisible(redoButton);
+    setupIconBtn(saveProjectButton);
+    actionGroupContainer.addAndMakeVisible(undoButton);
+    actionGroupContainer.addAndMakeVisible(redoButton);
+    actionGroupContainer.addAndMakeVisible(saveProjectButton);
     
     projectNameLabel.setJustificationType(juce::Justification::centredLeft);
-    projectNameLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f).boldened());
+    projectNameLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(13.0f).boldened());
     projectNameLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
     projectNameLabel.setEditable(true);
     projectNameLabel.onTextChange = [this]() {
@@ -41,14 +49,11 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     };
     addAndMakeVisible(projectNameLabel);
 
-    setupIconBtn(saveProjectButton);
-    addAndMakeVisible(saveProjectButton);
-
-    // Setup Zoom
+    // Setup Tools Group (Zoom + Core Modifiers)
     setupIconBtn(zoomOutButton);
     setupIconBtn(zoomInButton);
-    addAndMakeVisible(zoomOutButton);
-    addAndMakeVisible(zoomInButton);
+    toolsGroupContainer.addAndMakeVisible(zoomOutButton);
+    toolsGroupContainer.addAndMakeVisible(zoomInButton);
     
     zoomLevelLabel.setText("100%", juce::dontSendNotification);
     zoomLevelLabel.setJustificationType(juce::Justification::centred);
@@ -63,24 +68,28 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         currentZoom = zoom;
         zoomLevelLabel.setText(juce::String(currentZoom) + "%", juce::dontSendNotification);
     };
-    addAndMakeVisible(zoomLevelLabel);
+    toolsGroupContainer.addAndMakeVisible(zoomLevelLabel);
 
-    // Setup Transport
+    // Setup Transport Group Buttons
     setupIconBtn(pauseButton);
     setupIconBtn(playButton);
     setupIconBtn(stopButton);
     setupIconBtn(jumpStartButton);
     setupIconBtn(jumpEndButton);
     setupIconBtn(recordButton);
+    setupIconBtn(loopButton);
+    setupIconBtn(metronomeToggle);
+
+    transportGroupContainer.addAndMakeVisible(pauseButton);
+    transportGroupContainer.addAndMakeVisible(playButton);
+    transportGroupContainer.addAndMakeVisible(stopButton);
+    transportGroupContainer.addAndMakeVisible(jumpStartButton);
+    transportGroupContainer.addAndMakeVisible(jumpEndButton);
+    transportGroupContainer.addAndMakeVisible(recordButton);
+    transportGroupContainer.addAndMakeVisible(loopButton);
+    transportGroupContainer.addAndMakeVisible(metronomeToggle);
     
-    addAndMakeVisible(pauseButton);
-    addAndMakeVisible(playButton);
-    addAndMakeVisible(stopButton);
-    addAndMakeVisible(jumpStartButton);
-    addAndMakeVisible(jumpEndButton);
-    addAndMakeVisible(recordButton);
-    
-    // Setup Displays
+    // Setup Right Displays & Layout Utilities
     addAndMakeVisible(barsDisplay);
     addAndMakeVisible(timeDisplay);
     addAndMakeVisible(bpmDisplay);
@@ -110,18 +119,12 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         }
     };
 
-
-
-    setupIconBtn(loopButton);
     loopButton.setClickingTogglesState(true);
     loopButton.onClick = [this]() {
         engine.getTransport().setLooping(loopButton.getToggleState());
     };
     
-    setupIconBtn(metronomeToggle);
     metronomeToggle.setClickingTogglesState(true);
-    addAndMakeVisible(loopButton);
-    addAndMakeVisible(metronomeToggle);
 
     setupIconBtn(followButton);
     followButton.setClickingTogglesState(true);
@@ -141,7 +144,6 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         if (onDetailToggle) onDetailToggle();
     };
     mixerToggle.setClickingTogglesState(true);
-    // settingsButton doesn't toggle state, it probably opens a menu
     
     addAndMakeVisible(pianoRollToggle);
     addAndMakeVisible(mixerToggle);
@@ -152,7 +154,7 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     cpuLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextSecondary);
     addAndMakeVisible(cpuLabel);
 
-    // Actions
+    // Dynamic Engine Callbacks
     zoomOutButton.onClick = [this]() {
         currentZoom = juce::jlimit(10, 500, currentZoom - 10);
         zoomLevelLabel.setText(juce::String(currentZoom) + "%", juce::dontSendNotification);
@@ -169,7 +171,7 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         chooser.launchAsync(flags, [this](const juce::FileChooser& fc) {
             juce::File result = fc.getResult();
             if (result.isDirectory()) {
-                // Future implementation of save logic
+                // Save validation logic here
             }
         });
     };
@@ -188,7 +190,7 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     };
     pauseButton.onClick = [this]() {
         if (engine.getTransport().isPlaying()) {
-            engine.getTransport().stop(); // Or pause if engine supports it
+            engine.getTransport().stop();
         }
     };
     playButton.onClick = [this]() {
@@ -202,16 +204,15 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     };
     recordButton.onClick = [this]() {
         if (engine.getTransport().isRecording()) {
-            engine.getTransport().stopRecording();
+            engine.stopRecording();
         } else {
-            engine.getTransport().record();
+            engine.startRecording();
         }
     };
     jumpStartButton.onClick = [this]() {
         engine.getTransport().setPosition(0.0);
     };
     jumpEndButton.onClick = [this]() {
-        // Find end of project and jump there (or just far right)
         engine.getTransport().setPosition(engine.getTimelineProject().getTotalDurationSamples());
     };
     
@@ -222,73 +223,79 @@ TopToolbarComponent::~TopToolbarComponent() {}
 
 void TopToolbarComponent::paint(juce::Graphics& g) {
     g.fillAll(DesignSystem::Colors::PanelBackground);
-    
-    // Bottom border
-    g.setColour(DesignSystem::Colors::Divider);
-    g.fillRect(0, getHeight() - 1, getWidth(), 1);
 
-    // Group separators
-    int centerX = getWidth() / 2;
-    g.setColour(DesignSystem::Colors::Divider.withAlpha(0.5f));
+    // Tier 1 — Top Menu Bar filling
+    g.setColour(DesignSystem::Colors::ModuleBackground);
+    g.fillRect(0, 0, getWidth(), 28);
     
-    // Zoom / Transport separator
-    g.fillRect(centerX - 260, 8, 1, getHeight() - 16);
-    
-    // Transport / Time Displays separator
-    g.fillRect(centerX - 105, 8, 1, getHeight() - 16);
-    
-    // Time Displays / Tempo separator
-    g.fillRect(centerX + 65, 8, 1, getHeight() - 16);
-    
-    // Tempo / Toggles separator
-    g.fillRect(centerX + 235, 8, 1, getHeight() - 16);
+    g.setColour(DesignSystem::Colors::TextPrimary);
+    g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f));
+    g.drawText("File     Edit     Select     View     Record     Tracks     Generate     Effect     Analyze     Tools     Extra     Help",
+               12, 0, getWidth() - 300, 28, juce::Justification::centredLeft, false);
+
+    // Subtle Tier Separation lines
+    g.setColour(DesignSystem::Colors::Divider.withAlpha(0.7f));
+    g.fillRect(0, 28, getWidth(), 1);
+    g.fillRect(0, getHeight() - 1, getWidth(), 1);
 }
 
 void TopToolbarComponent::resized() {
-    auto bounds = getLocalBounds().reduced(8, 4);
-    int groupHeight = bounds.getHeight();
+    auto bounds = getLocalBounds();
     
-    // Left section
-    undoButton.setBounds(10, 4, 24, groupHeight);
-    redoButton.setBounds(38, 4, 24, groupHeight);
-    projectNameLabel.setBounds(70, 0, 150, getHeight());
-    saveProjectButton.setBounds(225, 8, 24, 24);
-    
-    int centerX = getWidth() / 2;
-    
-    // Center-Left: Zoom
-    zoomOutButton.setBounds(centerX - 335, 4, 24, groupHeight);
-    zoomLevelLabel.setBounds(centerX - 311, 4, 40, groupHeight);
-    zoomInButton.setBounds(centerX - 271, 4, 24, groupHeight);
-    
-    // Center: Transport (Audacity layout: Pause, Play, Stop, Skip Start, Skip End, Record)
-    pauseButton.setBounds(centerX - 270, 4, 24, groupHeight);
-    playButton.setBounds(centerX - 242, 4, 24, groupHeight);
-    stopButton.setBounds(centerX - 214, 4, 24, groupHeight);
-    jumpStartButton.setBounds(centerX - 186, 4, 24, groupHeight);
-    jumpEndButton.setBounds(centerX - 158, 4, 24, groupHeight);
-    recordButton.setBounds(centerX - 130, 4, 24, groupHeight);
+    // Tier 1 layout allocations
+    auto topStrip = bounds.removeFromTop(28);
+    workspaceLabel.setBounds(topStrip.removeFromRight(140).reduced(4, 0));
+    shareButton.setBounds(topStrip.removeFromRight(70).reduced(2, 3));
+    audioSetupButton.setBounds(topStrip.removeFromRight(95).reduced(2, 3));
 
-    // Center: Displays
-    barsDisplay.setBounds(centerX - 95, 2, 75, 36);
-    timeDisplay.setBounds(centerX - 15, 2, 70, 36);
+    // Space buffer allocation between rows
+    bounds.removeFromTop(6);
+    auto lowerRow = bounds.reduced(8, 2);
 
-    // Center-Right: Tempo and Sig
-    bpmDisplay.setBounds(centerX + 65, 2, 60, 36);
-    sigDisplay.setBounds(centerX + 135, 2, 45, 36);
+    constexpr auto targetButtonSize = 30;
 
-    // Far-Right: Toggles
-    loopButton.setBounds(centerX + 195, 4, 24, groupHeight);
-    metronomeToggle.setBounds(centerX + 223, 4, 24, groupHeight);
+    // Row 2 Group Layout Allocations using standard FlexBoxes[cite: 3]
+    juce::FlexBox actionLayout;
+    actionGroupContainer.setBounds(lowerRow.removeFromLeft(90).withHeight(targetButtonSize));
+    actionLayout.flexDirection = juce::FlexBox::Direction::row;
+    actionLayout.items.add(juce::FlexItem(undoButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
+    actionLayout.items.add(juce::FlexItem(redoButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
+    actionLayout.items.add(juce::FlexItem(saveProjectButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
+    actionLayout.performLayout(actionGroupContainer.getLocalBounds().toFloat());
+
+    lowerRow.removeFromLeft(8);
+
+    juce::FlexBox transportLayout;
+    transportGroupContainer.setBounds(lowerRow.removeFromLeft(8 * targetButtonSize).withHeight(targetButtonSize));
+    transportLayout.flexDirection = juce::FlexBox::Direction::row;
+    for (auto* button : { &pauseButton, &playButton, &stopButton, &jumpStartButton, &jumpEndButton, &recordButton, &loopButton, &metronomeToggle })
+        transportLayout.items.add(juce::FlexItem(*button).withWidth(targetButtonSize).withHeight(targetButtonSize));
+    transportLayout.performLayout(transportGroupContainer.getLocalBounds().toFloat());
+
+    lowerRow.removeFromLeft(8);
+
+    juce::FlexBox toolsLayout;
+    toolsGroupContainer.setBounds(lowerRow.removeFromLeft(120).withHeight(targetButtonSize));
+    toolsLayout.flexDirection = juce::FlexBox::Direction::row;
+    toolsLayout.items.add(juce::FlexItem(zoomOutButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
+    toolsLayout.items.add(juce::FlexItem(zoomLevelLabel).withWidth(60).withHeight(targetButtonSize));
+    toolsLayout.items.add(juce::FlexItem(zoomInButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
+    toolsLayout.performLayout(toolsGroupContainer.getLocalBounds().toFloat());
+
+    lowerRow.removeFromLeft(8);
+    projectNameLabel.setBounds(lowerRow.removeFromLeft(140).withHeight(targetButtonSize));
+
+    // Far Right Utility Alignments[cite: 3]
+    barsDisplay.setBounds(lowerRow.removeFromRight(82).withHeight(36).withY(30));
+    timeDisplay.setBounds(lowerRow.removeFromRight(138).withHeight(36).withY(30));
+    sigDisplay.setBounds(lowerRow.removeFromRight(52).withHeight(36).withY(30));
+    bpmDisplay.setBounds(lowerRow.removeFromRight(68).withHeight(36).withY(30));
     
-    // Status right side
-    int rightEdge = getWidth() - 10;
-    cpuLabel.setBounds(rightEdge - 80, 10, 80, 20);
-    settingsButton.setBounds(rightEdge - 110, 8, 24, 24);
-    mixerToggle.setBounds(rightEdge - 138, 8, 24, 24);
-    pianoRollToggle.setBounds(rightEdge - 166, 8, 24, 24);
-    
-    followButton.setBounds(centerX + 305, 4, 24, groupHeight);
+    cpuLabel.setBounds(lowerRow.removeFromRight(86).withHeight(targetButtonSize));
+    settingsButton.setBounds(lowerRow.removeFromRight(targetButtonSize).withHeight(targetButtonSize));
+    mixerToggle.setBounds(lowerRow.removeFromRight(targetButtonSize).withHeight(targetButtonSize));
+    pianoRollToggle.setBounds(lowerRow.removeFromRight(targetButtonSize).withHeight(targetButtonSize));
+    followButton.setBounds(lowerRow.removeFromRight(targetButtonSize).withHeight(targetButtonSize));
 }
 
 void TopToolbarComponent::timerCallback() {
@@ -304,14 +311,14 @@ void TopToolbarComponent::timerCallback() {
     if (sampleRate <= 0.0) sampleRate = 48000.0;
     double posSeconds = posSamples / sampleRate;
     
-    // Time formatting: MM:SS:MS
-    int mins = static_cast<int>(posSeconds) / 60;
-    int secs = static_cast<int>(posSeconds) % 60;
-    int ms = static_cast<int>((posSeconds - std::floor(posSeconds)) * 100);
-    juce::String timeStr = juce::String::formatted("%02d:%02d:%02d", mins, secs, ms);
+    const auto totalSeconds = static_cast<int>(posSeconds);
+    const auto hours = totalSeconds / 3600;
+    const auto mins = (totalSeconds / 60) % 60;
+    const auto secs = totalSeconds % 60;
+    const auto hundredths = static_cast<int>((posSeconds - std::floor(posSeconds)) * 100.0);
+    juce::String timeStr = juce::String::formatted("%02d h %02d m %02d.%02d s", hours, mins, secs, hundredths);
     timeDisplay.setValue(timeStr);
     
-    // Bars formatting: Bar.Beat.Tick (assuming current tempo & sig)
     double tempo = engine.getTransport().getTempo();
     if (tempo <= 0.0) tempo = 120.0;
     

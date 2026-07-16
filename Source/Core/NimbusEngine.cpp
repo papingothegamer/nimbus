@@ -31,11 +31,6 @@ void NimbusEngine::initialise() {
     mixer = mixerPtr.get();
     mainGraph.addNode(std::move(mixerPtr));
 
-    juce::Logger::writeToLog("Engine: Creating DiskStreamer");
-    // 2. Create the main streamer for Phase 4 (test file)
-    juce::File testFile(R"(C:\Users\Laptop\Desktop\X26\EAGLP\export_1726306721135.wav)");
-    mainStreamer = std::make_shared<DiskStreamer>(testFile, formatManager);
-
     juce::Logger::writeToLog("Engine: Initialising Device Manager");
     // 6. Initialize the audio device manager, which will start pulling audio from the graph
     deviceManagerWrapper.initialise();

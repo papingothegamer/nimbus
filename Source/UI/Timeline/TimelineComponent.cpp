@@ -465,7 +465,8 @@ void TimelineComponent::mouseWheelMove(const juce::MouseEvent& event, const juce
 
 bool TimelineComponent::isInterestedInFileDrag(const juce::StringArray& files) {
     for (auto& file : files) {
-        if (file.endsWithIgnoreCase(".wav") || file.endsWithIgnoreCase(".mp3") || 
+        if (file.endsWithIgnoreCase(".wav") || file.endsWithIgnoreCase(".aiff") ||
+            file.endsWithIgnoreCase(".flac") || file.endsWithIgnoreCase(".mp3") ||
             file.endsWithIgnoreCase(".mid") || file.endsWithIgnoreCase(".midi")) {
             return true;
         }
@@ -499,7 +500,8 @@ void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int 
         juce::File file(filePath);
         if (!file.existsAsFile()) continue;
         
-        bool isAudio = file.hasFileExtension(".wav") || file.hasFileExtension(".mp3");
+        bool isAudio = file.hasFileExtension(".wav") || file.hasFileExtension(".aiff") ||
+                       file.hasFileExtension(".flac") || file.hasFileExtension(".mp3");
         bool isMidi = file.hasFileExtension(".mid") || file.hasFileExtension(".midi");
         
         if (!isAudio && !isMidi) continue;

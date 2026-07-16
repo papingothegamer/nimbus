@@ -4,11 +4,10 @@
 #include "Core/NimbusEngine.h"
 #include "UI/MainLayout/TopToolbarComponent.h"
 #include "UI/MainLayout/SideBrowserComponent.h"
-#include "UI/MainLayout/BottomMixerComponent.h"
+#include "UI/MainLayout/MainBottomPanelWrapper.h"
 #include "UI/Timeline/TimelineComponent.h"
 #include "UI/DesignSystem/NimbusLookAndFeel.h"
 #include "UI/PluginWindow.h"
-#include "UI/MainLayout/DetailViewComponent.h"
 
 namespace Nimbus {
 
@@ -58,13 +57,11 @@ public:
         NimbusEngine& engine;
         MainLayout::TopToolbarComponent topToolbar;
         MainLayout::SideBrowserComponent sideBrowser;
-        MainLayout::BottomMixerComponent bottomMixer;
-        MainLayout::DetailViewComponent detailView;
+        MainLayout::MainBottomPanelWrapper bottomPanel;
         TimelineComponent timelineComponent;
 
         bool isBrowserVisible = true;
         bool isBottomPanelVisible = true;
-        bool isDetailViewVisible = false;
 
         MixerResizerBar mixerResizerBar;
         SidebarResizerBar sidebarResizerBar;

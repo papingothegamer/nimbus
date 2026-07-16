@@ -234,7 +234,7 @@ void SettingsMenuComponent::paintListBoxItem(int rowNumber, juce::Graphics& g, i
     if (rowNumber < 0 || rowNumber >= categories.size()) return;
     
     if (rowIsSelected) {
-        g.fillAll(DesignSystem::Colors::PrimaryBase.withAlpha(0.2f));
+        g.fillAll(DesignSystem::Colors::AppBackground.withAlpha(0.2f));
     }
     
     g.setColour(rowIsSelected ? DesignSystem::Colors::TextPrimary : DesignSystem::Colors::TextSecondary);

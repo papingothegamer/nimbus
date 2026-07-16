@@ -15,6 +15,22 @@ TrackLaneComponent::~TrackLaneComponent() {
 
 void TrackLaneComponent::paint(juce::Graphics& g) {
     g.fillAll(DesignSystem::Colors::PanelBackground);
+
+    // The parent component is painted behind this lane, so the arrangement
+    // grid must be rendered here to remain visible above the lane background.
+    const auto tempo = juce::jmax(1.0, engine.getTransport().getTempo());
+    const auto pixelsPerBeat = timeline.getPixelsPerSecond() * (60.0 / tempo);
+    if (pixelsPerBeat >= 1.0) {
+        const auto scrollX = timeline.getScrollOffsetX();
+        const auto firstBeatX = -std::fmod(scrollX, pixelsPerBeat);
+        for (double x = firstBeatX; x < getWidth(); x += pixelsPerBeat) {
+            if (x < 0.0) continue;
+            const auto beat = static_cast<int>(std::floor((x + scrollX) / pixelsPerBeat));
+            const auto isBar = (beat % 4) == 0;
+            g.setColour(DesignSystem::Colors::Divider.withAlpha(isBar ? 0.42f : 0.20f));
+            g.drawVerticalLine(juce::roundToInt(x), 0.0f, static_cast<float>(getHeight()));
+        }
+    }
     // If selected, highlight
     if (engine.getTimelineProject().isTrackSelected(trackIndex)) {
         g.setColour(juce::Colours::white.withAlpha(0.05f));
@@ -47,7 +63,7 @@ void TrackLaneComponent::mouseDoubleClick(const juce::MouseEvent& event) {
             double clipLengthSamples = (secondsPerBeat * 4.0) * sampleRate;
 
             double pixelsPerSecond = timeline.getPixelsPerSecond();
-            double clickSeconds = event.position.x / pixelsPerSecond;
+            double clickSeconds = (event.position.x + timeline.getScrollOffsetX()) / pixelsPerSecond;
             double snappedSeconds = std::round(clickSeconds / secondsPerBeat) * secondsPerBeat;
             double startSamples = snappedSeconds * sampleRate;
 
@@ -136,7 +152,7 @@ void TrackLaneComponent::filesDropped(const juce::StringArray& files, int x, int
     double pixelsPerSecond = timeline.getPixelsPerSecond();
     if (pixelsPerSecond <= 0) return;
     
-    double dropSeconds = x / pixelsPerSecond;
+    double dropSeconds = (x + timeline.getScrollOffsetX()) / pixelsPerSecond;
     double sampleRate = engine.getTransport().getSampleRate();
     if (sampleRate <= 0.0) sampleRate = 48000.0;
     

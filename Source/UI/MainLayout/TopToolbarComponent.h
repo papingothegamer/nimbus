@@ -26,22 +26,30 @@ private:
     NimbusEngine& engine;
     int currentZoom = 100;
 
-    // --- Left Section ---
+    // --- Row 1 Components ---
+    juce::TextButton audioSetupButton { "Audio Setup" };
+    juce::TextButton shareButton { "Share" };
+    juce::Label workspaceLabel;
+
+    // --- Row 2 Structural Toolbars ---
+    juce::Component transportGroupContainer;
+    juce::Component toolsGroupContainer;
+    juce::Component actionGroupContainer;
+
+    // --- Toolbar Components ---
     juce::TextButton undoButton{DesignSystem::Iconography::Undo};
     juce::TextButton redoButton{DesignSystem::Iconography::Redo};
     juce::Label projectNameLabel;
 
-    // --- Center-Left Section (Zoom) ---
     juce::TextButton zoomOutButton{DesignSystem::Iconography::ZoomOut};
     juce::Label zoomLevelLabel;
     juce::TextButton zoomInButton{DesignSystem::Iconography::ZoomIn};
 
-    // --- Center Section (Transport) ---
     juce::TextButton pauseButton{DesignSystem::Iconography::Pause};
     juce::TextButton playButton{DesignSystem::Iconography::Play};
     juce::TextButton stopButton{DesignSystem::Iconography::Stop};
     juce::TextButton jumpStartButton{DesignSystem::Iconography::JumpStart};
-    juce::TextButton jumpEndButton{DesignSystem::Iconography::FastForward}; // Reusing FastForward as Skip to End
+    juce::TextButton jumpEndButton{DesignSystem::Iconography::FastForward}; 
     juce::TextButton recordButton{DesignSystem::Iconography::RecordGlobal};
 
     // --- Time Displays ---
@@ -77,22 +85,19 @@ private:
     };
     
     DisplayBox barsDisplay{"BARS", "1.1.00", DesignSystem::Colors::TextPrimary};
-    DisplayBox timeDisplay{"TIME", "00:00:00", juce::Colour(0xff00ff00)}; // Neon Green
-    DisplayBox bpmDisplay{"BPM", "120.0", juce::Colour(0xffff9900)}; // Orange
+    DisplayBox timeDisplay{"TIME", "00:00:00", juce::Colour(0xff00ff00)}; 
+    DisplayBox bpmDisplay{"BPM", "120.0", juce::Colour(0xffff9900)}; 
     DisplayBox sigDisplay{"SIG.", "4/4", DesignSystem::Colors::TextSecondary};
 
-    // --- Toggles ---
     juce::TextButton loopButton{DesignSystem::Iconography::Loop};
     juce::TextButton metronomeToggle{DesignSystem::Iconography::Metronome};
     
-    // --- Right Section ---
     juce::TextButton followButton{DesignSystem::Iconography::Follow};
     juce::TextButton pianoRollToggle{DesignSystem::Iconography::PianoOff};
     juce::TextButton mixerToggle{DesignSystem::Iconography::Tune};
     juce::TextButton settingsButton{DesignSystem::Iconography::Settings};
     juce::TextButton saveProjectButton{DesignSystem::Iconography::Save};
 
-    // --- Far Right ---
     juce::Label cpuLabel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TopToolbarComponent)

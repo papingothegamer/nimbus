@@ -72,6 +72,8 @@ GroupTrackHeaderComponent::~GroupTrackHeaderComponent() {
     engine.getTimelineProject().removeListener(this);
 }
 
+
+
 void GroupTrackHeaderComponent::paint(juce::Graphics& g) {
     bool isSelected = engine.getTimelineProject().isTrackSelected(trackIndex);
     
@@ -88,6 +90,13 @@ void GroupTrackHeaderComponent::paint(juce::Graphics& g) {
 }
 
 void GroupTrackHeaderComponent::resized() {
+    // Fix: Force a minimum height to prevent the group layout from squashing the Mute/Solo icons
+    if (getHeight() < 85)
+    {
+        setSize(getWidth(), 85);
+        return; // Break early so the parent layout pass forces a recalculation
+    }
+    
     auto bounds = getLocalBounds().reduced(2);
     
     // Reserve space for VU meter on far right (to match regular tracks)

@@ -36,7 +36,7 @@ void SidebarResizerBar::mouseDrag(const juce::MouseEvent& e) {
 }
 
 MainWindow::MainContentComponent::MainContentComponent(NimbusEngine& e)
-    : engine(e), topToolbar(e), sideBrowser(e), bottomMixer(e), detailView(e), timelineComponent(e), sidebarResizerBar(e) {
+    : engine(e), topToolbar(e), sideBrowser(e), bottomPanel(e), timelineComponent(e), sidebarResizerBar(e) {
     juce::Logger::writeToLog("MainContentComponent constructed");
     
     topToolbar.onBrowserToggle = [this]() { toggleBrowser(); };
@@ -47,10 +47,9 @@ MainWindow::MainContentComponent::MainContentComponent(NimbusEngine& e)
     juce::Logger::writeToLog("Adding children to MainContentComponent");
     addAndMakeVisible(topToolbar);
     addAndMakeVisible(sideBrowser);
-    addAndMakeVisible(bottomMixer);
+    addAndMakeVisible(bottomPanel);
     addAndMakeVisible(mixerResizerBar);
     addAndMakeVisible(sidebarResizerBar);
-    addChildComponent(detailView); // Hidden by default
     addAndMakeVisible(timelineComponent);
     
     juce::Logger::writeToLog("MainContentComponent finished adding children");
@@ -71,26 +70,21 @@ void MainWindow::MainContentComponent::resized() {
     auto bounds = getLocalBounds();
     
     // Top Toolbar
-    topToolbar.setBounds(bounds.removeFromTop(40));
+    // Audacity-style workspace header: menu strip plus a distinct tools row.
+    topToolbar.setBounds(bounds.removeFromTop(88));
     
     // Bottom Section
     if (isBottomPanelVisible) {
         int h = mixerResizerBar.mixerHeight;
         auto bottomArea = bounds.removeFromBottom(h);
         
-        if (isDetailViewVisible) {
-            detailView.setBounds(bottomArea.removeFromLeft(bottomArea.getWidth() / 2));
-            bottomMixer.setBounds(bottomArea);
-        } else {
-            bottomMixer.setBounds(bottomArea);
-        }
+        bottomPanel.setBounds(bottomArea);
         
         // Resizer bar sits directly above the bottom mixer section
         mixerResizerBar.setBounds(bounds.removeFromBottom(4));
         mixerResizerBar.setVisible(true);
     } else {
-        detailView.setVisible(false);
-        bottomMixer.setVisible(false);
+        bottomPanel.setVisible(false);
         mixerResizerBar.setVisible(false);
     }
     
@@ -120,21 +114,19 @@ void MainWindow::MainContentComponent::toggleBrowser() {
 }
 
 void MainWindow::MainContentComponent::toggleDetailView() {
-    isDetailViewVisible = !isDetailViewVisible;
-    if (isDetailViewVisible && !isBottomPanelVisible) {
+    if (!isBottomPanelVisible) {
         // Auto-show bottom panel if detail view is turned on
         isBottomPanelVisible = true;
-        bottomMixer.setVisible(true);
+        bottomPanel.setVisible(true);
     }
-    detailView.setVisible(isDetailViewVisible && isBottomPanelVisible);
+    bottomPanel.showDeviceView();
     resized();
 }
 
 void MainWindow::MainContentComponent::toggleBottomPanel() {
     isBottomPanelVisible = !isBottomPanelVisible;
     if (isBottomPanelVisible) {
-        bottomMixer.setVisible(true);
-        if (isDetailViewVisible) detailView.setVisible(true);
+        bottomPanel.setVisible(true);
     }
     resized();
 }

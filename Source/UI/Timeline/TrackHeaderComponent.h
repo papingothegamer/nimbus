@@ -34,7 +34,6 @@ public:
     void trackArmChanged(int track, bool isArmed) override;
     void trackNameChanged(int track, const juce::String& newName) override;
     void trackSelectionChanged() override;
-
     void trackFoldStateChanged(int track, bool isFolded) override;
 
     UI::GroupIndicatorComponent groupIndicator;
@@ -47,21 +46,24 @@ private:
     int trackIndex;
     float currentLevel = 0.0f;
 
-    juce::TextButton foldButton;
-    juce::TextButton selectButton{"Select"};
+    // --- Audacity 4 Style Controls ---
+    juce::ToggleButton powerToggle; // Doubles as Track Number / Active State
     juce::Label nameLabel;
-    juce::TextButton muteButton{"Mute"};
-    juce::TextButton soloButton{"Solo"};
     
-    juce::Slider panSlider{juce::Slider::LinearHorizontal, juce::Slider::TextBoxLeft};
-    juce::Label lPan{"", "L"};
-    juce::Label rPan{"", "R"};
+    juce::TextButton muteButton{"M"};
+    juce::TextButton soloButton{"S"};
+    juce::DrawableButton armButton{"Arm", juce::DrawableButton::ImageOnButtonBackground};
+    
+    juce::Slider panSlider{juce::Slider::LinearHorizontal, juce::Slider::NoTextBox};
+    juce::Slider gainSlider{juce::Slider::LinearHorizontal, juce::Slider::NoTextBox};
+    juce::TextButton effectsButton{"Effects"};
 
-    juce::Slider gainSlider{juce::Slider::LinearHorizontal, juce::Slider::TextBoxLeft};
-    juce::Label mGain{"", "-"};
-    juce::Label pGain{"", "+"};
-    
+    // --- Grouping & Utility ---
+    juce::TextButton foldButton;
     juce::TextButton linkIcon{"Link"};
+
+    // Helper for SVG rendering
+    void setupSvgButton(juce::DrawableButton& btn, const char* svgData, int svgSize);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackHeaderComponent)
 };

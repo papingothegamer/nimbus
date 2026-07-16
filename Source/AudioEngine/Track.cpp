@@ -32,22 +32,30 @@ void Track::releaseResources() {
 void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
     const juce::SpinLock::ScopedLockType sl(processLock);
 
-    if (muted_.load(std::memory_order_relaxed)) {
-        trackBuffer.clear();
-        meter.processBlock(trackBuffer);
+    const auto numSamples = buffer.getNumSamples();
+    const auto numChannels = isStereo_ ? 2 : 1;
+    // Buffers are allocated once in prepareToPlay.  A device changing its block
+    // size must re-enter prepareToPlay; allocating on this callback would cause
+    // an audible real-time priority fault.
+    if (numSamples > currentBlockSize || trackBuffer.getNumChannels() < numChannels) {
+        buffer.clear();
         return;
     }
 
-// FIX: Set avoidReallocating to false (the last parameter).
-    // This guarantees the buffer sizes correctly even if dynamically added mid-playback.
-    int numChannels = isStereo_ ? 2 : 1;
-    trackBuffer.setSize(numChannels, buffer.getNumSamples(), false, false, false);
-    trackBuffer.clear();
+    juce::AudioBuffer<float> trackBlock(trackBuffer.getArrayOfWritePointers(), numChannels, numSamples);
+
+    if (muted_.load(std::memory_order_relaxed)) {
+        trackBlock.clear();
+        meter.processBlock(trackBlock);
+        return;
+    }
+
+    trackBlock.clear();
     trackMidiBuffer.clear();
 
     // 1. Process the source generator into the track buffer
     if (source) {
-        source->processBlock(trackBuffer, trackMidiBuffer);
+        source->processBlock(trackBlock, trackMidiBuffer);
         if (!trackMidiBuffer.isEmpty()) {
             static int logCounter = 0;
             if (logCounter++ % 10 == 0) { // Log occasionally to prevent spam
@@ -57,80 +65,80 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
     }
 
     // Add any UI-injected MIDI messages
-    uiMidiCollector.removeNextBlockOfMessages(trackMidiBuffer, trackBuffer.getNumSamples());
+    uiMidiCollector.removeNextBlockOfMessages(trackMidiBuffer, numSamples);
 
     // Route live MIDI input only if armed
     if (armed_.load(std::memory_order_relaxed)) {
-        trackMidiBuffer.addEvents(midiMessages, 0, trackBuffer.getNumSamples(), 0);
+        trackMidiBuffer.addEvents(midiMessages, 0, numSamples, 0);
         
         // Route live AUDIO input if no instrument is present
         if (inputBufferPtr != nullptr && instrument == nullptr) {
             int inCh = inputChannelIndex_.load(std::memory_order_relaxed);
             if (inCh == -1) {
-                for (int ch = 0; ch < std::min(trackBuffer.getNumChannels(), inputBufferPtr->getNumChannels()); ++ch) {
-                    trackBuffer.addFrom(ch, 0, *inputBufferPtr, ch, 0, trackBuffer.getNumSamples());
+                for (int ch = 0; ch < std::min(trackBlock.getNumChannels(), inputBufferPtr->getNumChannels()); ++ch) {
+                    trackBlock.addFrom(ch, 0, *inputBufferPtr, ch, 0, numSamples);
                 }
             } else if (inCh >= 0 && inCh < inputBufferPtr->getNumChannels()) {
                 // Duplicate mono input across all track channels
-                for (int ch = 0; ch < trackBuffer.getNumChannels(); ++ch) {
-                    trackBuffer.addFrom(ch, 0, *inputBufferPtr, inCh, 0, trackBuffer.getNumSamples());
+                for (int ch = 0; ch < trackBlock.getNumChannels(); ++ch) {
+                    trackBlock.addFrom(ch, 0, *inputBufferPtr, inCh, 0, numSamples);
                 }
             }
         }
         
         // Record the live input if transport is recording
         if (recorder_ != nullptr && transport != nullptr && transport->isRecording()) {
-            recorder_->pushSamples(trackBuffer, trackBuffer.getNumSamples());
+            recorder_->pushSamples(trackBlock, numSamples);
         }
         
         if (midiRecorder_ != nullptr && transport != nullptr && transport->isRecording()) {
             double startPos = transport->getCurrentPosition();
-            midiRecorder_->pushEvents(midiMessages, trackBuffer.getNumSamples(), startPos);
+            midiRecorder_->pushEvents(midiMessages, numSamples, startPos);
         }
     }
 
     // 1.5 Process instrument plugin (synth consumes MIDI, produces audio)
     if (instrument) {
-        instrument->processBlock(trackBuffer, trackMidiBuffer);
+        instrument->processBlock(trackBlock, trackMidiBuffer);
         
         // Only mute instrument output when transport is stopped AND track is disarmed
         // This prevents stray sounds from plugin UI interaction, but allows playback of clips
         if (!armed_.load(std::memory_order_relaxed) && transport != nullptr && !transport->isPlaying() && source == nullptr) {
-            trackBuffer.clear();
+            trackBlock.clear();
         }
     }
     
     // Record MIDI if recording
     if (midiRecorder_) {
         double blockStartPos = transport ? transport->getCurrentPosition() : 0.0;
-        midiRecorder_->pushEvents(trackMidiBuffer, trackBuffer.getNumSamples(), blockStartPos);
+        midiRecorder_->pushEvents(trackMidiBuffer, numSamples, blockStartPos);
     }
 
     // 2. Process insert plugins
-    insertGraph.processBlock(trackBuffer, trackMidiBuffer);
+    insertGraph.processBlock(trackBlock, trackMidiBuffer);
 
     // 3. Apply Track Fader and Pan
     // If the track is mono, we upmix it to a stereo buffer before passing to the GainNode so panning works.
     if (!isStereo_ && buffer.getNumChannels() >= 2) {
-        stereoPanBuffer.setSize(2, trackBuffer.getNumSamples(), false, false, false);
-        stereoPanBuffer.copyFrom(0, 0, trackBuffer, 0, 0, trackBuffer.getNumSamples());
-        stereoPanBuffer.copyFrom(1, 0, trackBuffer, 0, 0, trackBuffer.getNumSamples());
+        juce::AudioBuffer<float> stereoBlock(stereoPanBuffer.getArrayOfWritePointers(), 2, numSamples);
+        stereoBlock.copyFrom(0, 0, trackBlock, 0, 0, numSamples);
+        stereoBlock.copyFrom(1, 0, trackBlock, 0, 0, numSamples);
         
-        fader.processBlock(stereoPanBuffer, trackMidiBuffer);
+        fader.processBlock(stereoBlock, trackMidiBuffer);
         
         for (int ch = 0; ch < 2; ++ch) {
-            buffer.addFrom(ch, 0, stereoPanBuffer, ch, 0, trackBuffer.getNumSamples());
+            buffer.addFrom(ch, 0, stereoBlock, ch, 0, numSamples);
         }
     } else {
-        fader.processBlock(trackBuffer, trackMidiBuffer);
+        fader.processBlock(trackBlock, trackMidiBuffer);
         
-        for (int ch = 0; ch < std::min(buffer.getNumChannels(), trackBuffer.getNumChannels()); ++ch) {
-            buffer.addFrom(ch, 0, trackBuffer, ch, 0, trackBuffer.getNumSamples());
+        for (int ch = 0; ch < std::min(buffer.getNumChannels(), trackBlock.getNumChannels()); ++ch) {
+            buffer.addFrom(ch, 0, trackBlock, ch, 0, numSamples);
         }
     }
 
     // 5. Update Level Meter (Meter gets the pre-fader track buffer so we see signal even if volume is 0)
-    meter.processBlock(trackBuffer);
+    meter.processBlock(trackBlock);
 }
 
 int Track::getLatencySamples() const {
