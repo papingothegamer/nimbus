@@ -207,37 +207,7 @@ int TimelineProject::getTrackInputChannel(int trackIndex) const {
     return -1;
 }
 
-void TimelineProject::linkTracks(int trackIndex1, int trackIndex2) {
-    if (trackIndex1 >= 0 && trackIndex1 < tracks.size() &&
-        trackIndex2 >= 0 && trackIndex2 < tracks.size() &&
-        trackIndex1 != trackIndex2) {
-        
-        tracks[trackIndex1].linkedTrackId = tracks[trackIndex2].id;
-        tracks[trackIndex2].linkedTrackId = tracks[trackIndex1].id;
-        
-        setTrackStereo(trackIndex1, true);
-        setTrackStereo(trackIndex2, true);
-        
-        listeners.call(&Listener::trackSelectionChanged); // To trigger UI updates if necessary
-    }
-}
 
-void TimelineProject::unlinkTrack(int trackIndex) {
-    if (trackIndex >= 0 && trackIndex < tracks.size()) {
-        TrackID linkedId = tracks[trackIndex].linkedTrackId;
-        if (linkedId != TrackID()) {
-            tracks[trackIndex].linkedTrackId = TrackID();
-            // Find and unlink the other track
-            for (auto& track : tracks) {
-                if (track.id == linkedId) {
-                    track.linkedTrackId = TrackID();
-                    break;
-                }
-            }
-            listeners.call(&Listener::trackSelectionChanged);
-        }
-    }
-}
 
 void TimelineProject::setTrackSelected(int trackIndex, bool clearExisting) {
     if (clearExisting) selectedTracks.clear();

@@ -244,9 +244,13 @@ void TimelineComponent::paintOverChildren(juce::Graphics& g) {
 
 void TimelineComponent::trackAdded(int trackIndex, const TrackModel& track) {
     if (track.isGroup) {
-        trackHeaders.insert(trackIndex, new Timeline::GroupTrackHeaderComponent(engine, trackIndex));
+        auto* groupHeader = new Timeline::GroupTrackHeaderComponent(engine, trackIndex);
+        trackHeaders.insert(trackIndex, groupHeader);
+        groupHeader->setTrackIndex(trackIndex);
     } else {
-        trackHeaders.insert(trackIndex, new Timeline::TrackHeaderComponent(engine, trackIndex));
+        auto* standardHeader = new Timeline::TrackHeaderComponent(engine, trackIndex);
+        trackHeaders.insert(trackIndex, standardHeader);
+        standardHeader->setTrackIndex(trackIndex);
     }
     trackLanes.insert(trackIndex, new Timeline::TrackLaneComponent(engine, *this, trackIndex));
     
@@ -295,11 +299,18 @@ void TimelineComponent::tracksGrouped() {
     for (int i = 0; i < engine.getTimelineProject().getNumTracks(); ++i) {
         const auto& track = engine.getTimelineProject().getTrack(i);
         if (track.isGroup) {
-            trackHeaders.add(new Timeline::GroupTrackHeaderComponent(engine, i));
+            auto* groupHeader = new Timeline::GroupTrackHeaderComponent(engine, i);
+            trackHeaders.add(groupHeader);
+            groupHeader->setTrackIndex(i);
         } else {
-            trackHeaders.add(new Timeline::TrackHeaderComponent(engine, i));
+            auto* standardHeader = new Timeline::TrackHeaderComponent(engine, i);
+            trackHeaders.add(standardHeader);
+            standardHeader->setTrackIndex(i);
         }
-        trackLanes.add(new Timeline::TrackLaneComponent(engine, *this, i));
+        auto* trackLane = new Timeline::TrackLaneComponent(engine, *this, i);
+        trackLanes.add(trackLane);
+        trackLane->setTrackIndex(i);
+        
         trackContainer.addAndMakeVisible(trackHeaders.getLast());
         trackContainer.addAndMakeVisible(trackLanes.getLast());
     }

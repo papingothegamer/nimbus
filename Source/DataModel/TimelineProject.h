@@ -22,8 +22,6 @@ struct TrackModel {
     bool isSoloed = false;
     bool isArmed = false;
     bool isStereo = false;
-    TrackID linkedTrackId;
-    
     // Routing
     InputSource inputSource;
     TrackID outputBus; // Empty UUID means master
@@ -109,9 +107,7 @@ public:
     void setTrackInputChannel(int trackIndex, int inputChannel);
     int getTrackInputChannel(int trackIndex) const;
 
-    void linkTracks(int trackIndex1, int trackIndex2);
-    void unlinkTrack(int trackIndex);
-    
+
     void setTrackSelected(int trackIndex, bool clearExisting = true);
     void toggleTrackSelection(int trackIndex);
     void selectTrackRange(int fromIndex, int toIndex);

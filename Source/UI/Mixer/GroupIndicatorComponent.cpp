@@ -11,14 +11,14 @@ void GroupIndicatorComponent::paint(juce::Graphics& g) {
     float w = static_cast<float>(getWidth());
     float h = static_cast<float>(getHeight());
     
-    // Draw a vertical thick rectangle on the left edge
-    g.fillRect(0.0f, 0.0f, 4.0f, h);
-    
-    // Draw horizontal bracket lines to connect
-    g.fillRect(0.0f, 0.0f, w, 2.0f);
-    
-    if (isLastInGroup) {
-        g.fillRect(0.0f, h - 2.0f, w, 2.0f);
+    if (w > h) { // Horizontal layout (for Channel Strip)
+        g.fillRect(0.0f, h - 4.0f, w, 4.0f); // Bottom thick line
+        g.fillRect(0.0f, 0.0f, 2.0f, h);     // Left connector
+        if (isLastInGroup) g.fillRect(w - 2.0f, 0.0f, 2.0f, h); // Right connector
+    } else { // Vertical layout (for Track Header)
+        g.fillRect(0.0f, 0.0f, 4.0f, h); // Left thick line
+        g.fillRect(0.0f, 0.0f, w, 2.0f); // Top connector
+        if (isLastInGroup) g.fillRect(0.0f, h - 2.0f, w, 2.0f); // Bottom connector
     }
 }
 

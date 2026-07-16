@@ -34,7 +34,14 @@ BottomMixerComponent::~BottomMixerComponent() {
 }
 
 void BottomMixerComponent::trackAdded(int trackIndex, const TrackModel& track) {
-    auto* strip = new ChannelStripComponent(engine, track.name, !track.isMidi, false);
+    juce::String trackName = track.name;
+    if (trackName.isEmpty()) {
+        if (track.isGroup) trackName = "Group Track";
+        else if (track.isMidi) trackName = "MIDI Track";
+        else if (track.isStereo) trackName = "Stereo Audio Track";
+        else trackName = "Mono Audio Track";
+    }
+    auto* strip = new ChannelStripComponent(engine, trackName, !track.isMidi, false);
     strip->setTrackIndex(trackIndex);
     strip->setLevelProvider([this, trackIndex]() { return engine.getTrackPeakLevel(trackIndex); });
     trackStrips.insert(trackIndex, strip);

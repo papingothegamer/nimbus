@@ -3,25 +3,62 @@
 #include "UI/DesignSystem/Typography.h"
 #include "UI/DesignSystem/Iconography.h"
 
+namespace {
+    class AbletonRotaryLAF : public juce::LookAndFeel_V4 {
+    public:
+        void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height, float sliderPos,
+                              const float rotaryStartAngle, const float rotaryEndAngle, juce::Slider&) override {
+            float radius = juce::jmin(width / 2.0f, height / 2.0f) - 2.0f;
+            float centreX = x + width * 0.5f;
+            float centreY = y + height * 0.5f;
+            float rx = centreX - radius;
+            float ry = centreY - radius;
+            float rw = radius * 2.0f;
+            float angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
+
+            g.setColour(juce::Colour(0xff121212));
+            g.fillEllipse(rx, ry, rw, rw);
+            g.setColour(juce::Colour(0xff888888));
+            g.drawEllipse(rx, ry, rw, rw, 1.5f);
+
+            float centerAngle = rotaryStartAngle + (rotaryEndAngle - rotaryStartAngle) * 0.5f;
+            juce::Path arc;
+            arc.addCentredArc(centreX, centreY, radius - 1.5f, radius - 1.5f, 0.0f, centerAngle, angle, true);
+            g.setColour(juce::Colour(0xfffdb913)); // Bright Ableton-style orange/yellow
+            g.strokePath(arc, juce::PathStrokeType(2.0f));
+
+            juce::Path p;
+            p.addRectangle(-1.0f, -radius, 2.0f, radius * 0.8f);
+            p.applyTransform(juce::AffineTransform::rotation(angle).translated(centreX, centreY));
+            g.setColour(juce::Colours::white);
+            g.fillPath(p);
+        }
+    };
+    AbletonRotaryLAF rotaryLAF;
+}
+
 namespace Nimbus::MainLayout {
 
-static void applySvgToButton(juce::DrawableButton& btn, const juce::String& iconName, juce::Colour color) {
-    int size = 0;
-    if (const char* data = BinaryData::getNamedResource(iconName.toUTF8(), size)) {
-        juce::String svgStr(data, (size_t)size);
-        juce::String hexColor = color.toDisplayString(false).replace("#", "");
-        juce::String fillStr = "fill=\"#" + hexColor + "\"";
-        
-        svgStr = svgStr.replace("fill=\"#000000\"", fillStr)
-                       .replace("fill=\"#212121\"", fillStr)
-                       .replace("fill=\"currentColor\"", fillStr)
-                       .replace("<svg ", "<svg " + fillStr + " color=\"#" + hexColor + "\" ");
-
-        if (auto xml = juce::XmlDocument::parse(svgStr)) {
-            if (auto svg = juce::Drawable::createFromSVG(*xml)) {
-                btn.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
+static void applySvgToButton(juce::DrawableButton& btn, const juce::String& normalIcon, juce::Colour normalColor, const juce::String& activeIcon, juce::Colour activeColor) {
+    auto createTinted = [](const juce::String& name, juce::Colour tint) -> std::unique_ptr<juce::Drawable> {
+        int size = 0;
+        if (const char* data = BinaryData::getNamedResource(name.toUTF8(), size)) {
+            juce::String str(data, (size_t)size);
+            str = str.replace("currentColor", "#000000").replace("#212121", "#000000");
+            if (auto xml = juce::XmlDocument::parse(str)) {
+                if (auto svg = juce::Drawable::createFromSVG(*xml)) {
+                    svg->replaceColour(juce::Colours::black, tint);
+                    return svg;
+                }
             }
         }
+        return nullptr;
+    };
+
+    auto normalSvg = createTinted(normalIcon, normalColor);
+    auto activeSvg = createTinted(activeIcon, activeColor);
+    if (normalSvg && activeSvg) {
+        btn.setImages(normalSvg.get(), nullptr, nullptr, nullptr, activeSvg.get(), nullptr, nullptr, nullptr);
     }
 }
 
@@ -30,7 +67,7 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
 {
     addAndMakeVisible(nameLabel);
     nameLabel.setText(name, juce::dontSendNotification);
-    nameLabel.setFont(DesignSystem::Typography::getPrimaryFont());
+    nameLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(11.0f));
     nameLabel.setJustificationType(juce::Justification::centred);
     nameLabel.setEditable(true, false, false);
     nameLabel.addListener(this);
@@ -42,21 +79,19 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
         auto activeChannels = device->getActiveInputChannels();
         auto channelNames = device->getInputChannelNames();
         for (int i = 0; i < channelNames.size(); ++i) {
-            if (activeChannels[i]) inputComboBox.addItem(channelNames[i], i + 10);
+            if (activeChannels[i]) {
+                juce::String name = channelNames[i];
+                if (name.length() > 10) name = name.substring(0, 10) + "...";
+                inputComboBox.addItem(name, i + 10);
+            }
         }
     }
-    inputComboBox.addItem("Resampling", 100);
     inputComboBox.setSelectedId(1, juce::dontSendNotification);
     inputComboBox.setJustificationType(juce::Justification::centred);
-    // Smaller font for routing
-    inputComboBox.getLookAndFeel().setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff222222));
-
     inputComboBox.onChange = [this]() {
         if (trackIndex != -1) {
             int selectedId = inputComboBox.getSelectedId();
-            int inputIndex = -1;
-            if (selectedId >= 10 && selectedId < 100) inputIndex = selectedId - 10;
-            engine.getTimelineProject().setTrackInputChannel(trackIndex, inputIndex);
+            engine.getTimelineProject().setTrackInputChannel(trackIndex, selectedId == 1 ? -1 : selectedId - 10);
         }
     };
 
@@ -65,37 +100,27 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
     routingComboBox.addItem(stereo ? "Ext. Out" : "Synth Plugin", 2);
     routingComboBox.setSelectedId(1, juce::dontSendNotification);
     routingComboBox.setJustificationType(juce::Justification::centred);
-    routingComboBox.getLookAndFeel().setColour(juce::ComboBox::backgroundColourId, juce::Colour(0xff222222));
 
-    addAndMakeVisible(volumeLabel);
-    volumeLabel.setText("-Inf", juce::dontSendNotification);
-    volumeLabel.setFont(juce::Font(10.0f, juce::Font::bold));
-    volumeLabel.setJustificationType(juce::Justification::centred);
-    volumeLabel.setColour(juce::Label::backgroundColourId, juce::Colours::black.withAlpha(0.3f));
-    volumeLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
+    addAndMakeVisible(meteredFader);
+    addChildComponent(midiMeter);
 
-    addAndMakeVisible(fader);
-    // Let MeteredFader draw the background and slider
-    fader.setTrackInfo(stereo ? TrackType::Audio : TrackType::Audio, stereo); // Will update properly in setTrackIndex
-
+    if (stereo) meteredFader.setTrackType(UI::MeteredFader::TrackType::StereoAudio);
+    else meteredFader.setTrackType(UI::MeteredFader::TrackType::MonoAudio);
+    
     addAndMakeVisible(pan);
+    pan.setLookAndFeel(&rotaryLAF);
     pan.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     pan.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
     pan.setRange(-1.0, 1.0, 0.01);
-    pan.setValue(0.0);
-    pan.getProperties().set("isPan", true);
     pan.setDoubleClickReturnValue(true, 0.0);
-    pan.onValueChange = [this]() {
-        if (trackIndex != -1) engine.getTimelineProject().setTrackPan(trackIndex, static_cast<float>(pan.getValue()));
-    };
-
-    fader.slider.onValueChange = [this]() {
+    pan.onValueChange = [this] { engine.getTimelineProject().setTrackPan(trackIndex, static_cast<float>(pan.getValue())); };
+    
+    meteredFader.getSlider().setDoubleClickReturnValue(true, 0.0);
+    meteredFader.getSlider().onValueChange = [this]() {
         if (trackIndex != -1) {
-            float vol = static_cast<float>(fader.slider.getValue());
+            float db = static_cast<float>(meteredFader.getSlider().getValue());
+            float vol = juce::Decibels::decibelsToGain(db, -60.0f);
             engine.getTimelineProject().setTrackVolume(trackIndex, vol);
-            float db = juce::Decibels::gainToDecibels(vol, -100.0f);
-            if (db <= -60.0f) volumeLabel.setText("-Inf", juce::dontSendNotification);
-            else volumeLabel.setText(juce::String(db, 1) + " dB", juce::dontSendNotification);
         }
     };
 
@@ -108,25 +133,44 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
         soloButton.setClickingTogglesState(true);
         armButton.setClickingTogglesState(true);
         
-        applySvgToButton(muteButton, DesignSystem::Iconography::Unmute, juce::Colour(0xff2f363d)); // Inactive
-        applySvgToButton(soloButton, DesignSystem::Iconography::Solo, juce::Colours::grey);
-        applySvgToButton(armButton, DesignSystem::Iconography::RecordArm, juce::Colours::grey);
+        muteButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+        muteButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::orange);
+        applySvgToButton(muteButton, DesignSystem::Iconography::VolumeOff, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::Unmute, juce::Colours::white);
         
-        muteButton.onClick = [this] {
-            bool isMuted = muteButton.getToggleState();
-            engine.getTimelineProject().setTrackMuted(trackIndex, isMuted);
-            applySvgToButton(muteButton, isMuted ? DesignSystem::Iconography::Mute : DesignSystem::Iconography::Unmute, isMuted ? juce::Colours::white : juce::Colour(0xff2f363d));
+        soloButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+        soloButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::yellow);
+        applySvgToButton(soloButton, DesignSystem::Iconography::Solo, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::Solo, juce::Colours::black);
+        
+        armButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+        armButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::red);
+        applySvgToButton(armButton, DesignSystem::Iconography::RecordArm, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::RecordArm, juce::Colours::white);
+        
+        muteButton.onClick = [this] { engine.getTimelineProject().setTrackMuted(trackIndex, muteButton.getToggleState()); };
+        soloButton.onClick = [this] { 
+            if (master) {
+                // Future: toggle master monitoring 
+            } else {
+                engine.getTimelineProject().setTrackSoloed(trackIndex, soloButton.getToggleState()); 
+            }
         };
-        soloButton.onClick = [this]() {
-            bool isSoloed = soloButton.getToggleState();
-            engine.getTimelineProject().setTrackSoloed(trackIndex, isSoloed);
-            applySvgToButton(soloButton, DesignSystem::Iconography::Solo, isSoloed ? juce::Colours::yellow : juce::Colours::grey);
-        };
-        armButton.onClick = [this]() {
-            bool isArmed = armButton.getToggleState();
-            engine.getTimelineProject().setTrackArmed(trackIndex, isArmed);
-            applySvgToButton(armButton, DesignSystem::Iconography::RecordArm, isArmed ? juce::Colours::red : juce::Colours::grey);
-        };
+        armButton.onClick = [this] { engine.getTimelineProject().setTrackArmed(trackIndex, armButton.getToggleState()); };
+        
+        if (master) {
+            muteButton.setVisible(false);
+            soloButton.setVisible(true);
+            armButton.setVisible(false);
+            pan.setVisible(false);
+            inputComboBox.setVisible(false);
+            meteredFader.setTrackType(UI::MeteredFader::TrackType::StereoAudio);
+            meteredFader.setVisible(true);
+            midiMeter.setVisible(false);
+        }
+    } else {
+        addAndMakeVisible(soloButton);
+        soloButton.setClickingTogglesState(true);
+        soloButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+        soloButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::yellow);
+        applySvgToButton(soloButton, DesignSystem::Iconography::Solo, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::Solo, juce::Colours::black);
     }
 
     engine.getTimelineProject().addListener(this);
@@ -135,63 +179,86 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
 
 ChannelStripComponent::~ChannelStripComponent() {
     engine.getTimelineProject().removeListener(this);
+    pan.setLookAndFeel(nullptr);
 }
 
 void ChannelStripComponent::setTrackIndex(int index) {
     trackIndex = index;
-    if (trackIndex != -1) {
-        const auto& trackModel = engine.getTimelineProject().getTrack(trackIndex);
-        fader.setTrackInfo(trackModel.type, trackModel.isStereo);
+    if (trackIndex != -1 && !master) {
+        const auto& track = engine.getTimelineProject().getTrack(trackIndex);
+        
+        int inputChannel = engine.getTimelineProject().getTrackInputChannel(trackIndex);
+        inputComboBox.setSelectedId(inputChannel == -1 ? 1 : inputChannel + 10, juce::dontSendNotification);
+        
+        juce::String defaultName = "Mono Audio Track";
+        if (track.isGroup) defaultName = "Group Track";
+        else if (track.isMidi) defaultName = "MIDI Track";
+        else if (track.isStereo) defaultName = "Stereo Audio Track";
 
-        if (!master) {
-            int inputChannel = trackModel.inputChannelIndex;
-            inputComboBox.setSelectedId(inputChannel == -1 ? 1 : inputChannel + 10, juce::dontSendNotification);
-            
-            bool isMuted = trackModel.isMuted;
-            muteButton.setToggleState(isMuted, juce::dontSendNotification);
-            applySvgToButton(muteButton, isMuted ? DesignSystem::Iconography::Mute : DesignSystem::Iconography::Unmute, isMuted ? juce::Colours::white : juce::Colour(0xff2f363d));
-            
-            bool isSoloed = trackModel.isSoloed;
-            soloButton.setToggleState(isSoloed, juce::dontSendNotification);
-            applySvgToButton(soloButton, DesignSystem::Iconography::Solo, isSoloed ? juce::Colours::yellow : juce::Colours::grey);
+        if (nameLabel.getText().isEmpty() || nameLabel.getText() == channelName) {
+            nameLabel.setText(track.name.isNotEmpty() ? track.name : defaultName, juce::dontSendNotification);
+        }
 
-            bool isArmed = engine.getTimelineProject().isTrackArmed(trackIndex);
-            armButton.setToggleState(isArmed, juce::dontSendNotification);
-            applySvgToButton(armButton, DesignSystem::Iconography::RecordArm, isArmed ? juce::Colours::red : juce::Colours::grey);
+        muteButton.setToggleState(track.isMuted, juce::dontSendNotification);
+        soloButton.setToggleState(track.isSoloed, juce::dontSendNotification);
+        armButton.setToggleState(engine.getTimelineProject().isTrackArmed(trackIndex), juce::dontSendNotification);
+
+        float db = juce::Decibels::gainToDecibels(track.volume, -60.0f);
+        meteredFader.getSlider().setValue(db, juce::dontSendNotification);
+        pan.setValue(track.pan, juce::dontSendNotification);
+        
+        if (track.isMidi) {
+            meteredFader.setVisible(false);
+            midiMeter.setVisible(true);
+        } else {
+            midiMeter.setVisible(false);
+            meteredFader.setVisible(true);
+            meteredFader.setTrackType((track.isStereo || track.isGroup) ? UI::MeteredFader::TrackType::StereoAudio : UI::MeteredFader::TrackType::MonoAudio);
         }
     }
 }
 
 void ChannelStripComponent::labelTextChanged(juce::Label* labelThatHasChanged) {
     if (labelThatHasChanged == &nameLabel && trackIndex != -1 && !master) {
-        engine.getTimelineProject().setTrackName(trackIndex, nameLabel.getText());
+        auto newText = nameLabel.getText();
+        if (newText.trim().isEmpty()) {
+            const auto& track = engine.getTimelineProject().getTrack(trackIndex);
+            juce::String defaultName = "Mono Audio Track";
+            if (track.isGroup) defaultName = "Group Track";
+            else if (track.isMidi) defaultName = "MIDI Track";
+            else if (track.isStereo) defaultName = "Stereo Audio Track";
+            nameLabel.setText(defaultName, juce::dontSendNotification);
+            engine.getTimelineProject().setTrackName(trackIndex, defaultName);
+        } else {
+            engine.getTimelineProject().setTrackName(trackIndex, newText);
+        }
     }
 }
 
 void ChannelStripComponent::trackNameChanged(int track, const juce::String& newName) {
-    if (track == trackIndex && !master && !nameLabel.isBeingEdited()) {
-        nameLabel.setText(newName, juce::dontSendNotification);
-    }
+    if (track == trackIndex && !master && !nameLabel.isBeingEdited()) nameLabel.setText(newName, juce::dontSendNotification);
 }
 
 void ChannelStripComponent::setLevelProvider(std::function<float()> provider) { levelProvider = std::move(provider); }
 
 void ChannelStripComponent::updateMeters() {
     if (levelProvider) {
-        float newLevel = levelProvider();
-        fader.setLevel(newLevel);
+        float currentDb = juce::Decibels::gainToDecibels(levelProvider(), -60.0f);
+        float normalized = (currentDb + 60.0f) / 70.0f;
+        normalized = juce::jlimit(0.0f, 1.0f, normalized);
+        
+        if (midiMeter.isVisible()) midiMeter.setLevel(normalized);
+        else meteredFader.setLevel(normalized, normalized);
     }
 }
 
 void ChannelStripComponent::paint(juce::Graphics& g) {
-    bool isSelected = false;
     bool isGroup = false;
     if (trackIndex != -1) {
-        isSelected = engine.getTimelineProject().isTrackSelected(trackIndex);
         isGroup = engine.getTimelineProject().getTrack(trackIndex).isGroup;
     }
     
-    g.fillAll(isSelected ? DesignSystem::Colors::PanelBackground.brighter(0.1f) : (isGroup ? DesignSystem::Colors::PanelBackground.brighter(0.05f) : DesignSystem::Colors::ModuleBackground));
+    g.fillAll(selected ? DesignSystem::Colors::PanelBackground.brighter(0.1f) : (isGroup ? DesignSystem::Colors::PanelBackground.brighter(0.05f) : DesignSystem::Colors::ModuleBackground));
     g.setColour(DesignSystem::Colors::Divider);
     g.drawRect(getLocalBounds(), 1);
 }
@@ -202,39 +269,32 @@ void ChannelStripComponent::resized() {
     if (trackIndex != -1) {
         const auto& track = engine.getTimelineProject().getTrack(trackIndex);
         groupIndicator.setVisible(!track.parentGroupId.isNull());
-        if (groupIndicator.isVisible()) groupIndicator.setBounds(bounds.removeFromBottom(10));
+        if (groupIndicator.isVisible()) groupIndicator.setBounds(bounds.removeFromBottom(8));
     } else groupIndicator.setVisible(false);
     
-    auto contentBounds = bounds;
-    nameLabel.setBounds(contentBounds.removeFromTop(20));
-    contentBounds.removeFromTop(2);
-    
+    nameLabel.setBounds(bounds.removeFromTop(18));
     if (!master) {
-        // Shrunk combo boxes
-        inputComboBox.setBounds(contentBounds.removeFromTop(16).reduced(2, 0));
-        contentBounds.removeFromTop(2);
+        inputComboBox.setBounds(bounds.removeFromTop(18).reduced(2, 0));
+        bounds.removeFromTop(2);
     }
+    routingComboBox.setBounds(bounds.removeFromBottom(18).reduced(2, 0));
     
-    pan.setBounds(contentBounds.removeFromTop(40).reduced(8, 0));
-    contentBounds.removeFromTop(2);
+    pan.setBounds(bounds.removeFromTop(36).reduced(8, 0));
+    bounds.removeFromTop(8); 
     
+    auto faderArea = bounds.removeFromRight(28).reduced(0, 4);
+    if (midiMeter.isVisible()) midiMeter.setBounds(faderArea);
+    else meteredFader.setBounds(faderArea);
+
     if (!master) {
-        auto buttonRow = contentBounds.removeFromTop(20).reduced(4, 0);
-        int bw = buttonRow.getWidth() / 3;
-        muteButton.setBounds(buttonRow.removeFromLeft(bw).reduced(1, 0));
-        soloButton.setBounds(buttonRow.removeFromLeft(bw).reduced(1, 0));
-        armButton.setBounds(buttonRow.reduced(1, 0));
-        contentBounds.removeFromTop(2);
+        auto buttonCol = bounds.removeFromLeft(24).reduced(0, 4);
+        armButton.setBounds(buttonCol.removeFromBottom(24).reduced(1));
+        soloButton.setBounds(buttonCol.removeFromBottom(24).reduced(1));
+        muteButton.setBounds(buttonCol.removeFromBottom(24).reduced(1));
+    } else {
+        auto buttonCol = bounds.removeFromLeft(24).reduced(0, 4);
+        soloButton.setBounds(buttonCol.removeFromBottom(24).reduced(1));
     }
-    
-    volumeLabel.setBounds(contentBounds.removeFromTop(16).reduced(4, 0));
-    contentBounds.removeFromTop(2);
-
-    routingComboBox.setBounds(contentBounds.removeFromBottom(16).reduced(2, 0));
-    contentBounds.removeFromBottom(2);
-
-    // Fader now takes up the remaining vertical space
-    fader.setBounds(contentBounds.reduced(4, 0));
 }
 
 void ChannelStripComponent::mouseDown(const juce::MouseEvent& event) {
@@ -254,10 +314,8 @@ void ChannelStripComponent::mouseDown(const juce::MouseEvent& event) {
     if (event.mods.isPopupMenu() && !master) {
         juce::PopupMenu m;
         m.addItem(1, "Delete Track");
-        m.addItem(2, "Group Tracks");
         m.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
             if (result == 1) engine.getTimelineProject().removeTrack(trackIndex);
-            else if (result == 2) engine.getTimelineProject().groupTracks(engine.getTimelineProject().getSelectedTracks());
         });
     }
 }
@@ -265,29 +323,25 @@ void ChannelStripComponent::mouseDown(const juce::MouseEvent& event) {
 void ChannelStripComponent::trackMuteChanged(int track, bool isMuted) {
     if (track == trackIndex && !master) {
         muteButton.setToggleState(isMuted, juce::dontSendNotification);
-        applySvgToButton(muteButton, isMuted ? DesignSystem::Iconography::Mute : DesignSystem::Iconography::Unmute, isMuted ? juce::Colours::white : juce::Colour(0xff2f363d));
     }
 }
 
 void ChannelStripComponent::trackArmChanged(int track, bool isArmed) {
     if (track == trackIndex) {
         armButton.setToggleState(isArmed, juce::dontSendNotification);
-        applySvgToButton(armButton, DesignSystem::Iconography::RecordArm, isArmed ? juce::Colours::red : juce::Colours::grey);
     }
 }
 
 void ChannelStripComponent::trackSoloChanged(int track, bool isSoloed) {
     if (track == trackIndex) {
         soloButton.setToggleState(isSoloed, juce::dontSendNotification);
-        applySvgToButton(soloButton, DesignSystem::Iconography::Solo, isSoloed ? juce::Colours::yellow : juce::Colours::grey);
     }
 }
 
 void ChannelStripComponent::trackVolumeChanged(int track, float volume) {
     if (track == trackIndex) {
-        fader.slider.setValue(volume, juce::dontSendNotification);
-        float db = juce::Decibels::gainToDecibels(volume, -100.0f);
-        volumeLabel.setText(db <= -60.0f ? "-Inf" : juce::String(db, 1) + " dB", juce::dontSendNotification);
+        float db = juce::Decibels::gainToDecibels(volume, -60.0f);
+        meteredFader.getSlider().setValue(db, juce::dontSendNotification);
     }
 }
 

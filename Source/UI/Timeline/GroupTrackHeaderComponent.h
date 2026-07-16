@@ -24,11 +24,11 @@ private:
     juce::TextButton powerToggle;
     juce::Label nameLabel;
     
-    juce::DrawableButton foldButton{"Fold", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton foldButton{"Fold", juce::DrawableButton::ImageRaw};
     juce::DrawableButton muteButton{"Mute", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton soloButton{"Solo", juce::DrawableButton::ImageOnButtonBackground};
 
-    void loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName);
+    void loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName, float rotationDegrees = 0.0f);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GroupTrackHeaderComponent)
 };

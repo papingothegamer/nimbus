@@ -3,7 +3,6 @@
 #include <JuceHeader.h>
 #include "Core/NimbusEngine.h"
 #include "UI/Mixer/GroupIndicatorComponent.h"
-#include "UI/Mixer/MeteredFader.h"
 
 namespace Nimbus::Timeline {
 
@@ -34,7 +33,10 @@ public:
     void trackNameChanged(int track, const juce::String& newName) override;
     void trackSelectionChanged() override;
     void trackFoldStateChanged(int track, bool isFolded) override;
-    void trackVolumeChanged(int track, float volume) override;
+    
+    // Kept for interface compliance, but they do nothing visually here anymore
+    void trackVolumeChanged(int /*track*/, float /*volume*/) override {}
+    void trackPanChanged(int /*track*/, float /*panValue*/) override {}
 
     UI::GroupIndicatorComponent groupIndicator;
 
@@ -44,6 +46,7 @@ public:
 private:
     NimbusEngine& engine;
     int trackIndex;
+    float currentLevel = 0.0f;
 
     juce::TextButton powerToggle; 
     juce::Label nameLabel;
@@ -52,12 +55,9 @@ private:
     juce::DrawableButton soloButton{"Solo", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton armButton{"Arm", juce::DrawableButton::ImageOnButtonBackground};
     
-    UI::Mixer::MeteredFader fader;
+    juce::DrawableButton foldButton{"Fold", juce::DrawableButton::ImageRaw};
 
-    juce::DrawableButton foldButton{"Fold", juce::DrawableButton::ImageOnButtonBackground};
-    juce::TextButton linkIcon{"Link"};
-
-    void loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName, juce::Colour color);
+    static void loadSvgIcon(juce::DrawableButton& btn, const juce::String& normalIcon, juce::Colour normalColor, const juce::String& activeIcon, juce::Colour activeColor, float rotationDegrees = 0.0f);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackHeaderComponent)
 };

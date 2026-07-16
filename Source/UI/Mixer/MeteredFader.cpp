@@ -1,129 +1,107 @@
 #include "MeteredFader.h"
 
-namespace Nimbus::UI::Mixer {
-
-MeteredFader::FaderLookAndFeel::FaderLookAndFeel() {
-}
+namespace Nimbus::UI {
 
 void MeteredFader::FaderLookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
                                                       float sliderPos, float minSliderPos, float maxSliderPos,
                                                       const juce::Slider::SliderStyle style, juce::Slider& slider) {
-    // Draw the track line
-    float trackWidth = 2.0f;
-    float trackX = x + (width * 0.5f) - (trackWidth * 0.5f);
-    g.setColour(juce::Colour(0xff1e1e1e));
-    g.fillRect(trackX, (float)y, trackWidth, (float)height);
+    float meterWidth = width - 12.0f; 
 
-    // Draw tick marks (Ableton-style)
-    g.setColour(juce::Colour(0xff3f3f3f));
-    for (int i = 0; i <= 6; ++i) {
-        float ty = y + (height * (i / 6.0f));
-        g.fillRect(x + width * 0.5f, ty - 0.5f, width * 0.4f, 1.0f);
-    }
+    // Horizontal line overlaid perfectly on top of the meter
+    g.setColour(juce::Colours::white.withAlpha(0.8f));
+    g.fillRect((float)x, sliderPos - 1.0f, meterWidth, 2.0f);
 
-    // Draw the sleek rectangular thumb
-    float thumbHeight = 16.0f;
-    float thumbWidth = width * 0.8f;
-    float thumbX = x + (width * 0.5f) - (thumbWidth * 0.5f);
-    float thumbY = sliderPos - (thumbHeight * 0.5f);
+    // Ableton-style triangle pointer thumb on the right
+    juce::Path p;
+    float pW = 6.0f;
+    float pH = 8.0f;
+    float pX = meterWidth + 1.0f; 
     
-    // Thumb background
-    g.setColour(juce::Colour(0xff4a4a4a));
-    g.fillRect(thumbX, thumbY, thumbWidth, thumbHeight);
+    p.addTriangle(pX, sliderPos, pX + pW, sliderPos - pH * 0.5f, pX + pW, sliderPos + pH * 0.5f);
+    g.setColour(juce::Colour(0xff888888));
+    g.fillPath(p);
+    g.setColour(juce::Colour(0xff222222));
     
-    // Thumb highlight/border
-    g.setColour(juce::Colour(0xff5f5f5f));
-    g.drawRect(thumbX, thumbY, thumbWidth, thumbHeight, 1.0f);
-
-    // Thumb center indicator line
-    g.setColour(juce::Colour(0xff00ffff)); // Cyan-ish or white line for visibility
-    g.fillRect(thumbX + 2.0f, sliderPos - 1.0f, thumbWidth - 4.0f, 2.0f);
+    // FIX: JUCE uses strokePath, not drawPath!
+    g.strokePath(p, juce::PathStrokeType(1.0f)); 
 }
 
 MeteredFader::MeteredFader() {
-    addAndMakeVisible(slider);
-    slider.setSliderStyle(juce::Slider::LinearVertical);
-    slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
-    slider.setRange(0.0, 1.0, 0.001);
-    slider.setValue(0.75);
-    slider.setLookAndFeel(&customLookAndFeel);
+    volumeSlider.setLookAndFeel(&customLaf);
+    volumeSlider.setSliderStyle(juce::Slider::LinearVertical);
+    volumeSlider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+    // Range maps -60dB to +10dB directly
+    volumeSlider.setRange(-60.0, 10.0, 0.1); 
+    volumeSlider.setValue(0.0);
+    addAndMakeVisible(volumeSlider);
 }
 
 MeteredFader::~MeteredFader() {
-    slider.setLookAndFeel(nullptr);
+    volumeSlider.setLookAndFeel(nullptr);
 }
 
-void MeteredFader::setTrackInfo(TrackType type, bool isStereo) {
-    if (trackType != type || stereo != isStereo) {
-        trackType = type;
-        stereo = isStereo;
+void MeteredFader::setLevel(float levelLeft, float levelRight) {
+    if (std::abs(levelLeft - currentLevelL) > 0.01f || std::abs(levelRight - currentLevelR) > 0.01f) {
+        currentLevelL = levelLeft;
+        currentLevelR = levelRight;
         repaint();
     }
 }
 
-void MeteredFader::setLevel(float peakLevel) {
-    if (std::abs(peakLevel - currentLevel) > 0.005f) {
-        currentLevel = peakLevel;
-        // Only repaint the meter section to save CPU
-        int meterWidth = 8;
-        if (stereo && trackType == TrackType::Audio) meterWidth = 12;
-        repaint(getWidth() - meterWidth - 2, 0, meterWidth + 2, getHeight());
-    }
-}
-
-void MeteredFader::paint(juce::Graphics& g) {
-    // Draw background
-    g.fillAll(DesignSystem::Colors::ModuleBackground.darker(0.1f));
-
-    // Meter positioning
-    auto bounds = getLocalBounds();
-    
-    int meterWidth = 8; // Default for mono or MIDI
-    if (stereo && trackType == TrackType::Audio) {
-        meterWidth = 12; // Stereo needs more space for 2 bars
-    }
-
-    auto meterBounds = bounds.removeFromRight(meterWidth).reduced(0, 4).withTrimmedRight(2).toFloat();
-
-    // Draw meter background
-    g.setColour(juce::Colour(0xff000000));
-    g.fillRect(meterBounds);
-
-    if (currentLevel > 0.0f) {
-        float fillHeight = meterBounds.getHeight() * currentLevel;
-        auto fillBounds = meterBounds.withTrimmedTop(meterBounds.getHeight() - fillHeight);
-
-        if (trackType == TrackType::Midi || trackType == TrackType::Instrument) {
-            // distinct velocity indicator / color accent (e.g. orange)
-            g.setColour(juce::Colour(0xffff9900));
-            g.fillRect(fillBounds);
-        } else {
-            // Audio gradient
-            juce::ColourGradient cg(juce::Colours::lime, meterBounds.getBottomLeft(),
-                                    juce::Colours::red, meterBounds.getTopLeft(), false);
-            cg.addColour(0.7f, juce::Colours::yellow);
-            g.setGradientFill(cg);
-
-            if (stereo) {
-                // Split VU meter for stereo
-                float halfWidth = (meterBounds.getWidth() - 1.0f) * 0.5f;
-                g.fillRect(fillBounds.getX(), fillBounds.getY(), halfWidth, fillBounds.getHeight());
-                g.fillRect(fillBounds.getX() + halfWidth + 1.0f, fillBounds.getY(), halfWidth, fillBounds.getHeight());
-            } else {
-                // Mono single bar
-                g.fillRect(fillBounds);
-            }
-        }
+void MeteredFader::setTrackType(TrackType newType) {
+    if (type != newType) {
+        type = newType;
+        repaint();
     }
 }
 
 void MeteredFader::resized() {
-    auto bounds = getLocalBounds();
-    int meterWidth = 8;
-    if (stereo && trackType == TrackType::Audio) meterWidth = 12;
-    
-    // Slider takes the remaining space on the left
-    slider.setBounds(bounds.withTrimmedRight(meterWidth + 2));
+    volumeSlider.setBounds(getLocalBounds());
 }
 
-} // namespace Nimbus::UI::Mixer
+void MeteredFader::paint(juce::Graphics& g) {
+    auto bounds = getLocalBounds().toFloat();
+    float meterWidth = bounds.getWidth() - 12.0f; 
+    juce::Rectangle<float> meterBounds(0, 0, meterWidth, bounds.getHeight());
+
+    // 1. Draw Meter Background
+    g.setColour(juce::Colour(0xff111111));
+    if (type == TrackType::StereoAudio) {
+        float halfW = (meterWidth / 2.0f) - 0.5f;
+        g.fillRect(0.0f, 0.0f, halfW, bounds.getHeight());
+        g.fillRect(halfW + 1.0f, 0.0f, halfW, bounds.getHeight());
+    } else {
+        g.fillRect(meterBounds);
+    }
+
+    // 2. Draw Ticks beside the VU meter (-60 to +10 in steps of 5)
+    g.setColour(juce::Colour(0xff555555));
+    for (int db = -60; db <= 10; db += 5) {
+        float proportion = 1.0f - ((db + 60.0f) / 70.0f);
+        float y = proportion * bounds.getHeight();
+        g.fillRect(meterWidth + 2.0f, y, 4.0f, 1.0f);
+    }
+
+    if (currentLevelL <= 0.0f && currentLevelR <= 0.0f) return;
+
+    // 3. Draw Active Meter
+    juce::ColourGradient cg(juce::Colours::lime, meterBounds.getBottomLeft(), juce::Colours::red, meterBounds.getTopLeft(), false);
+    cg.addColour(0.7f, juce::Colours::yellow);
+
+    if (type == TrackType::MonoAudio) {
+        int fillHeight = juce::roundToInt(meterBounds.getHeight() * currentLevelL);
+        g.setGradientFill(cg);
+        g.fillRect(meterBounds.withTrimmedTop(meterBounds.getHeight() - fillHeight));
+    } 
+    else if (type == TrackType::StereoAudio) {
+        float halfW = (meterWidth / 2.0f) - 0.5f;
+        int fillHL = juce::roundToInt(meterBounds.getHeight() * currentLevelL);
+        int fillHR = juce::roundToInt(meterBounds.getHeight() * currentLevelR);
+        
+        g.setGradientFill(cg);
+        g.fillRect(0.0f, meterBounds.getHeight() - fillHL, halfW, (float)fillHL);
+        g.fillRect(halfW + 1.0f, meterBounds.getHeight() - fillHR, halfW, (float)fillHR);
+    }
+}
+
+} // namespace Nimbus::UI

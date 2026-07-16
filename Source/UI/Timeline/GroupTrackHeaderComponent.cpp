@@ -5,7 +5,7 @@
 
 namespace Nimbus::Timeline {
 
-void GroupTrackHeaderComponent::loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName) {
+void GroupTrackHeaderComponent::loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName, float rotationDegrees) {
     int size = 0;
     if (const char* data = BinaryData::getNamedResource(iconName.toUTF8(), size)) {
         // BRUTE FORCE SVG TO WHITE
@@ -17,6 +17,10 @@ void GroupTrackHeaderComponent::loadSvgIcon(juce::DrawableButton& btn, const juc
 
         if (auto xml = juce::XmlDocument::parse(svgStr)) {
             if (auto svg = juce::Drawable::createFromSVG(*xml)) {
+                svg->setTransformToFit(juce::Rectangle<float>(0, 0, 16, 16), juce::RectanglePlacement::centred);
+                if (rotationDegrees != 0.0f) {
+                    svg->setTransform(svg->getTransform().rotated(juce::degreesToRadians(rotationDegrees), 8.0f, 8.0f));
+                }
                 btn.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
             }
         }
@@ -29,7 +33,34 @@ GroupTrackHeaderComponent::GroupTrackHeaderComponent(NimbusEngine& e, int tIndex
     
     addAndMakeVisible(foldButton);
     foldButton.setClickingTogglesState(true);
-    loadSvgIcon(foldButton, isFolded ? DesignSystem::Iconography::Unfold : DesignSystem::Iconography::Fold);
+    
+    auto createRotatedIcon = [](const juce::String& name, float rot) -> std::unique_ptr<juce::Drawable> {
+        int size = 0;
+        if (const char* data = BinaryData::getNamedResource(name.toUTF8(), size)) {
+            juce::String svgStr(data, (size_t)size);
+            svgStr = svgStr.replace("fill=\"#000000\"", "fill=\"#ffffff\"")
+                           .replace("fill=\"#212121\"", "fill=\"#ffffff\"")
+                           .replace("fill=\"currentColor\"", "fill=\"#ffffff\"")
+                           .replace("<svg ", "<svg fill=\"#ffffff\" color=\"#ffffff\" ");
+            if (auto xml = juce::XmlDocument::parse(svgStr)) {
+                if (auto svg = juce::Drawable::createFromSVG(*xml)) {
+                    svg->setTransformToFit(juce::Rectangle<float>(0, 0, 10, 10), juce::RectanglePlacement::centred);
+                    if (rot != 0.0f) {
+                        svg->setTransform(svg->getTransform().rotated(juce::degreesToRadians(rot), 5.0f, 5.0f));
+                    }
+                    return svg;
+                }
+            }
+        }
+        return nullptr;
+    };
+
+    auto unfoldedSvg = createRotatedIcon(DesignSystem::Iconography::Fold, 0.0f);
+    auto foldedSvg = createRotatedIcon(DesignSystem::Iconography::Fold, -90.0f);
+    foldButton.setImages(unfoldedSvg.get(), nullptr, nullptr, nullptr, foldedSvg.get(), nullptr, nullptr, nullptr);
+    foldButton.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
+    foldButton.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colours::transparentBlack);
+    foldButton.setToggleState(isFolded, juce::dontSendNotification);
     foldButton.onClick = [this] {
         bool currentlyFolded = engine.getTimelineProject().getTrack(trackIndex).isFolded;
         engine.getTimelineProject().setTrackFolded(trackIndex, !currentlyFolded);
@@ -45,8 +76,18 @@ GroupTrackHeaderComponent::GroupTrackHeaderComponent(NimbusEngine& e, int tIndex
     };
 
     addAndMakeVisible(nameLabel);
-    nameLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
+    nameLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(13.0f));
     nameLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
+    nameLabel.setEditable(true, false, false);
+    nameLabel.onTextChange = [this] {
+        auto newText = nameLabel.getText();
+        if (newText.trim().isEmpty()) {
+            nameLabel.setText("Group Track", juce::dontSendNotification);
+            engine.getTimelineProject().setTrackName(trackIndex, "Group Track");
+        } else {
+            engine.getTimelineProject().setTrackName(trackIndex, newText);
+        }
+    };
 
     addAndMakeVisible(muteButton);
     muteButton.setClickingTogglesState(true);
@@ -75,9 +116,10 @@ void GroupTrackHeaderComponent::setTrackIndex(int newIndex) {
     
     if (trackIndex >= 0 && trackIndex < engine.getTimelineProject().getNumTracks()) {
         const auto& trackModel = engine.getTimelineProject().getTrack(trackIndex);
-        nameLabel.setText(trackModel.name.isNotEmpty() ? trackModel.name : "Group", juce::dontSendNotification);
+        powerToggle.setButtonText(juce::String(trackIndex + 1));
+        nameLabel.setText(trackModel.name.isNotEmpty() ? trackModel.name : "Group Track", juce::dontSendNotification);
 
-        loadSvgIcon(foldButton, trackModel.isFolded ? DesignSystem::Iconography::Unfold : DesignSystem::Iconography::Fold);
+        foldButton.setToggleState(trackModel.isFolded, juce::dontSendNotification);
         
         muteButton.setToggleState(trackModel.isMuted, juce::dontSendNotification);
         loadSvgIcon(muteButton, trackModel.isMuted ? DesignSystem::Iconography::Mute : DesignSystem::Iconography::Unmute);
@@ -88,7 +130,7 @@ void GroupTrackHeaderComponent::setTrackIndex(int newIndex) {
 
 void GroupTrackHeaderComponent::trackFoldStateChanged(int track, bool isFolded) {
     if (track == trackIndex) {
-        loadSvgIcon(foldButton, isFolded ? DesignSystem::Iconography::Unfold : DesignSystem::Iconography::Fold);
+        foldButton.setToggleState(isFolded, juce::dontSendNotification);
     }
 }
 
@@ -120,17 +162,23 @@ void GroupTrackHeaderComponent::paint(juce::Graphics& g) {
 
 void GroupTrackHeaderComponent::resized() {
     auto bounds = getLocalBounds().reduced(2);
-    bounds.removeFromRight(8); // VU meter alignment padding
+    bounds.removeFromRight(6); // VU meter alignment padding
 
-    soloButton.setBounds(bounds.removeFromRight(24).reduced(2));
+    soloButton.setBounds(bounds.removeFromRight(20).reduced(1));
+    bounds.removeFromRight(4);
+    muteButton.setBounds(bounds.removeFromRight(20).reduced(1));
+    
+    bounds.removeFromLeft(4);
+    foldButton.setBounds(bounds.removeFromLeft(16).reduced(2).withTrimmedTop(1));
+    
+    bounds.removeFromLeft(4);
+    powerToggle.setBounds(bounds.removeFromLeft(22).reduced(2));
+    
+    bounds.removeFromLeft(4);
     bounds.removeFromRight(2);
-    muteButton.setBounds(bounds.removeFromRight(24).reduced(2));
     
-    foldButton.setBounds(bounds.removeFromLeft(20).reduced(2));
-    powerToggle.setButtonText(""); 
-    powerToggle.setBounds(bounds.removeFromLeft(30).reduced(2));
-    
-    nameLabel.setBounds(bounds);
+    // Keep height small enough to prevent JUCE from auto-wrapping text onto two lines
+    nameLabel.setBounds(bounds.withSizeKeepingCentre(bounds.getWidth(), 18));
 }
 
 } // namespace Nimbus::Timeline
