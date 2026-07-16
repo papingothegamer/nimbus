@@ -5,7 +5,7 @@
 
 namespace Nimbus {
 
-Track::Track(TrackID id, Transport* t) : id_(id), transport(t) {}
+Track::Track(TrackID id, bool isStereo, Transport* t) : id_(id), isStereo_(isStereo), transport(t) {}
 
 void Track::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) {
     currentSampleRate = sampleRate;
@@ -13,7 +13,8 @@ void Track::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock)
 
     uiMidiCollector.reset(sampleRate);
 
-    trackBuffer.setSize(2, maximumExpectedSamplesPerBlock);
+    trackBuffer.setSize(isStereo_ ? 2 : 1, maximumExpectedSamplesPerBlock);
+    stereoPanBuffer.setSize(2, maximumExpectedSamplesPerBlock);
     
     if (source) source->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
     if (instrument) instrument->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
@@ -39,7 +40,8 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
 
 // FIX: Set avoidReallocating to false (the last parameter).
     // This guarantees the buffer sizes correctly even if dynamically added mid-playback.
-    trackBuffer.setSize(2, buffer.getNumSamples(), false, false, false);
+    int numChannels = isStereo_ ? 2 : 1;
+    trackBuffer.setSize(numChannels, buffer.getNumSamples(), false, false, false);
     trackBuffer.clear();
     trackMidiBuffer.clear();
 
@@ -107,18 +109,28 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
     // 2. Process insert plugins
     insertGraph.processBlock(trackBuffer, trackMidiBuffer);
 
-    // 3. Apply volume and panning
-    fader.processBlock(trackBuffer, trackMidiBuffer);
-
-    // 4. Update the level meter
-    meter.processBlock(trackBuffer);
-
-    // 5. Sum the isolated track buffer into the master buffer
-    for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
-        if (ch < trackBuffer.getNumChannels()) {
+    // 3. Apply Track Fader and Pan
+    // If the track is mono, we upmix it to a stereo buffer before passing to the GainNode so panning works.
+    if (!isStereo_ && buffer.getNumChannels() >= 2) {
+        stereoPanBuffer.setSize(2, trackBuffer.getNumSamples(), false, false, false);
+        stereoPanBuffer.copyFrom(0, 0, trackBuffer, 0, 0, trackBuffer.getNumSamples());
+        stereoPanBuffer.copyFrom(1, 0, trackBuffer, 0, 0, trackBuffer.getNumSamples());
+        
+        fader.processBlock(stereoPanBuffer, trackMidiBuffer);
+        
+        for (int ch = 0; ch < 2; ++ch) {
+            buffer.addFrom(ch, 0, stereoPanBuffer, ch, 0, trackBuffer.getNumSamples());
+        }
+    } else {
+        fader.processBlock(trackBuffer, trackMidiBuffer);
+        
+        for (int ch = 0; ch < std::min(buffer.getNumChannels(), trackBuffer.getNumChannels()); ++ch) {
             buffer.addFrom(ch, 0, trackBuffer, ch, 0, trackBuffer.getNumSamples());
         }
     }
+
+    // 5. Update Level Meter (Meter gets the pre-fader track buffer so we see signal even if volume is 0)
+    meter.processBlock(trackBuffer);
 }
 
 int Track::getLatencySamples() const {

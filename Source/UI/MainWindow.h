@@ -49,6 +49,7 @@ public:
         void mouseDown(const juce::MouseEvent& event) override;
 
         void toggleBrowser();
+        void toggleBottomPanel();
         void toggleDetailView();
         
         NimbusEngine& getEngine() { return engine; }
@@ -62,6 +63,7 @@ public:
         TimelineComponent timelineComponent;
 
         bool isBrowserVisible = true;
+        bool isBottomPanelVisible = true;
         bool isDetailViewVisible = false;
 
         MixerResizerBar mixerResizerBar;

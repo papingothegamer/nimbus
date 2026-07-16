@@ -93,6 +93,10 @@ juce_add_binary_data(Nimbus_Assets
         Assets/Icons/Nimbus/paste.svg
         Assets/Icons/Nimbus/eraser.svg
         Assets/Icons/Nimbus/pointer.svg
+        Assets/Icons/Audacity/audacity.svg
+        Assets/Icons/Audacity/AudacityLogo.png
+        Assets/Icons/Audacity/Classic.svg
+        Assets/Icons/Audacity/Colorful.svg
         Assets/Icons/Nimbus/cursor-move.svg
         Assets/Icons/Nimbus/volume-high.svg
         Assets/Icons/Nimbus/volume-low.svg

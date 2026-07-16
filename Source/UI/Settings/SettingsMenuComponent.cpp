@@ -171,7 +171,7 @@ void DisplaySettingsComponent::resized() {
 
 SettingsMenuComponent::SettingsMenuComponent(NimbusEngine& engineToUse)
     : engine(engineToUse),
-      tabs(juce::TabbedButtonBar::Orientation::TabsAtTop),
+      categoryList("SettingsCategories", this),
       // Audio Setup: hide midi options
       audioSetupComp(engine.getAudioDeviceManager().getJuceAudioDeviceManager(),
                      0, 256, 0, 256, false, false, true, false),
@@ -181,25 +181,88 @@ SettingsMenuComponent::SettingsMenuComponent(NimbusEngine& engineToUse)
       generalComp(engine),
       displayComp(engine)
 {
-    setSize(600, 500);
+    setSize(700, 500);
     
-    addAndMakeVisible(tabs);
+    categories = { "Audio", "MIDI", "Playback / Recording", "Plugins", "Shortcuts", "General", "Display", "Advanced" };
     
-    tabs.addTab("Audio", DesignSystem::Colors::AppBackground, &audioSetupComp, false);
-    tabs.addTab("MIDI", DesignSystem::Colors::AppBackground, &midiSetupComp, false);
-    tabs.addTab("General", DesignSystem::Colors::AppBackground, &generalComp, false);
-    tabs.addTab("Display", DesignSystem::Colors::AppBackground, &displayComp, false);
+    categoryList.setModel(this);
+    categoryList.setRowHeight(36);
+    categoryList.setColour(juce::ListBox::backgroundColourId, DesignSystem::Colors::PanelBackground);
+    addAndMakeVisible(categoryList);
+    
+    addChildComponent(audioSetupComp);
+    addChildComponent(midiSetupComp);
+    addChildComponent(playbackComp);
+    addChildComponent(pluginsComp);
+    addChildComponent(shortcutsComp);
+    addChildComponent(generalComp);
+    addChildComponent(displayComp);
+    addChildComponent(advancedComp);
+    
+    // Select first row initially
+    categoryList.selectRow(0);
 }
 
 SettingsMenuComponent::~SettingsMenuComponent() {
+    categoryList.setModel(nullptr);
 }
 
 void SettingsMenuComponent::paint(juce::Graphics& g) {
     g.fillAll(DesignSystem::Colors::AppBackground);
+    // Draw vertical divider
+    g.setColour(DesignSystem::Colors::Divider);
+    g.fillRect(180, 0, 1, getHeight());
 }
 
 void SettingsMenuComponent::resized() {
-    tabs.setBounds(getLocalBounds());
+    auto bounds = getLocalBounds();
+    categoryList.setBounds(bounds.removeFromLeft(180));
+    
+    // Leave 1 px for divider and some padding
+    bounds.removeFromLeft(1);
+    
+    if (currentContent != nullptr) {
+        currentContent->setBounds(bounds.reduced(10));
+    }
+}
+
+int SettingsMenuComponent::getNumRows() {
+    return categories.size();
+}
+
+void SettingsMenuComponent::paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected) {
+    if (rowNumber < 0 || rowNumber >= categories.size()) return;
+    
+    if (rowIsSelected) {
+        g.fillAll(DesignSystem::Colors::PrimaryBase.withAlpha(0.2f));
+    }
+    
+    g.setColour(rowIsSelected ? DesignSystem::Colors::TextPrimary : DesignSystem::Colors::TextSecondary);
+    g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(16.0f));
+    g.drawText(categories[rowNumber], 16, 0, width - 32, height, juce::Justification::centredLeft, true);
+}
+
+void SettingsMenuComponent::selectedRowsChanged(int lastRowSelected) {
+    if (currentContent != nullptr) {
+        currentContent->setVisible(false);
+    }
+    
+    switch (lastRowSelected) {
+        case 0: currentContent = &audioSetupComp; break;
+        case 1: currentContent = &midiSetupComp; break;
+        case 2: currentContent = &playbackComp; break;
+        case 3: currentContent = &pluginsComp; break;
+        case 4: currentContent = &shortcutsComp; break;
+        case 5: currentContent = &generalComp; break;
+        case 6: currentContent = &displayComp; break;
+        case 7: currentContent = &advancedComp; break;
+        default: currentContent = nullptr; break;
+    }
+    
+    if (currentContent != nullptr) {
+        currentContent->setVisible(true);
+        currentContent->setBounds(getLocalBounds().withTrimmedLeft(181).reduced(10));
+    }
 }
 
 } // namespace Nimbus::UI::Settings

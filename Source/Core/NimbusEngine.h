@@ -51,7 +51,7 @@ public:
 
     std::function<void()> onSidebarLocationChanged;
 
-    void addTrack(bool isMidi);
+    void addTrack(bool isMidi, bool isStereo = true);
 
     // Removed TimelineProject::Listener overrides, now handled by PlaybackEngine
     

@@ -13,18 +13,13 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
         engine.getTimelineProject().setTrackFolded(trackIndex, !isFolded);
     };
 
-    addAndMakeVisible(numberButton);
-    numberButton.setButtonText(juce::String(trackIndex + 1));
-    numberButton.setClickingTogglesState(true);
-    numberButton.setToggleState(true, juce::dontSendNotification); // Active by default
-    numberButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::PrimaryAction.withAlpha(0.7f));
-    numberButton.setColour(juce::TextButton::buttonColourId, juce::Colours::grey.withAlpha(0.3f)); // Muted state
-    numberButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
-    numberButton.setColour(juce::TextButton::textColourOffId, juce::Colours::grey);
-
-    numberButton.onClick = [this] {
-        bool isMuted = !numberButton.getToggleState();
-        engine.getTimelineProject().setTrackMuted(trackIndex, isMuted);
+    addAndMakeVisible(selectButton);
+    selectButton.setClickingTogglesState(true);
+    selectButton.setToggleState(false, juce::dontSendNotification);
+    selectButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::PrimaryAction.withAlpha(0.7f));
+    
+    selectButton.onClick = [this] {
+        engine.getTimelineProject().setTrackSelected(trackIndex, selectButton.getToggleState());
     };
 
     addAndMakeVisible(nameLabel);
@@ -34,6 +29,41 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     nameLabel.setEditable(true, false, false);
     nameLabel.addListener(this);
 
+    addAndMakeVisible(muteButton);
+    muteButton.setClickingTogglesState(true);
+    muteButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::Mute);
+    muteButton.onClick = [this] {
+        engine.getTimelineProject().setTrackMuted(trackIndex, muteButton.getToggleState());
+    };
+
+    addAndMakeVisible(soloButton);
+    soloButton.setClickingTogglesState(true);
+    soloButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::Solo);
+    soloButton.onClick = [this] {
+        engine.getTimelineProject().setTrackSoloed(trackIndex, soloButton.getToggleState());
+    };
+
+    addAndMakeVisible(panSlider);
+    panSlider.setRange(-1.0, 1.0, 0.01);
+    panSlider.setValue(0.0, juce::dontSendNotification);
+    panSlider.setTextValueSuffix("");
+    panSlider.onValueChange = [this] {
+        // Handle pan
+    };
+
+    addAndMakeVisible(gainSlider);
+    gainSlider.setRange(-36.0, 12.0, 0.1);
+    gainSlider.setValue(0.0, juce::dontSendNotification);
+    gainSlider.setTextValueSuffix(" dB");
+    gainSlider.onValueChange = [this] {
+        // Handle gain
+    };
+
+    lPan.setFont(10.0f); addAndMakeVisible(lPan);
+    rPan.setFont(10.0f); addAndMakeVisible(rPan);
+    mGain.setFont(10.0f); addAndMakeVisible(mGain);
+    pGain.setFont(10.0f); addAndMakeVisible(pGain);
+
     addAndMakeVisible(linkIcon);
     linkIcon.setButtonText(DesignSystem::Iconography::Stereo);
     linkIcon.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
@@ -41,60 +71,6 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     linkIcon.setMouseCursor(juce::MouseCursor::NormalCursor);
     linkIcon.setInterceptsMouseClicks(false, false);
     linkIcon.setVisible(false);
-
-    addAndMakeVisible(soloButton);
-    soloButton.setClickingTogglesState(true);
-    soloButton.setButtonText(DesignSystem::Iconography::Solo);
-    soloButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::Solo);
-
-    addAndMakeVisible(armButton);
-    armButton.setClickingTogglesState(true);
-    armButton.setButtonText(DesignSystem::Iconography::RecordArm);
-    armButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::RecordDanger);
-    
-    armButton.onClick = [this] {
-        engine.getTimelineProject().setTrackArmed(trackIndex, armButton.getToggleState());
-    };
-
-    soloButton.onClick = [this] {
-        engine.getTimelineProject().setTrackSoloed(trackIndex, soloButton.getToggleState());
-    };
-
-    // Routing combo boxes (placeholder items)
-    addAndMakeVisible(sourceLabel);
-    addAndMakeVisible(destLabel);
-    
-    sourceLabel.setFont(juce::Font(10.0f));
-    destLabel.setFont(juce::Font(10.0f));
-    sourceLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextSecondary);
-    destLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextSecondary);
-
-    addAndMakeVisible(sourceBox);
-    addAndMakeVisible(destBox);
-    
-    sourceBox.addListener(this);
-    engine.getAudioDeviceManager().getJuceAudioDeviceManager().addChangeListener(this);
-    updateInputSources();
-    
-    destBox.addItem("Master", 1);
-    destBox.setSelectedItemIndex(0);
-
-    addAndMakeVisible(monitorInButton);
-    addAndMakeVisible(monitorAutoButton);
-    addAndMakeVisible(monitorOffButton);
-    
-    monitorInButton.setButtonText("In");
-    monitorAutoButton.setButtonText("Auto");
-    monitorOffButton.setButtonText("Off");
-    
-    monitorInButton.setClickingTogglesState(true);
-    monitorAutoButton.setClickingTogglesState(true);
-    monitorOffButton.setClickingTogglesState(true);
-    
-    monitorInButton.setRadioGroupId(2);
-    monitorAutoButton.setRadioGroupId(2);
-    monitorOffButton.setRadioGroupId(2);
-    monitorAutoButton.setToggleState(true, juce::dontSendNotification);
 
 
     engine.getTimelineProject().addListener(this);
@@ -115,49 +91,12 @@ void TrackHeaderComponent::labelTextChanged(juce::Label* labelThatHasChanged) {
 }
 
 void TrackHeaderComponent::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) {
-    if (comboBoxThatHasChanged == &sourceBox) {
-        int index = sourceBox.getSelectedItemIndex();
-        int inputChannel = index - 1; // 0 = All Channels (-1), 1 = In 1 (0), 2 = In 2 (1)
-        engine.getTimelineProject().setTrackInputChannel(trackIndex, inputChannel);
-    }
 }
 
 void TrackHeaderComponent::changeListenerCallback(juce::ChangeBroadcaster* source) {
-    if (source == &engine.getAudioDeviceManager().getJuceAudioDeviceManager()) {
-        updateInputSources();
-    }
 }
 
 void TrackHeaderComponent::updateInputSources() {
-    int currentSelection = sourceBox.getSelectedItemIndex();
-    
-    sourceBox.clear();
-    if (auto* device = engine.getAudioDeviceManager().getJuceAudioDeviceManager().getCurrentAudioDevice()) {
-        auto activeChannels = device->getActiveInputChannels();
-        auto channelNames = device->getInputChannelNames();
-        
-        sourceBox.addItem("All Channels", 1);
-        int itemIndex = 2;
-        
-        for (int i = 0; i < channelNames.size(); ++i) {
-            if (activeChannels[i]) {
-                sourceBox.addItem(channelNames[i], itemIndex++);
-            }
-        }
-    }
-    
-    if (sourceBox.getNumItems() == 0) {
-        sourceBox.addItem("No Input", 1);
-    }
-    
-    int modelIndex = engine.getTimelineProject().getTrack(trackIndex).inputChannelIndex;
-    int desiredSelection = modelIndex + 1; // -1 becomes 0 (All Channels), 0 becomes 1
-    
-    if (desiredSelection >= 0 && desiredSelection < sourceBox.getNumItems()) {
-        sourceBox.setSelectedItemIndex(desiredSelection, juce::dontSendNotification);
-    } else {
-        sourceBox.setSelectedItemIndex(0, juce::dontSendNotification);
-    }
 }
 
 void TrackHeaderComponent::mouseDown(const juce::MouseEvent& event) {
@@ -215,7 +154,7 @@ void TrackHeaderComponent::mouseDown(const juce::MouseEvent& event) {
 
 void TrackHeaderComponent::trackMuteChanged(int track, bool isMuted) {
     if (track == trackIndex) {
-        numberButton.setToggleState(!isMuted, juce::dontSendNotification);
+        muteButton.setToggleState(isMuted, juce::dontSendNotification);
     }
 }
 
@@ -226,9 +165,7 @@ void TrackHeaderComponent::trackSoloChanged(int track, bool isSoloed) {
 }
 
 void TrackHeaderComponent::trackArmChanged(int track, bool isArmed) {
-    if (track == trackIndex) {
-        armButton.setToggleState(isArmed, juce::dontSendNotification);
-    }
+    // Arm logic not needed in basic audacity header, but handled silently if added later
 }
 
 void TrackHeaderComponent::trackSelectionChanged() {
@@ -255,9 +192,12 @@ void TrackHeaderComponent::trackNameChanged(int track, const juce::String& newNa
 
 void TrackHeaderComponent::setTrackIndex(int newIndex) {
     trackIndex = newIndex;
-    numberButton.setButtonText(juce::String(trackIndex + 1));
-    const auto& track = engine.getTimelineProject().getTrack(trackIndex);
-    nameLabel.setText(track.name.isNotEmpty() ? track.name : "Track " + juce::String(trackIndex + 1), juce::dontSendNotification);
+    if (trackIndex >= 0 && trackIndex < engine.getTimelineProject().getNumTracks()) {
+        const auto& trackModel = engine.getTimelineProject().getTrack(trackIndex);
+        nameLabel.setText(trackModel.name.isNotEmpty() ? trackModel.name : "Track " + juce::String(trackIndex + 1), juce::dontSendNotification);
+    } else {
+        nameLabel.setText("Track " + juce::String(trackIndex + 1), juce::dontSendNotification);
+    }
 }
 
 void TrackHeaderComponent::paint(juce::Graphics& g) {
@@ -332,67 +272,51 @@ void TrackHeaderComponent::resized() {
     bool isFolded = engine.getTimelineProject().getTrack(trackIndex).isFolded;
     bool isGroup = engine.getTimelineProject().getTrack(trackIndex).isGroup;
     
-    // Top Row logic (Name, Number, Solo, Arm)
+    // Top Row logic (Select, Name)
     auto topRow = bounds.removeFromTop(24);
     if (isGroup) {
         foldButton.setBounds(topRow.removeFromLeft(20).reduced(2));
     } else {
         topRow.removeFromLeft(4); // Spacing if not group
     }
-    numberButton.setBounds(topRow.removeFromLeft(36).reduced(2));
     
-    if (!isGroup && !isFolded) {
-        armButton.setBounds(topRow.removeFromRight(20).reduced(2));
-        soloButton.setBounds(topRow.removeFromRight(20).reduced(2));
-    }
-    
-    if (linkIcon.isVisible()) {
-        linkIcon.setBounds(topRow.removeFromRight(16).reduced(2));
-    }
-    
+    selectButton.setBounds(topRow.removeFromLeft(50).reduced(2));
     nameLabel.setBounds(topRow.reduced(2, 0));
-    
-    if (isFolded || isGroup) {
-        soloButton.setVisible(false);
-        armButton.setVisible(false);
-        sourceLabel.setVisible(false);
-        destLabel.setVisible(false);
-        sourceBox.setVisible(false);
-        destBox.setVisible(false);
-        monitorInButton.setVisible(false);
-        monitorAutoButton.setVisible(false);
-        monitorOffButton.setVisible(false);
-    } else {
-        soloButton.setVisible(true);
-        armButton.setVisible(true);
-        sourceLabel.setVisible(true);
-        destLabel.setVisible(true);
-        sourceBox.setVisible(true);
-        destBox.setVisible(true);
-        monitorInButton.setVisible(true);
-        monitorAutoButton.setVisible(true);
-        monitorOffButton.setVisible(true);
 
-        // Routing Area
-        auto routingArea = bounds.reduced(2, 2);
+    if (isFolded || isGroup) {
+        muteButton.setVisible(false);
+        soloButton.setVisible(false);
+        panSlider.setVisible(false);
+        gainSlider.setVisible(false);
+        lPan.setVisible(false);
+        rPan.setVisible(false);
+        mGain.setVisible(false);
+        pGain.setVisible(false);
+    } else {
+        muteButton.setVisible(true);
+        soloButton.setVisible(true);
+        panSlider.setVisible(true);
+        gainSlider.setVisible(true);
+        lPan.setVisible(true);
+        rPan.setVisible(true);
+        mGain.setVisible(true);
+        pGain.setVisible(true);
+
+        auto controlsArea = bounds.reduced(2, 2);
         
-        // Hide labels to save vertical space
-        sourceLabel.setVisible(false);
-        destLabel.setVisible(false);
+        auto msRow = controlsArea.removeFromTop(24);
+        muteButton.setBounds(msRow.removeFromLeft(msRow.getWidth() / 2).reduced(2));
+        soloButton.setBounds(msRow.reduced(2));
+
+        auto pRow = controlsArea.removeFromTop(20);
+        lPan.setBounds(pRow.removeFromLeft(15));
+        rPan.setBounds(pRow.removeFromRight(15));
+        panSlider.setBounds(pRow);
         
-        // Stack vertically
-        sourceBox.setBounds(routingArea.removeFromTop(18).reduced(0, 1));
-        routingArea.removeFromTop(2);
-        
-        auto monitorArea = routingArea.removeFromTop(16); 
-        int w = monitorArea.getWidth() / 3;
-        monitorInButton.setBounds(monitorArea.removeFromLeft(w).reduced(1, 0));
-        monitorAutoButton.setBounds(monitorArea.removeFromLeft(w).reduced(1, 0));
-        monitorOffButton.setBounds(monitorArea.reduced(1, 0));
-        
-        routingArea.removeFromTop(2);
-        
-        destBox.setBounds(routingArea.removeFromTop(18).reduced(0, 1));
+        auto gRow = controlsArea.removeFromTop(20);
+        mGain.setBounds(gRow.removeFromLeft(15));
+        pGain.setBounds(gRow.removeFromRight(15));
+        gainSlider.setBounds(gRow);
     }
 }
 

@@ -17,7 +17,7 @@ PlaybackEngine::~PlaybackEngine() {
 void PlaybackEngine::trackAdded(int trackIndex, const TrackModel& track) {
     if (track.isGroup) return; // Group tracks don't have audio nodes currently
     
-    auto newTrack = std::make_unique<Track>(track.id, &engine.getTransport());
+    auto newTrack = std::make_unique<Track>(track.id, track.isStereo, &engine.getTransport());
     newTrack->setSourceNode(std::make_unique<TrackSourceNode>(engine.getTransport(), engine.getFormatManager()));
     // newTrack->setMuted(track.isMuted); // etc
     trackNodes[track.id.toString()] = newTrack.get();

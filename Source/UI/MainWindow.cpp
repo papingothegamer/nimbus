@@ -57,6 +57,10 @@ MainWindow::MainContentComponent::MainContentComponent(NimbusEngine& e)
     mixerResizerBar.onHeightChanged = [this]() { resized(); };
     sidebarResizerBar.onWidthChanged = [this]() { resized(); };
     engine.onSidebarLocationChanged = [this]() { resized(); };
+
+    topToolbar.onBrowserToggle = [this]() { toggleBrowser(); };
+    topToolbar.onDetailToggle = [this]() { toggleDetailView(); };
+    topToolbar.onBottomPanelToggle = [this]() { toggleBottomPanel(); };
 }
 
 void MainWindow::MainContentComponent::paint(juce::Graphics& g) {
@@ -70,18 +74,25 @@ void MainWindow::MainContentComponent::resized() {
     topToolbar.setBounds(bounds.removeFromTop(40));
     
     // Bottom Section
-    int h = mixerResizerBar.mixerHeight;
-    auto bottomArea = bounds.removeFromBottom(h);
-    
-    if (isDetailViewVisible) {
-        detailView.setBounds(bottomArea.removeFromLeft(bottomArea.getWidth() / 2));
-        bottomMixer.setBounds(bottomArea);
+    if (isBottomPanelVisible) {
+        int h = mixerResizerBar.mixerHeight;
+        auto bottomArea = bounds.removeFromBottom(h);
+        
+        if (isDetailViewVisible) {
+            detailView.setBounds(bottomArea.removeFromLeft(bottomArea.getWidth() / 2));
+            bottomMixer.setBounds(bottomArea);
+        } else {
+            bottomMixer.setBounds(bottomArea);
+        }
+        
+        // Resizer bar sits directly above the bottom mixer section
+        mixerResizerBar.setBounds(bounds.removeFromBottom(4));
+        mixerResizerBar.setVisible(true);
     } else {
-        bottomMixer.setBounds(bottomArea);
+        detailView.setVisible(false);
+        bottomMixer.setVisible(false);
+        mixerResizerBar.setVisible(false);
     }
-    
-    // Resizer bar sits directly above the bottom mixer section
-    mixerResizerBar.setBounds(bounds.removeFromBottom(4));
     
     // Side Browser
     if (isBrowserVisible) {
@@ -110,25 +121,41 @@ void MainWindow::MainContentComponent::toggleBrowser() {
 
 void MainWindow::MainContentComponent::toggleDetailView() {
     isDetailViewVisible = !isDetailViewVisible;
-    detailView.setVisible(isDetailViewVisible);
-    bottomMixer.setVisible(true); // Mixer is always visible
+    if (isDetailViewVisible && !isBottomPanelVisible) {
+        // Auto-show bottom panel if detail view is turned on
+        isBottomPanelVisible = true;
+        bottomMixer.setVisible(true);
+    }
+    detailView.setVisible(isDetailViewVisible && isBottomPanelVisible);
+    resized();
+}
+
+void MainWindow::MainContentComponent::toggleBottomPanel() {
+    isBottomPanelVisible = !isBottomPanelVisible;
+    if (isBottomPanelVisible) {
+        bottomMixer.setVisible(true);
+        if (isDetailViewVisible) detailView.setVisible(true);
+    }
     resized();
 }
 
 void MainWindow::MainContentComponent::mouseDown(const juce::MouseEvent& event) {
     if (event.mods.isPopupMenu()) {
         juce::PopupMenu menu;
-        menu.addItem(1, "Insert Audio Track (CMD+T)");
-        menu.addItem(2, "Insert MIDI Track (CMD+SHIFT+T)");
+        menu.addItem(1, "Insert Mono Audio Track (Ctrl+T)");
+        menu.addItem(2, "Insert Stereo Audio Track (Ctrl+Shift+T)");
+        menu.addItem(3, "Insert MIDI Track (Ctrl+Alt+T)");
         menu.addSeparator();
-        menu.addItem(3, "Delete Selected Track (Backspace)");
+        menu.addItem(4, "Delete Selected Track (Backspace)");
         
         menu.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
             if (result == 1) {
-                engine.addTrack(false);
+                engine.addTrack(false, false); // isMidi = false, isStereo = false
             } else if (result == 2) {
-                engine.addTrack(true);
+                engine.addTrack(false, true);  // isMidi = false, isStereo = true
             } else if (result == 3) {
+                engine.addTrack(true, true);   // isMidi = true, isStereo = true
+            } else if (result == 4) {
                 juce::Logger::writeToLog("Shortcut: Delete Selection");
             }
         });
@@ -171,11 +198,14 @@ bool MainWindow::keyPressed(const juce::KeyPress& key) {
     if (key.getKeyCode() == 't' || key.getKeyCode() == 'T') {
         if (key.getModifiers().isCommandDown() || key.getModifiers().isCtrlDown()) {
             if (key.getModifiers().isShiftDown()) {
+                juce::Logger::writeToLog("Shortcut: Add Stereo Audio Track");
+                mainContent.getEngine().addTrack(false, true);
+            } else if (key.getModifiers().isAltDown()) {
                 juce::Logger::writeToLog("Shortcut: Add MIDI Track");
-                mainContent.getEngine().addTrack(true);
+                mainContent.getEngine().addTrack(true, true);
             } else {
-                juce::Logger::writeToLog("Shortcut: Add Audio Track");
-                mainContent.getEngine().addTrack(false);
+                juce::Logger::writeToLog("Shortcut: Add Mono Audio Track");
+                mainContent.getEngine().addTrack(false, false);
             }
             return true;
         }

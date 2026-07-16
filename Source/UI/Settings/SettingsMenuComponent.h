@@ -57,21 +57,36 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DisplaySettingsComponent)
 };
 
-class SettingsMenuComponent : public juce::Component {
+class SettingsMenuComponent : public juce::Component, public juce::ListBoxModel {
 public:
     SettingsMenuComponent(NimbusEngine& engine);
     ~SettingsMenuComponent() override;
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    
+    // ListBoxModel overrides
+    int getNumRows() override;
+    void paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected) override;
+    void selectedRowsChanged(int lastRowSelected) override;
 
 private:
     NimbusEngine& engine;
     
-    juce::TabbedComponent tabs;
+    juce::ListBox categoryList;
+    juce::StringArray categories;
+    
+    juce::Component* currentContent { nullptr };
     
     juce::AudioDeviceSelectorComponent audioSetupComp;
     juce::AudioDeviceSelectorComponent midiSetupComp;
+    
+    // Placeholder components for new Audacity-like tabs
+    juce::Component playbackComp;
+    juce::Component pluginsComp;
+    juce::Component shortcutsComp;
+    juce::Component advancedComp;
+    
     GeneralSettingsComponent generalComp;
     DisplaySettingsComponent displayComp;
 

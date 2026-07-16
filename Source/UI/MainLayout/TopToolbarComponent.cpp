@@ -66,17 +66,19 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     addAndMakeVisible(zoomLevelLabel);
 
     // Setup Transport
-    setupIconBtn(jumpStartButton);
-    setupIconBtn(rewindButton);
+    setupIconBtn(pauseButton);
     setupIconBtn(playButton);
+    setupIconBtn(stopButton);
+    setupIconBtn(jumpStartButton);
+    setupIconBtn(jumpEndButton);
     setupIconBtn(recordButton);
-    setupIconBtn(fastForwardButton);
     
-    addAndMakeVisible(jumpStartButton);
-    addAndMakeVisible(rewindButton);
+    addAndMakeVisible(pauseButton);
     addAndMakeVisible(playButton);
+    addAndMakeVisible(stopButton);
+    addAndMakeVisible(jumpStartButton);
+    addAndMakeVisible(jumpEndButton);
     addAndMakeVisible(recordButton);
-    addAndMakeVisible(fastForwardButton);
     
     // Setup Displays
     addAndMakeVisible(barsDisplay);
@@ -136,7 +138,7 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     pianoRollToggle.setClickingTogglesState(true);
     pianoRollToggle.onClick = [this]() {
         pianoRollToggle.setButtonText(pianoRollToggle.getToggleState() ? DesignSystem::Iconography::PianoOn : DesignSystem::Iconography::PianoOff);
-        // We'll also fire a callback if it was doing something else (the user will hook this up later)
+        if (onDetailToggle) onDetailToggle();
     };
     mixerToggle.setClickingTogglesState(true);
     // settingsButton doesn't toggle state, it probably opens a menu
@@ -182,14 +184,21 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         options.launchAsync();
     };
     mixerToggle.onClick = [this]() {
-        if (onDetailToggle) onDetailToggle();
+        if (onBottomPanelToggle) onBottomPanelToggle();
+    };
+    pauseButton.onClick = [this]() {
+        if (engine.getTransport().isPlaying()) {
+            engine.getTransport().stop(); // Or pause if engine supports it
+        }
     };
     playButton.onClick = [this]() {
-        if (engine.getTransport().isPlaying()) {
-            engine.getTransport().stop();
-        } else {
+        if (!engine.getTransport().isPlaying()) {
             engine.getTransport().play();
         }
+    };
+    stopButton.onClick = [this]() {
+        engine.getTransport().stop();
+        engine.getTransport().setPosition(0.0);
     };
     recordButton.onClick = [this]() {
         if (engine.getTransport().isRecording()) {
@@ -200,6 +209,10 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     };
     jumpStartButton.onClick = [this]() {
         engine.getTransport().setPosition(0.0);
+    };
+    jumpEndButton.onClick = [this]() {
+        // Find end of project and jump there (or just far right)
+        engine.getTransport().setPosition(engine.getTimelineProject().getTotalDurationSamples());
     };
     
     startTimerHz(30);
@@ -248,12 +261,13 @@ void TopToolbarComponent::resized() {
     zoomLevelLabel.setBounds(centerX - 311, 4, 40, groupHeight);
     zoomInButton.setBounds(centerX - 271, 4, 24, groupHeight);
     
-    // Center: Transport
-    jumpStartButton.setBounds(centerX - 245, 4, 24, groupHeight);
-    rewindButton.setBounds(centerX - 217, 4, 24, groupHeight);
-    playButton.setBounds(centerX - 189, 4, 24, groupHeight);
-    recordButton.setBounds(centerX - 161, 4, 24, groupHeight);
-    fastForwardButton.setBounds(centerX - 133, 4, 24, groupHeight);
+    // Center: Transport (Audacity layout: Pause, Play, Stop, Skip Start, Skip End, Record)
+    pauseButton.setBounds(centerX - 270, 4, 24, groupHeight);
+    playButton.setBounds(centerX - 242, 4, 24, groupHeight);
+    stopButton.setBounds(centerX - 214, 4, 24, groupHeight);
+    jumpStartButton.setBounds(centerX - 186, 4, 24, groupHeight);
+    jumpEndButton.setBounds(centerX - 158, 4, 24, groupHeight);
+    recordButton.setBounds(centerX - 130, 4, 24, groupHeight);
 
     // Center: Displays
     barsDisplay.setBounds(centerX - 95, 2, 75, 36);

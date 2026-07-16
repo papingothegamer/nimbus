@@ -21,7 +21,7 @@ class MidiRecorder;
  */
 class Track : public IAudioNode {
 public:
-    Track(TrackID id, Transport* t = nullptr);
+    Track(TrackID id, bool isStereo, Transport* t = nullptr);
     ~Track() override = default;
 
     // IAudioNode
@@ -88,6 +88,7 @@ private:
     
     // Intermediate buffer to hold this track's isolated audio
     juce::AudioBuffer<float> trackBuffer;
+    juce::AudioBuffer<float> stereoPanBuffer;
     juce::MidiBuffer trackMidiBuffer;
     const juce::AudioBuffer<float>* inputBufferPtr = nullptr;
     AudioRecorder* recorder_ = nullptr;
@@ -98,6 +99,7 @@ private:
     std::atomic<bool> muted_{false};
     std::atomic<bool> soloed_{false};
     std::atomic<bool> armed_{false};
+    bool isStereo_ = true;
     std::atomic<int> inputChannelIndex_{-1};
     juce::SpinLock processLock;
 };

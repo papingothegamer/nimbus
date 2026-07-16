@@ -17,6 +17,7 @@ public:
     void timerCallback() override;
 
     std::function<void()> onBrowserToggle;
+    std::function<void()> onBottomPanelToggle;
     std::function<void()> onDetailToggle;
     std::function<void()> onZoomIn;
     std::function<void()> onZoomOut;
@@ -36,11 +37,12 @@ private:
     juce::TextButton zoomInButton{DesignSystem::Iconography::ZoomIn};
 
     // --- Center Section (Transport) ---
-    juce::TextButton jumpStartButton{DesignSystem::Iconography::JumpStart};
-    juce::TextButton rewindButton{DesignSystem::Iconography::Rewind};
+    juce::TextButton pauseButton{DesignSystem::Iconography::Pause};
     juce::TextButton playButton{DesignSystem::Iconography::Play};
+    juce::TextButton stopButton{DesignSystem::Iconography::Stop};
+    juce::TextButton jumpStartButton{DesignSystem::Iconography::JumpStart};
+    juce::TextButton jumpEndButton{DesignSystem::Iconography::FastForward}; // Reusing FastForward as Skip to End
     juce::TextButton recordButton{DesignSystem::Iconography::RecordGlobal};
-    juce::TextButton fastForwardButton{DesignSystem::Iconography::FastForward};
 
     // --- Time Displays ---
     class DisplayBox : public juce::Component {

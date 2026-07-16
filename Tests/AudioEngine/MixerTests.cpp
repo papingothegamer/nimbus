@@ -23,11 +23,11 @@ TEST_CASE("Mixer sums tracks correctly", "[mixer]") {
     mixer.prepareToPlay(44100.0, 64);
     
     // Create track 1 (+1.0)
-    auto track1 = std::make_unique<Nimbus::Track>(Nimbus::TrackID());
+    auto track1 = std::make_unique<Nimbus::Track>(Nimbus::TrackID(), true);
     track1->setSourceNode(std::make_unique<DCNode>(1.0f));
     
     // Create track 2 (+0.5)
-    auto track2 = std::make_unique<Nimbus::Track>(Nimbus::TrackID());
+    auto track2 = std::make_unique<Nimbus::Track>(Nimbus::TrackID(), true);
     track2->setSourceNode(std::make_unique<DCNode>(0.5f));
     
     mixer.addTrack(std::move(track1));

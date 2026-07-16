@@ -48,20 +48,20 @@ private:
     float currentLevel = 0.0f;
 
     juce::TextButton foldButton;
-    juce::TextButton numberButton;
+    juce::TextButton selectButton{"Select"};
     juce::Label nameLabel;
-    juce::TextButton soloButton{"S"};
-    juce::TextButton armButton{"O"};
+    juce::TextButton muteButton{"Mute"};
+    juce::TextButton soloButton{"Solo"};
+    
+    juce::Slider panSlider{juce::Slider::LinearHorizontal, juce::Slider::TextBoxLeft};
+    juce::Label lPan{"", "L"};
+    juce::Label rPan{"", "R"};
+
+    juce::Slider gainSlider{juce::Slider::LinearHorizontal, juce::Slider::TextBoxLeft};
+    juce::Label mGain{"", "-"};
+    juce::Label pGain{"", "+"};
+    
     juce::TextButton linkIcon{"Link"};
-    
-    juce::Label sourceLabel{"", "Audio From"};
-    juce::ComboBox sourceBox;
-    juce::Label destLabel{"", "Audio To"};
-    juce::ComboBox destBox;
-    
-    juce::TextButton monitorInButton{"In"};
-    juce::TextButton monitorAutoButton{"Auto"};
-    juce::TextButton monitorOffButton{"Off"};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackHeaderComponent)
 };

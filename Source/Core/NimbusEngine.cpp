@@ -45,11 +45,11 @@ void NimbusEngine::initialise() {
     juce::Logger::writeToLog("Engine: Initialise Complete");
 }
 
-void NimbusEngine::addTrack(bool isMidi) {
+void NimbusEngine::addTrack(bool isMidi, bool isStereo) {
     TrackModel model;
-    model.name = isMidi ? "MIDI Track" : "Audio Track";
+    model.name = isMidi ? "MIDI Track" : (isStereo ? "Stereo Audio Track" : "Mono Audio Track");
     model.isMidi = isMidi;
-    model.isStereo = !isMidi; // Audio track defaults to stereo
+    model.isStereo = isMidi ? true : isStereo; // MIDI tracks generate stereo internally
     
     timelineProject.addTrack(model);
     // Track node is now created by PlaybackEngine observing timelineProject

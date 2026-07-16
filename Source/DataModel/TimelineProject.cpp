@@ -335,5 +335,22 @@ AnyClipPtr TimelineProject::getSelectedClip() const {
     return currentSelectedClip;
 }
 
+double TimelineProject::getTotalDurationSamples() const {
+    double maxDuration = 0.0;
+    for (const auto& trackClipList : trackClips) {
+        for (const auto& clip : trackClipList) {
+            std::visit([&](auto&& c) {
+                // c can be shared_ptr<AudioClip> or shared_ptr<MidiClip>
+                double clipEnd = static_cast<double>(c->getStartSample()) + static_cast<double>(c->getLengthSamples());
+                if (clipEnd > maxDuration) {
+                    maxDuration = clipEnd;
+                }
+            }, clip);
+        }
+    }
+    // Return at least some minimal duration so UI doesn't break, e.g. 5 seconds (5 * 44100 = 220500) if project is empty
+    return maxDuration > 0.0 ? maxDuration : 220500.0; 
+}
+
 // Force rebuild
 } // namespace Nimbus
