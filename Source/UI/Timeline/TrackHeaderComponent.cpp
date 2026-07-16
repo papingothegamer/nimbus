@@ -9,18 +9,22 @@ void TrackHeaderComponent::loadSvgIcon(juce::DrawableButton& btn, const juce::St
     int size = 0;
     if (const char* data = BinaryData::getNamedResource(iconName.toUTF8(), size)) {
         if (auto svg = juce::Drawable::createFromImageData(data, size)) {
-            // Apply to Normal and Normal-On
+            // MAKE ICONS WHITE
+            svg->replaceColour(juce::Colours::black, juce::Colours::white);
             btn.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
         }
     }
 }
 
 TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine(e), trackIndex(tIndex) {
+    bool isFolded = engine.getTimelineProject().getTrack(trackIndex).isFolded;
+
     addAndMakeVisible(foldButton);
     foldButton.setClickingTogglesState(true);
+    loadSvgIcon(foldButton, isFolded ? DesignSystem::Iconography::Unfold : DesignSystem::Iconography::Fold);
     foldButton.onClick = [this] {
-        bool isFolded = engine.getTimelineProject().getTrack(trackIndex).isFolded;
-        engine.getTimelineProject().setTrackFolded(trackIndex, !isFolded);
+        bool currentlyFolded = engine.getTimelineProject().getTrack(trackIndex).isFolded;
+        engine.getTimelineProject().setTrackFolded(trackIndex, !currentlyFolded);
     };
 
     addAndMakeVisible(powerToggle);
@@ -40,6 +44,7 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
 
     addAndMakeVisible(muteButton);
     muteButton.setClickingTogglesState(true);
+    loadSvgIcon(muteButton, DesignSystem::Iconography::Unmute);
     muteButton.onClick = [this] { engine.getTimelineProject().setTrackMuted(trackIndex, muteButton.getToggleState()); };
 
     addAndMakeVisible(soloButton);
@@ -50,6 +55,7 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     addAndMakeVisible(armButton);
     armButton.setClickingTogglesState(true);
     loadSvgIcon(armButton, DesignSystem::Iconography::RecordArm);
+    armButton.setToggleState(engine.getTimelineProject().isTrackArmed(trackIndex), juce::dontSendNotification);
     armButton.onClick = [this] { engine.getTimelineProject().setTrackArmed(trackIndex, armButton.getToggleState()); };
 
     addAndMakeVisible(panSlider);
@@ -69,11 +75,8 @@ TrackHeaderComponent::~TrackHeaderComponent() {
 }
 
 void TrackHeaderComponent::labelTextChanged(juce::Label* labelThatHasChanged) {
-    if (labelThatHasChanged == &nameLabel) {
-        engine.getTimelineProject().setTrackName(trackIndex, nameLabel.getText());
-    }
+    if (labelThatHasChanged == &nameLabel) engine.getTimelineProject().setTrackName(trackIndex, nameLabel.getText());
 }
-
 void TrackHeaderComponent::comboBoxChanged(juce::ComboBox*) {}
 void TrackHeaderComponent::changeListenerCallback(juce::ChangeBroadcaster*) {}
 void TrackHeaderComponent::updateInputSources() {}
@@ -83,12 +86,8 @@ void TrackHeaderComponent::mouseDown(const juce::MouseEvent& event) {
         int lastSelected = -1;
         auto& sel = engine.getTimelineProject().getSelectedTracks();
         if (sel.getNumRanges() > 0) lastSelected = sel.getRange(0).getStart();
-        
-        if (lastSelected != -1) {
-            engine.getTimelineProject().selectTrackRange(lastSelected, trackIndex);
-        } else {
-            engine.getTimelineProject().setTrackSelected(trackIndex, true);
-        }
+        if (lastSelected != -1) engine.getTimelineProject().selectTrackRange(lastSelected, trackIndex);
+        else engine.getTimelineProject().setTrackSelected(trackIndex, true);
     } else if (event.mods.isCtrlDown() || event.mods.isCommandDown()) {
         engine.getTimelineProject().toggleTrackSelection(trackIndex);
     } else if (!event.mods.isPopupMenu()) {
@@ -237,7 +236,8 @@ void TrackHeaderComponent::resized() {
         foldButton.setBounds(topRow.removeFromLeft(20).reduced(2));
     }
     
-    powerToggle.setBounds(topRow.removeFromLeft(24).reduced(2));
+    // INCREASED WIDTH to fit double digits
+    powerToggle.setBounds(topRow.removeFromLeft(30).reduced(2));
     nameLabel.setBounds(topRow.reduced(2, 0));
 
     if (track.isFolded || track.isGroup) {
@@ -257,10 +257,8 @@ void TrackHeaderComponent::resized() {
         auto btnRow = controlsArea.removeFromTop(24);
         
         armButton.setBounds(btnRow.removeFromLeft(24).reduced(2));
-        
-        // REMOVE SOLO FIRST SO IT GOES TO FAR RIGHT
         soloButton.setBounds(btnRow.removeFromRight(24).reduced(2));
-        btnRow.removeFromRight(2); // spacing
+        btnRow.removeFromRight(2);
         muteButton.setBounds(btnRow.removeFromRight(24).reduced(2));
 
         auto sliderArea = btnRow;

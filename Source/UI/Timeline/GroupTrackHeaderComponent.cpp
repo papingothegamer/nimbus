@@ -9,25 +9,30 @@ void GroupTrackHeaderComponent::loadSvgIcon(juce::DrawableButton& btn, const juc
     int size = 0;
     if (const char* data = BinaryData::getNamedResource(iconName.toUTF8(), size)) {
         if (auto svg = juce::Drawable::createFromImageData(data, size)) {
-            // Apply to both normal and ON states
+            // MAKE ICONS WHITE
+            svg->replaceColour(juce::Colours::black, juce::Colours::white);
             btn.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
         }
     }
 }
 
 GroupTrackHeaderComponent::GroupTrackHeaderComponent(NimbusEngine& e, int tIndex) : engine(e), trackIndex(tIndex) {
+    bool isFolded = engine.getTimelineProject().getTrack(trackIndex).isFolded;
+    bool isMuted = engine.getTimelineProject().getTrack(trackIndex).isMuted;
+    
     addAndMakeVisible(foldButton);
     foldButton.setClickingTogglesState(true);
+    loadSvgIcon(foldButton, isFolded ? DesignSystem::Iconography::Unfold : DesignSystem::Iconography::Fold);
     foldButton.onClick = [this] {
-        bool isFolded = engine.getTimelineProject().getTrack(trackIndex).isFolded;
-        engine.getTimelineProject().setTrackFolded(trackIndex, !isFolded);
+        bool currentlyFolded = engine.getTimelineProject().getTrack(trackIndex).isFolded;
+        engine.getTimelineProject().setTrackFolded(trackIndex, !currentlyFolded);
     };
 
     addAndMakeVisible(powerToggle);
     powerToggle.setClickingTogglesState(true);
     powerToggle.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
     powerToggle.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::PrimaryAction);
-    powerToggle.setToggleState(true, juce::dontSendNotification);
+    powerToggle.setToggleState(!isMuted, juce::dontSendNotification);
     powerToggle.onClick = [this] {
         engine.getTimelineProject().setTrackMuted(trackIndex, !powerToggle.getToggleState());
     };
@@ -38,6 +43,8 @@ GroupTrackHeaderComponent::GroupTrackHeaderComponent(NimbusEngine& e, int tIndex
 
     addAndMakeVisible(muteButton);
     muteButton.setClickingTogglesState(true);
+    muteButton.setToggleState(isMuted, juce::dontSendNotification);
+    loadSvgIcon(muteButton, isMuted ? DesignSystem::Iconography::Mute : DesignSystem::Iconography::Unmute);
     muteButton.onClick = [this] {
         engine.getTimelineProject().setTrackMuted(trackIndex, muteButton.getToggleState());
     };
@@ -104,18 +111,20 @@ void GroupTrackHeaderComponent::paint(juce::Graphics& g) {
     g.drawRect(getLocalBounds(), 1);
 }
 
+// Notice the getHeight abort trap is gone completely!
 void GroupTrackHeaderComponent::resized() {
     auto bounds = getLocalBounds().reduced(2);
-    bounds.removeFromRight(8);
+    bounds.removeFromRight(8); // VU meter alignment padding
 
-    // REMOVE SOLO FIRST SO IT GOES TO FAR RIGHT
     soloButton.setBounds(bounds.removeFromRight(24).reduced(2));
     bounds.removeFromRight(2);
     muteButton.setBounds(bounds.removeFromRight(24).reduced(2));
     
     foldButton.setBounds(bounds.removeFromLeft(20).reduced(2));
     powerToggle.setButtonText(""); 
-    powerToggle.setBounds(bounds.removeFromLeft(24).reduced(2));
+    
+    // INCREASED WIDTH to match track header
+    powerToggle.setBounds(bounds.removeFromLeft(30).reduced(2));
     
     nameLabel.setBounds(bounds);
 }

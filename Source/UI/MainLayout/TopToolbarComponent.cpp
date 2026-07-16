@@ -28,7 +28,8 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         int size = 0;
         if (const char* data = BinaryData::getNamedResource(iconName.toUTF8(), size)) {
             if (auto svg = juce::Drawable::createFromImageData(data, size)) {
-                // Pass svg.get() to BOTH the normal state (1st arg) and the "ON" state (5th arg)
+                // FORCE THE ICON TO BE WHITE SO IT IS VISIBLE!
+                svg->replaceColour(juce::Colours::black, juce::Colours::white);
                 btn.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
             }
         }
@@ -192,7 +193,6 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         chooser.launchAsync(flags, [this](const juce::FileChooser& fc) {
             juce::File result = fc.getResult();
             if (result.isDirectory()) {
-                // Save validation logic here
             }
         });
     };
@@ -210,25 +210,18 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         if (onBottomPanelToggle) onBottomPanelToggle();
     };
     pauseButton.onClick = [this]() {
-        if (engine.getTransport().isPlaying()) {
-            engine.getTransport().stop();
-        }
+        if (engine.getTransport().isPlaying()) engine.getTransport().stop();
     };
     playButton.onClick = [this]() {
-        if (!engine.getTransport().isPlaying()) {
-            engine.getTransport().play();
-        }
+        if (!engine.getTransport().isPlaying()) engine.getTransport().play();
     };
     stopButton.onClick = [this]() {
         engine.getTransport().stop();
         engine.getTransport().setPosition(0.0);
     };
     recordButton.onClick = [this]() {
-        if (engine.getTransport().isRecording()) {
-            engine.stopRecording();
-        } else {
-            engine.startRecording();
-        }
+        if (engine.getTransport().isRecording()) engine.stopRecording();
+        else engine.startRecording();
     };
     jumpStartButton.onClick = [this]() {
         engine.getTransport().setPosition(0.0);
@@ -244,7 +237,6 @@ TopToolbarComponent::~TopToolbarComponent() {}
 
 void TopToolbarComponent::paint(juce::Graphics& g) {
     g.fillAll(DesignSystem::Colors::PanelBackground);
-
     g.setColour(DesignSystem::Colors::ModuleBackground);
     g.fillRect(0, 0, getWidth(), 28);
     
@@ -260,7 +252,6 @@ void TopToolbarComponent::paint(juce::Graphics& g) {
 
 void TopToolbarComponent::resized() {
     auto bounds = getLocalBounds();
-    
     auto topStrip = bounds.removeFromTop(28);
     workspaceLabel.setBounds(topStrip.removeFromRight(140).reduced(4, 0));
     shareButton.setBounds(topStrip.removeFromRight(70).reduced(2, 3));
@@ -314,11 +305,8 @@ void TopToolbarComponent::resized() {
 }
 
 void TopToolbarComponent::timerCallback() {
-    bool isPlaying = engine.getTransport().isPlaying();
-    playButton.setToggleState(isPlaying, juce::dontSendNotification);
-    
-    bool isRecording = engine.getTransport().isRecording();
-    recordButton.setToggleState(isRecording, juce::dontSendNotification);
+    playButton.setToggleState(engine.getTransport().isPlaying(), juce::dontSendNotification);
+    recordButton.setToggleState(engine.getTransport().isRecording(), juce::dontSendNotification);
     
     double posSamples = engine.getTransport().getCurrentPosition();
     double sampleRate = engine.getTransport().getSampleRate();
@@ -326,11 +314,7 @@ void TopToolbarComponent::timerCallback() {
     double posSeconds = posSamples / sampleRate;
     
     const auto totalSeconds = static_cast<int>(posSeconds);
-    const auto hours = totalSeconds / 3600;
-    const auto mins = (totalSeconds / 60) % 60;
-    const auto secs = totalSeconds % 60;
-    const auto hundredths = static_cast<int>((posSeconds - std::floor(posSeconds)) * 100.0);
-    juce::String timeStr = juce::String::formatted("%02d h %02d m %02d.%02d s", hours, mins, secs, hundredths);
+    juce::String timeStr = juce::String::formatted("%02d h %02d m %02d.%02d s", totalSeconds / 3600, (totalSeconds / 60) % 60, totalSeconds % 60, static_cast<int>((posSeconds - std::floor(posSeconds)) * 100.0));
     timeDisplay.setValue(timeStr);
     
     double tempo = engine.getTransport().getTempo();
@@ -340,25 +324,15 @@ void TopToolbarComponent::timerCallback() {
     int num = project.getTimeSigNumerator();
     
     double totalBeats = posSeconds * (tempo / 60.0);
-    int bar = static_cast<int>(totalBeats / num) + 1;
-    int beat = static_cast<int>(std::fmod(totalBeats, static_cast<double>(num))) + 1;
-    int ticks = static_cast<int>(std::fmod(totalBeats * 100.0, 100.0));
-    juce::String barStr = juce::String::formatted("%d.%d.%02d", bar, beat, ticks);
+    juce::String barStr = juce::String::formatted("%d.%d.%02d", static_cast<int>(totalBeats / num) + 1, static_cast<int>(std::fmod(totalBeats, static_cast<double>(num))) + 1, static_cast<int>(std::fmod(totalBeats * 100.0, 100.0)));
     barsDisplay.setValue(barStr);
     
     bpmDisplay.setValue(juce::String(tempo, 1));
-    if (!sigDisplay.valueLabel.isBeingEdited()) {
-        sigDisplay.setValue(juce::String::formatted("%d/%d", num, project.getTimeSigDenominator()));
-    }
-    
-    if (!projectNameLabel.isBeingEdited()) {
-        projectNameLabel.setText(project.getProjectName(), juce::dontSendNotification);
-    }
+    if (!sigDisplay.valueLabel.isBeingEdited()) sigDisplay.setValue(juce::String::formatted("%d/%d", num, project.getTimeSigDenominator()));
+    if (!projectNameLabel.isBeingEdited()) projectNameLabel.setText(project.getProjectName(), juce::dontSendNotification);
     
     followButton.setToggleState(engine.isFollowPlayheadEnabled(), juce::dontSendNotification);
-    
-    bool isLooping = engine.getTransport().isLooping();
-    loopButton.setToggleState(isLooping, juce::dontSendNotification);
+    loopButton.setToggleState(engine.getTransport().isLooping(), juce::dontSendNotification);
 }
 
 } // namespace Nimbus::MainLayout
