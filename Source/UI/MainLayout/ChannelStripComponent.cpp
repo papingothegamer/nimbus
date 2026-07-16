@@ -117,10 +117,14 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
     
     meteredFader.getSlider().setDoubleClickReturnValue(true, 0.0);
     meteredFader.getSlider().onValueChange = [this]() {
+        float db = static_cast<float>(meteredFader.getSlider().getValue());
+        float vol = juce::Decibels::decibelsToGain(db, -60.0f);
         if (trackIndex != -1) {
-            float db = static_cast<float>(meteredFader.getSlider().getValue());
-            float vol = juce::Decibels::decibelsToGain(db, -60.0f);
             engine.getTimelineProject().setTrackVolume(trackIndex, vol);
+        } else if (master) {
+            if (auto* mixer = engine.getMixer()) {
+                mixer->setMasterVolume(vol);
+            }
         }
     };
 
