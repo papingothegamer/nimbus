@@ -16,6 +16,23 @@ void TopToolbarComponent::DisplayBox::paint(juce::Graphics& g) {
     g.drawText(header, 0, 2, getWidth(), 12, juce::Justification::centredTop, false);
 }
 
+void TopToolbarComponent::loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName) {
+    int size = 0;
+    if (const char* data = BinaryData::getNamedResource(iconName.toUTF8(), size)) {
+        juce::String svgStr(data, (size_t)size);
+        svgStr = svgStr.replace("fill=\"#000000\"", "fill=\"#ffffff\"")
+                       .replace("fill=\"#212121\"", "fill=\"#ffffff\"")
+                       .replace("fill=\"currentColor\"", "fill=\"#ffffff\"")
+                       .replace("<svg ", "<svg fill=\"#ffffff\" color=\"#ffffff\" ");
+
+        if (auto xml = juce::XmlDocument::parse(svgStr)) {
+            if (auto svg = juce::Drawable::createFromSVG(*xml)) {
+                btn.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
+            }
+        }
+    }
+}
+
 TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     auto setupIconBtn = [](juce::DrawableButton& btn) {
         btn.getProperties().set("transparentBackground", true);
@@ -24,31 +41,26 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         btn.setWantsKeyboardFocus(false);
     };
 
-    auto loadSvgIcon = [](juce::DrawableButton& btn, const juce::String& iconName) {
-        int size = 0;
-        if (const char* data = BinaryData::getNamedResource(iconName.toUTF8(), size)) {
-            if (auto svg = juce::Drawable::createFromImageData(data, size)) {
-                // FORCE THE ICON TO BE WHITE SO IT IS VISIBLE!
-                svg->replaceColour(juce::Colours::black, juce::Colours::white);
-                btn.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
-            }
-        }
-    };
-
-
     addAndMakeVisible(transportGroupContainer);
     addAndMakeVisible(toolsGroupContainer);
     addAndMakeVisible(actionGroupContainer);
 
+    // --- Action Group: Undo, Redo, Save, Cut, Trim ---
     setupIconBtn(undoButton);
     setupIconBtn(redoButton);
     setupIconBtn(saveProjectButton);
+    setupIconBtn(cutButton);
+    setupIconBtn(trimButton);
     loadSvgIcon(undoButton, DesignSystem::Iconography::Undo);
     loadSvgIcon(redoButton, DesignSystem::Iconography::Redo);
     loadSvgIcon(saveProjectButton, DesignSystem::Iconography::Save);
+    loadSvgIcon(cutButton, DesignSystem::Iconography::Cut);
+    loadSvgIcon(trimButton, DesignSystem::Iconography::Trim);
     actionGroupContainer.addAndMakeVisible(undoButton);
     actionGroupContainer.addAndMakeVisible(redoButton);
     actionGroupContainer.addAndMakeVisible(saveProjectButton);
+    actionGroupContainer.addAndMakeVisible(cutButton);
+    actionGroupContainer.addAndMakeVisible(trimButton);
     
     projectNameLabel.setJustificationType(juce::Justification::centredLeft);
     projectNameLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(13.0f).boldened());
@@ -59,6 +71,7 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     };
     addAndMakeVisible(projectNameLabel);
 
+    // --- Zoom controls ---
     setupIconBtn(zoomOutButton);
     setupIconBtn(zoomInButton);
     loadSvgIcon(zoomOutButton, DesignSystem::Iconography::ZoomOut);
@@ -81,10 +94,12 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     };
     toolsGroupContainer.addAndMakeVisible(zoomLevelLabel);
 
+    // --- Transport controls ---
     setupIconBtn(pauseButton);
     setupIconBtn(playButton);
     setupIconBtn(stopButton);
     setupIconBtn(jumpStartButton);
+    setupIconBtn(rewindButton);
     setupIconBtn(jumpEndButton);
     setupIconBtn(recordButton);
     setupIconBtn(loopButton);
@@ -94,6 +109,7 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     loadSvgIcon(playButton, DesignSystem::Iconography::Play);
     loadSvgIcon(stopButton, DesignSystem::Iconography::Stop);
     loadSvgIcon(jumpStartButton, DesignSystem::Iconography::JumpStart);
+    loadSvgIcon(rewindButton, DesignSystem::Iconography::Rewind);
     loadSvgIcon(jumpEndButton, DesignSystem::Iconography::FastForward);
     loadSvgIcon(recordButton, DesignSystem::Iconography::RecordGlobal);
     loadSvgIcon(loopButton, DesignSystem::Iconography::Loop);
@@ -103,6 +119,7 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     transportGroupContainer.addAndMakeVisible(playButton);
     transportGroupContainer.addAndMakeVisible(stopButton);
     transportGroupContainer.addAndMakeVisible(jumpStartButton);
+    transportGroupContainer.addAndMakeVisible(rewindButton);
     transportGroupContainer.addAndMakeVisible(jumpEndButton);
     transportGroupContainer.addAndMakeVisible(recordButton);
     transportGroupContainer.addAndMakeVisible(loopButton);
@@ -139,11 +156,14 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
 
     loopButton.setClickingTogglesState(true);
     loopButton.onClick = [this]() {
-        engine.getTransport().setLooping(loopButton.getToggleState());
+        bool looping = loopButton.getToggleState();
+        engine.getTransport().setLooping(looping);
+        loadSvgIcon(loopButton, looping ? DesignSystem::Iconography::Loop : DesignSystem::Iconography::LoopOff);
     };
     
     metronomeToggle.setClickingTogglesState(true);
 
+    // --- Follow playhead toggle ---
     setupIconBtn(followButton);
     loadSvgIcon(followButton, DesignSystem::Iconography::Follow);
     followButton.setClickingTogglesState(true);
@@ -153,6 +173,7 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     };
     addAndMakeVisible(followButton);
 
+    // --- Panel toggles ---
     setupIconBtn(pianoRollToggle);
     setupIconBtn(mixerToggle);
     setupIconBtn(settingsButton);
@@ -162,7 +183,7 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     loadSvgIcon(settingsButton, DesignSystem::Iconography::Settings);
 
     pianoRollToggle.setClickingTogglesState(true);
-    pianoRollToggle.onClick = [this, loadSvgIcon]() {
+    pianoRollToggle.onClick = [this]() {
         loadSvgIcon(pianoRollToggle, pianoRollToggle.getToggleState() ? DesignSystem::Iconography::PianoOn : DesignSystem::Iconography::PianoOff);
         if (onDetailToggle) onDetailToggle();
     };
@@ -172,11 +193,13 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     addAndMakeVisible(mixerToggle);
     addAndMakeVisible(settingsButton);
 
-    cpuLabel.setText("CPU [||||      ]", juce::dontSendNotification);
+    // --- CPU label ---
+    cpuLabel.setText("CPU: 0%", juce::dontSendNotification);
     cpuLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(10.0f));
     cpuLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextSecondary);
     addAndMakeVisible(cpuLabel);
 
+    // --- Button callbacks ---
     zoomOutButton.onClick = [this]() {
         currentZoom = juce::jlimit(10, 150, currentZoom - 10);
         zoomLevelLabel.setText(juce::String(currentZoom) + "%", juce::dontSendNotification);
@@ -192,8 +215,6 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories;
         chooser.launchAsync(flags, [this](const juce::FileChooser& fc) {
             juce::File result = fc.getResult();
-            if (result.isDirectory()) {
-            }
         });
     };
     settingsButton.onClick = [this]() {
@@ -225,6 +246,13 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     };
     jumpStartButton.onClick = [this]() {
         engine.getTransport().setPosition(0.0);
+    };
+    rewindButton.onClick = [this]() {
+        double pos = engine.getTransport().getCurrentPosition();
+        double sr = engine.getTransport().getSampleRate();
+        if (sr <= 0.0) sr = 48000.0;
+        double rewindAmount = sr * 5.0; // rewind 5 seconds
+        engine.getTransport().setPosition(juce::jmax(0.0, pos - rewindAmount));
     };
     jumpEndButton.onClick = [this]() {
         engine.getTransport().setPosition(engine.getTimelineProject().getTotalDurationSamples());
@@ -262,25 +290,30 @@ void TopToolbarComponent::resized() {
 
     constexpr auto targetButtonSize = 30;
 
+    // Action group: Undo, Redo, Save, Cut, Trim
     juce::FlexBox actionLayout;
-    actionGroupContainer.setBounds(lowerRow.removeFromLeft(90).withHeight(targetButtonSize));
+    actionGroupContainer.setBounds(lowerRow.removeFromLeft(5 * targetButtonSize).withHeight(targetButtonSize));
     actionLayout.flexDirection = juce::FlexBox::Direction::row;
     actionLayout.items.add(juce::FlexItem(undoButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
     actionLayout.items.add(juce::FlexItem(redoButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
     actionLayout.items.add(juce::FlexItem(saveProjectButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
+    actionLayout.items.add(juce::FlexItem(cutButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
+    actionLayout.items.add(juce::FlexItem(trimButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
     actionLayout.performLayout(actionGroupContainer.getLocalBounds().toFloat());
 
     lowerRow.removeFromLeft(8);
 
+    // Transport group: Pause, Play, Stop, JumpStart, Rewind, FastForward, Record, Loop, Metronome
     juce::FlexBox transportLayout;
-    transportGroupContainer.setBounds(lowerRow.removeFromLeft(8 * targetButtonSize).withHeight(targetButtonSize));
+    transportGroupContainer.setBounds(lowerRow.removeFromLeft(9 * targetButtonSize).withHeight(targetButtonSize));
     transportLayout.flexDirection = juce::FlexBox::Direction::row;
-    for (auto* button : { &pauseButton, &playButton, &stopButton, &jumpStartButton, &jumpEndButton, &recordButton, &loopButton, &metronomeToggle })
+    for (auto* button : { &pauseButton, &playButton, &stopButton, &jumpStartButton, &rewindButton, &jumpEndButton, &recordButton, &loopButton, &metronomeToggle })
         transportLayout.items.add(juce::FlexItem(*button).withWidth(targetButtonSize).withHeight(targetButtonSize));
     transportLayout.performLayout(transportGroupContainer.getLocalBounds().toFloat());
 
     lowerRow.removeFromLeft(8);
 
+    // Zoom group
     juce::FlexBox toolsLayout;
     toolsGroupContainer.setBounds(lowerRow.removeFromLeft(120).withHeight(targetButtonSize));
     toolsLayout.flexDirection = juce::FlexBox::Direction::row;
@@ -292,6 +325,7 @@ void TopToolbarComponent::resized() {
     lowerRow.removeFromLeft(8);
     projectNameLabel.setBounds(lowerRow.removeFromLeft(140).withHeight(targetButtonSize));
 
+    // Right-side displays
     barsDisplay.setBounds(lowerRow.removeFromRight(82).withHeight(36).withY(30));
     timeDisplay.setBounds(lowerRow.removeFromRight(138).withHeight(36).withY(30));
     sigDisplay.setBounds(lowerRow.removeFromRight(52).withHeight(36).withY(30));
@@ -333,6 +367,18 @@ void TopToolbarComponent::timerCallback() {
     
     followButton.setToggleState(engine.isFollowPlayheadEnabled(), juce::dontSendNotification);
     loopButton.setToggleState(engine.getTransport().isLooping(), juce::dontSendNotification);
+
+    // Real CPU meter from JUCE AudioDeviceManager
+    cpuLoad = static_cast<float>(engine.getAudioDeviceManager().getJuceAudioDeviceManager().getCpuUsage()) * 100.0f;
+    cpuLabel.setText("CPU: " + juce::String(static_cast<int>(cpuLoad)) + "%", juce::dontSendNotification);
+    
+    // Color the CPU label based on load
+    if (cpuLoad > 80.0f)
+        cpuLabel.setColour(juce::Label::textColourId, juce::Colours::red);
+    else if (cpuLoad > 50.0f)
+        cpuLabel.setColour(juce::Label::textColourId, juce::Colours::orange);
+    else
+        cpuLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextSecondary);
 }
 
 } // namespace Nimbus::MainLayout

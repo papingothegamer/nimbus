@@ -8,10 +8,17 @@ namespace Nimbus::Timeline {
 void GroupTrackHeaderComponent::loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName) {
     int size = 0;
     if (const char* data = BinaryData::getNamedResource(iconName.toUTF8(), size)) {
-        if (auto svg = juce::Drawable::createFromImageData(data, size)) {
-            // MAKE ICONS WHITE
-            svg->replaceColour(juce::Colours::black, juce::Colours::white);
-            btn.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
+        // BRUTE FORCE SVG TO WHITE
+        juce::String svgStr(data, (size_t)size);
+        svgStr = svgStr.replace("fill=\"#000000\"", "fill=\"#ffffff\"")
+                       .replace("fill=\"#212121\"", "fill=\"#ffffff\"")
+                       .replace("fill=\"currentColor\"", "fill=\"#ffffff\"")
+                       .replace("<svg ", "<svg fill=\"#ffffff\" color=\"#ffffff\" ");
+
+        if (auto xml = juce::XmlDocument::parse(svgStr)) {
+            if (auto svg = juce::Drawable::createFromSVG(*xml)) {
+                btn.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
+            }
         }
     }
 }
@@ -111,7 +118,6 @@ void GroupTrackHeaderComponent::paint(juce::Graphics& g) {
     g.drawRect(getLocalBounds(), 1);
 }
 
-// Notice the getHeight abort trap is gone completely!
 void GroupTrackHeaderComponent::resized() {
     auto bounds = getLocalBounds().reduced(2);
     bounds.removeFromRight(8); // VU meter alignment padding
@@ -122,8 +128,6 @@ void GroupTrackHeaderComponent::resized() {
     
     foldButton.setBounds(bounds.removeFromLeft(20).reduced(2));
     powerToggle.setButtonText(""); 
-    
-    // INCREASED WIDTH to match track header
     powerToggle.setBounds(bounds.removeFromLeft(30).reduced(2));
     
     nameLabel.setBounds(bounds);

@@ -4,7 +4,7 @@
 #include "Core/NimbusEngine.h"
 #include "UI/DesignSystem/Iconography.h"
 #include "UI/DesignSystem/Colors.h"
-#include "UI/DesignSystem/Typography.h" // Added missing include
+#include "UI/DesignSystem/Typography.h"
 
 namespace Nimbus::MainLayout {
 
@@ -26,6 +26,7 @@ public:
 private:
     NimbusEngine& engine;
     int currentZoom = 100;
+    float cpuLoad = 0.0f;
 
     juce::TextButton audioSetupButton { "Audio Setup" };
     juce::TextButton shareButton { "Share" };
@@ -35,19 +36,26 @@ private:
     juce::Component toolsGroupContainer;
     juce::Component actionGroupContainer;
 
+    // Action buttons
     juce::DrawableButton undoButton{"Undo", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton redoButton{"Redo", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton saveProjectButton{"Save", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton cutButton{"Cut", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton trimButton{"Trim", juce::DrawableButton::ImageOnButtonBackground};
     juce::Label projectNameLabel;
 
+    // Zoom controls
     juce::DrawableButton zoomOutButton{"ZoomOut", juce::DrawableButton::ImageOnButtonBackground};
     juce::Label zoomLevelLabel;
     juce::DrawableButton zoomInButton{"ZoomIn", juce::DrawableButton::ImageOnButtonBackground};
 
+    // Transport buttons
     juce::DrawableButton pauseButton{"Pause", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton playButton{"Play", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton stopButton{"Stop", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton jumpStartButton{"JumpStart", juce::DrawableButton::ImageOnButtonBackground};
-    juce::DrawableButton jumpEndButton{"JumpEnd", juce::DrawableButton::ImageOnButtonBackground}; 
+    juce::DrawableButton rewindButton{"Rewind", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton jumpEndButton{"JumpEnd", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton recordButton{"Record", juce::DrawableButton::ImageOnButtonBackground};
 
     class DisplayBox : public juce::Component {
@@ -93,9 +101,10 @@ private:
     juce::DrawableButton pianoRollToggle{"Piano", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton mixerToggle{"Mixer", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton settingsButton{"Settings", juce::DrawableButton::ImageOnButtonBackground};
-    juce::DrawableButton saveProjectButton{"Save", juce::DrawableButton::ImageOnButtonBackground};
 
     juce::Label cpuLabel;
+
+    void loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TopToolbarComponent)
 };

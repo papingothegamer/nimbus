@@ -5,14 +5,20 @@
 
 namespace Nimbus::MainLayout {
 
-// Define the static SVG helper here so we don't have to change your Header file!
 static void applySvgToButton(juce::DrawableButton& btn, const juce::String& iconName) {
     int size = 0;
     if (const char* data = BinaryData::getNamedResource(iconName.toUTF8(), size)) {
-        if (auto svg = juce::Drawable::createFromImageData(data, size)) {
-            // MAKE ICONS WHITE
-            svg->replaceColour(juce::Colours::black, juce::Colours::white);
-            btn.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
+        // BRUTE FORCE SVG TO WHITE
+        juce::String svgStr(data, (size_t)size);
+        svgStr = svgStr.replace("fill=\"#000000\"", "fill=\"#ffffff\"")
+                       .replace("fill=\"#212121\"", "fill=\"#ffffff\"")
+                       .replace("fill=\"currentColor\"", "fill=\"#ffffff\"")
+                       .replace("<svg ", "<svg fill=\"#ffffff\" color=\"#ffffff\" ");
+
+        if (auto xml = juce::XmlDocument::parse(svgStr)) {
+            if (auto svg = juce::Drawable::createFromSVG(*xml)) {
+                btn.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
+            }
         }
     }
 }
@@ -100,11 +106,12 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
         soloButton.setClickingTogglesState(true);
         armButton.setClickingTogglesState(true);
         
+        applySvgToButton(muteButton, DesignSystem::Iconography::Unmute);
         applySvgToButton(soloButton, DesignSystem::Iconography::Solo);
         applySvgToButton(armButton, DesignSystem::Iconography::RecordArm);
         
         muteButton.onClick = [this] {
-            bool isMuted = !muteButton.getToggleState();
+            bool isMuted = muteButton.getToggleState();
             engine.getTimelineProject().setTrackMuted(trackIndex, isMuted);
             applySvgToButton(muteButton, isMuted ? DesignSystem::Iconography::Mute : DesignSystem::Iconography::Unmute);
         };

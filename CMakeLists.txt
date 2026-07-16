@@ -47,17 +47,28 @@ juce_add_binary_data(Nimbus_Assets
         Assets/Icons/Nimbus/alert-outline.svg
         Assets/Icons/Nimbus/arrow-up-drop-circle-outline.svg
         Assets/Icons/Nimbus/arrow-right-thick.svg
+        Assets/Icons/Nimbus/arrow-up-down.svg
         Assets/Icons/Nimbus/chevron-down.svg
         Assets/Icons/Nimbus/chevron-right.svg
         Assets/Icons/Nimbus/chevron-up.svg
+        Assets/Icons/Nimbus/content-cut.svg
+        Assets/Icons/Nimbus/copy.svg
+        Assets/Icons/Nimbus/cursor-move.svg
         Assets/Icons/Nimbus/delete-outline.svg
+        Assets/Icons/Nimbus/eraser.svg
+        Assets/Icons/Nimbus/fast-forward-outline.svg
+        Assets/Icons/Nimbus/fast-forward.svg
+        Assets/Icons/Nimbus/jump-to-start.svg
         Assets/Icons/Nimbus/link.svg
+        Assets/Icons/Nimbus/loading.svg
+        Assets/Icons/Nimbus/loop-off.svg
         Assets/Icons/Nimbus/loop.svg
         Assets/Icons/Nimbus/metronome-tick.svg
         Assets/Icons/Nimbus/midi.svg
         Assets/Icons/Nimbus/music-accidental-flat.svg
         Assets/Icons/Nimbus/music-accidental-sharp.svg
         Assets/Icons/Nimbus/mute.svg
+        Assets/Icons/Nimbus/paste.svg
         Assets/Icons/Nimbus/pause.svg
         Assets/Icons/Nimbus/pencil-outline.svg
         Assets/Icons/Nimbus/piano-off.svg
@@ -66,44 +77,37 @@ juce_add_binary_data(Nimbus_Assets
         Assets/Icons/Nimbus/plugin-add.svg
         Assets/Icons/Nimbus/plugin-config.svg
         Assets/Icons/Nimbus/plugin-save.svg
+        Assets/Icons/Nimbus/pointer.svg
         Assets/Icons/Nimbus/record-arm-track.svg
         Assets/Icons/Nimbus/record-global.svg
+        Assets/Icons/Nimbus/redo.svg
+        Assets/Icons/Nimbus/rewind-outline.svg
+        Assets/Icons/Nimbus/rewind.svg
         Assets/Icons/Nimbus/search.svg
         Assets/Icons/Nimbus/settings.svg
         Assets/Icons/Nimbus/sidebar-left.svg
         Assets/Icons/Nimbus/solo.svg
         Assets/Icons/Nimbus/stop.svg
+        Assets/Icons/Nimbus/trim.svg
         Assets/Icons/Nimbus/tune-vertical.svg
         Assets/Icons/Nimbus/tune.svg
-        Assets/Icons/Nimbus/view-bottom-panel.svg
-        Assets/Icons/Nimbus/volume-source.svg
-        Assets/Icons/Nimbus/volume-off.svg
-        Assets/Icons/Nimbus/waveform.svg
-        Assets/Icons/Nimbus/loading.svg
-        Assets/Icons/Nimbus/fast-forward-outline.svg
-        Assets/Icons/Nimbus/fast-forward.svg
-        Assets/Icons/Nimbus/rewind-outline.svg
-        Assets/Icons/Nimbus/rewind.svg
-        Assets/Icons/Nimbus/zoom-plus.svg
-        Assets/Icons/Nimbus/zoom-minus.svg
-        Assets/Icons/Nimbus/redo.svg
         Assets/Icons/Nimbus/undo.svg
-        Assets/Icons/Nimbus/jump-to-start.svg
-        Assets/Icons/Nimbus/copy.svg
-        Assets/Icons/Nimbus/paste.svg
-        Assets/Icons/Nimbus/eraser.svg
-        Assets/Icons/Nimbus/pointer.svg
-        Assets/Icons/Audacity/audacity.svg
-        Assets/Icons/Audacity/AudacityLogo.png
-        Assets/Icons/Audacity/Classic.svg
-        Assets/Icons/Audacity/Colorful.svg
-        Assets/Icons/Nimbus/cursor-move.svg
+        Assets/Icons/Nimbus/view-bottom-panel.svg
+        Assets/Icons/Nimbus/volume-equal.svg
         Assets/Icons/Nimbus/volume-high.svg
         Assets/Icons/Nimbus/volume-low.svg
         Assets/Icons/Nimbus/volume-medium.svg
         Assets/Icons/Nimbus/volume-minus.svg
+        Assets/Icons/Nimbus/volume-off.svg
         Assets/Icons/Nimbus/volume-plus.svg
-        Assets/Icons/Nimbus/volume-equal.svg
+        Assets/Icons/Nimbus/volume-source.svg
+        Assets/Icons/Nimbus/waveform.svg
+        Assets/Icons/Nimbus/zoom-minus.svg
+        Assets/Icons/Nimbus/zoom-plus.svg
+        Assets/Icons/Audacity/audacity.svg
+        Assets/Icons/Audacity/AudacityLogo.png
+        Assets/Icons/Audacity/Classic.svg
+        Assets/Icons/Audacity/Colorful.svg
 )
 target_link_libraries(Nimbus PRIVATE Nimbus_Assets)
 
