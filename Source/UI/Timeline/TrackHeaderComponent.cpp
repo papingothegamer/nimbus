@@ -5,15 +5,17 @@
 
 namespace Nimbus::Timeline {
 
-void TrackHeaderComponent::loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName) {
+void TrackHeaderComponent::loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName, juce::Colour color) {
     int size = 0;
     if (const char* data = BinaryData::getNamedResource(iconName.toUTF8(), size)) {
-        // BRUTE FORCE SVG TO WHITE
         juce::String svgStr(data, (size_t)size);
-        svgStr = svgStr.replace("fill=\"#000000\"", "fill=\"#ffffff\"")
-                       .replace("fill=\"#212121\"", "fill=\"#ffffff\"")
-                       .replace("fill=\"currentColor\"", "fill=\"#ffffff\"")
-                       .replace("<svg ", "<svg fill=\"#ffffff\" color=\"#ffffff\" ");
+        juce::String hexColor = color.toDisplayString(false).replace("#", "");
+        juce::String fillStr = "fill=\"#" + hexColor + "\"";
+        
+        svgStr = svgStr.replace("fill=\"#000000\"", fillStr)
+                       .replace("fill=\"#212121\"", fillStr)
+                       .replace("fill=\"currentColor\"", fillStr)
+                       .replace("<svg ", "<svg " + fillStr + " color=\"#" + hexColor + "\" ");
 
         if (auto xml = juce::XmlDocument::parse(svgStr)) {
             if (auto svg = juce::Drawable::createFromSVG(*xml)) {
@@ -28,7 +30,7 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
 
     addAndMakeVisible(foldButton);
     foldButton.setClickingTogglesState(true);
-    loadSvgIcon(foldButton, isFolded ? DesignSystem::Iconography::Unfold : DesignSystem::Iconography::Fold);
+    loadSvgIcon(foldButton, isFolded ? DesignSystem::Iconography::Unfold : DesignSystem::Iconography::Fold, juce::Colours::grey);
     foldButton.onClick = [this] {
         bool currentlyFolded = engine.getTimelineProject().getTrack(trackIndex).isFolded;
         engine.getTimelineProject().setTrackFolded(trackIndex, !currentlyFolded);
@@ -51,27 +53,39 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
 
     addAndMakeVisible(muteButton);
     muteButton.setClickingTogglesState(true);
-    loadSvgIcon(muteButton, DesignSystem::Iconography::Unmute);
-    muteButton.onClick = [this] { engine.getTimelineProject().setTrackMuted(trackIndex, muteButton.getToggleState()); };
+    loadSvgIcon(muteButton, DesignSystem::Iconography::Unmute, juce::Colour(0xff2f363d));
+    muteButton.onClick = [this] { 
+        bool isMuted = muteButton.getToggleState();
+        engine.getTimelineProject().setTrackMuted(trackIndex, isMuted);
+        loadSvgIcon(muteButton, isMuted ? DesignSystem::Iconography::Mute : DesignSystem::Iconography::Unmute, isMuted ? juce::Colours::white : juce::Colour(0xff2f363d));
+    };
 
     addAndMakeVisible(soloButton);
     soloButton.setClickingTogglesState(true);
-    loadSvgIcon(soloButton, DesignSystem::Iconography::Solo);
-    soloButton.onClick = [this] { engine.getTimelineProject().setTrackSoloed(trackIndex, soloButton.getToggleState()); };
+    loadSvgIcon(soloButton, DesignSystem::Iconography::Solo, juce::Colours::grey);
+    soloButton.onClick = [this] {
+        bool isSoloed = soloButton.getToggleState();
+        engine.getTimelineProject().setTrackSoloed(trackIndex, isSoloed);
+        loadSvgIcon(soloButton, DesignSystem::Iconography::Solo, isSoloed ? juce::Colours::yellow : juce::Colours::grey);
+    };
 
     addAndMakeVisible(armButton);
     armButton.setClickingTogglesState(true);
-    loadSvgIcon(armButton, DesignSystem::Iconography::RecordArm);
-    armButton.setToggleState(engine.getTimelineProject().isTrackArmed(trackIndex), juce::dontSendNotification);
-    armButton.onClick = [this] { engine.getTimelineProject().setTrackArmed(trackIndex, armButton.getToggleState()); };
+    bool isArmed = engine.getTimelineProject().isTrackArmed(trackIndex);
+    loadSvgIcon(armButton, DesignSystem::Iconography::RecordArm, isArmed ? juce::Colours::red : juce::Colours::grey);
+    armButton.setToggleState(isArmed, juce::dontSendNotification);
+    armButton.onClick = [this] {
+        bool armed = armButton.getToggleState();
+        engine.getTimelineProject().setTrackArmed(trackIndex, armed);
+        loadSvgIcon(armButton, DesignSystem::Iconography::RecordArm, armed ? juce::Colours::red : juce::Colours::grey);
+    };
 
-    addAndMakeVisible(panSlider);
-    panSlider.setRange(-1.0, 1.0, 0.01);
-    panSlider.setValue(0.0, juce::dontSendNotification);
-
-    addAndMakeVisible(gainSlider);
-    gainSlider.setRange(-36.0, 12.0, 0.1);
-    gainSlider.setValue(0.0, juce::dontSendNotification);
+    addAndMakeVisible(fader);
+    fader.slider.onValueChange = [this]() {
+        if (trackIndex != -1) {
+            engine.getTimelineProject().setTrackVolume(trackIndex, static_cast<float>(fader.slider.getValue()));
+        }
+    };
 
     engine.getTimelineProject().addListener(this);
 }
@@ -132,20 +146,32 @@ void TrackHeaderComponent::mouseDown(const juce::MouseEvent& event) {
     }
 }
 
+void TrackHeaderComponent::trackVolumeChanged(int track, float volume) {
+    if (track == trackIndex) {
+        fader.slider.setValue(volume, juce::dontSendNotification);
+    }
+}
+
 void TrackHeaderComponent::trackMuteChanged(int track, bool isMuted) {
     if (track == trackIndex) {
         powerToggle.setToggleState(!isMuted, juce::dontSendNotification);
         muteButton.setToggleState(isMuted, juce::dontSendNotification);
-        loadSvgIcon(muteButton, isMuted ? DesignSystem::Iconography::Mute : DesignSystem::Iconography::Unmute);
+        loadSvgIcon(muteButton, isMuted ? DesignSystem::Iconography::Mute : DesignSystem::Iconography::Unmute, isMuted ? juce::Colours::white : juce::Colour(0xff2f363d));
     }
 }
 
 void TrackHeaderComponent::trackSoloChanged(int track, bool isSoloed) {
-    if (track == trackIndex) soloButton.setToggleState(isSoloed, juce::dontSendNotification);
+    if (track == trackIndex) {
+        soloButton.setToggleState(isSoloed, juce::dontSendNotification);
+        loadSvgIcon(soloButton, DesignSystem::Iconography::Solo, isSoloed ? juce::Colours::yellow : juce::Colours::grey);
+    }
 }
 
 void TrackHeaderComponent::trackArmChanged(int track, bool isArmed) {
-    if (track == trackIndex) armButton.setToggleState(isArmed, juce::dontSendNotification);
+    if (track == trackIndex) {
+        armButton.setToggleState(isArmed, juce::dontSendNotification);
+        loadSvgIcon(armButton, DesignSystem::Iconography::RecordArm, isArmed ? juce::Colours::red : juce::Colours::grey);
+    }
 }
 
 void TrackHeaderComponent::trackSelectionChanged() {
@@ -154,7 +180,7 @@ void TrackHeaderComponent::trackSelectionChanged() {
 
 void TrackHeaderComponent::trackFoldStateChanged(int track, bool isFolded) {
     if (track == trackIndex) {
-        loadSvgIcon(foldButton, isFolded ? DesignSystem::Iconography::Unfold : DesignSystem::Iconography::Fold);
+        loadSvgIcon(foldButton, isFolded ? DesignSystem::Iconography::Unfold : DesignSystem::Iconography::Fold, juce::Colours::grey);
         resized();
         repaint();
     }
@@ -176,15 +202,22 @@ void TrackHeaderComponent::setTrackIndex(int newIndex) {
     if (trackIndex >= 0 && trackIndex < engine.getTimelineProject().getNumTracks()) {
         const auto& trackModel = engine.getTimelineProject().getTrack(trackIndex);
         
+        fader.setTrackInfo(trackModel.type, trackModel.isStereo);
+        fader.slider.setValue(trackModel.volume, juce::dontSendNotification);
+
         powerToggle.setButtonText(trackModel.isGroup ? "" : juce::String(displayNum));
         nameLabel.setText(trackModel.name.isNotEmpty() ? trackModel.name : (trackModel.isGroup ? "Group" : "Audio " + juce::String(displayNum)), juce::dontSendNotification);
         
-        loadSvgIcon(foldButton, trackModel.isFolded ? DesignSystem::Iconography::Unfold : DesignSystem::Iconography::Fold);
+        loadSvgIcon(foldButton, trackModel.isFolded ? DesignSystem::Iconography::Unfold : DesignSystem::Iconography::Fold, juce::Colours::grey);
         muteButton.setToggleState(trackModel.isMuted, juce::dontSendNotification);
-        loadSvgIcon(muteButton, trackModel.isMuted ? DesignSystem::Iconography::Mute : DesignSystem::Iconography::Unmute);
+        loadSvgIcon(muteButton, trackModel.isMuted ? DesignSystem::Iconography::Mute : DesignSystem::Iconography::Unmute, trackModel.isMuted ? juce::Colours::white : juce::Colour(0xff2f363d));
         
         soloButton.setToggleState(trackModel.isSoloed, juce::dontSendNotification);
-        armButton.setToggleState(engine.getTimelineProject().isTrackArmed(trackIndex), juce::dontSendNotification);
+        loadSvgIcon(soloButton, DesignSystem::Iconography::Solo, trackModel.isSoloed ? juce::Colours::yellow : juce::Colours::grey);
+
+        bool isArmed = engine.getTimelineProject().isTrackArmed(trackIndex);
+        armButton.setToggleState(isArmed, juce::dontSendNotification);
+        loadSvgIcon(armButton, DesignSystem::Iconography::RecordArm, isArmed ? juce::Colours::red : juce::Colours::grey);
     }
 }
 
@@ -198,36 +231,15 @@ void TrackHeaderComponent::paint(juce::Graphics& g) {
     g.setColour(DesignSystem::Colors::Divider);
     g.fillRect(0, getHeight() - 1, getWidth(), 1);
     g.drawRect(getLocalBounds(), 1);
-
-    int meterWidth = 4; 
-    auto meterBounds = juce::Rectangle<int>(getWidth() - meterWidth, 1, meterWidth, getHeight() - 2);
-    
-    g.setColour(DesignSystem::Colors::AppBackground.darker(0.2f));
-    g.fillRect(meterBounds);
-
-    if (currentLevel > 0.0f) {
-        juce::ColourGradient cg(juce::Colours::lime, meterBounds.getBottomLeft().toFloat(),
-                                juce::Colours::red, meterBounds.getTopLeft().toFloat(), false);
-        cg.addColour(0.7f, juce::Colours::yellow);
-        
-        int fillHeight = juce::roundToInt(meterBounds.getHeight() * currentLevel);
-        auto fillBounds = meterBounds.withTrimmedTop(meterBounds.getHeight() - fillHeight);
-        g.setGradientFill(cg);
-        g.fillRect(fillBounds);
-    }
 }
 
 void TrackHeaderComponent::updateMeters() {
     float newLevel = engine.getTrackPeakLevel(trackIndex);
-    if (std::abs(newLevel - currentLevel) > 0.01f) {
-        currentLevel = newLevel;
-        repaint(getWidth() - 16, 0, 16, getHeight());
-    }
+    fader.setLevel(newLevel);
 }
 
 void TrackHeaderComponent::resized() {
     auto bounds = getLocalBounds().reduced(2);
-    bounds.removeFromRight(8); // VU Meter Space
 
     const auto& track = engine.getTimelineProject().getTrack(trackIndex);
     if (!track.parentGroupId.isNull()) {
@@ -250,26 +262,24 @@ void TrackHeaderComponent::resized() {
         muteButton.setVisible(false);
         soloButton.setVisible(false);
         armButton.setVisible(false);
-        panSlider.setVisible(false);
-        gainSlider.setVisible(false);
+        fader.setVisible(false);
     } else {
         muteButton.setVisible(true);
         soloButton.setVisible(true);
         armButton.setVisible(true);
-        panSlider.setVisible(true);
-        gainSlider.setVisible(true);
+        fader.setVisible(true);
 
         auto controlsArea = bounds.reduced(2, 2);
-        auto btnRow = controlsArea.removeFromTop(24);
         
-        armButton.setBounds(btnRow.removeFromLeft(24).reduced(2));
-        soloButton.setBounds(btnRow.removeFromRight(24).reduced(2));
-        btnRow.removeFromRight(2);
-        muteButton.setBounds(btnRow.removeFromRight(24).reduced(2));
+        // Fader on the right side
+        fader.setBounds(controlsArea.removeFromRight(24));
+        controlsArea.removeFromRight(4); // padding
 
-        auto sliderArea = btnRow;
-        panSlider.setBounds(sliderArea.removeFromTop(12));
-        gainSlider.setBounds(sliderArea.removeFromTop(12));
+        auto btnRow = controlsArea.removeFromTop(24);
+        armButton.setBounds(btnRow.removeFromLeft(24).reduced(2));
+        soloButton.setBounds(btnRow.removeFromLeft(24).reduced(2));
+        btnRow.removeFromLeft(2);
+        muteButton.setBounds(btnRow.removeFromLeft(24).reduced(2));
     }
 }
 

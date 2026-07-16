@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 #include "Core/NimbusEngine.h"
 #include "UI/Mixer/GroupIndicatorComponent.h"
+#include "UI/Mixer/MeteredFader.h"
 
 namespace Nimbus::Timeline {
 
@@ -33,6 +34,7 @@ public:
     void trackNameChanged(int track, const juce::String& newName) override;
     void trackSelectionChanged() override;
     void trackFoldStateChanged(int track, bool isFolded) override;
+    void trackVolumeChanged(int track, float volume) override;
 
     UI::GroupIndicatorComponent groupIndicator;
 
@@ -42,7 +44,6 @@ public:
 private:
     NimbusEngine& engine;
     int trackIndex;
-    float currentLevel = 0.0f;
 
     juce::TextButton powerToggle; 
     juce::Label nameLabel;
@@ -51,13 +52,12 @@ private:
     juce::DrawableButton soloButton{"Solo", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton armButton{"Arm", juce::DrawableButton::ImageOnButtonBackground};
     
-    juce::Slider panSlider{juce::Slider::LinearHorizontal, juce::Slider::NoTextBox};
-    juce::Slider gainSlider{juce::Slider::LinearHorizontal, juce::Slider::NoTextBox};
+    UI::Mixer::MeteredFader fader;
 
     juce::DrawableButton foldButton{"Fold", juce::DrawableButton::ImageOnButtonBackground};
     juce::TextButton linkIcon{"Link"};
 
-    void loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName);
+    void loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName, juce::Colour color);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackHeaderComponent)
 };

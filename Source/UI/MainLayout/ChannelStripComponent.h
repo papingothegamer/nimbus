@@ -4,6 +4,7 @@
 
 #include "Core/NimbusEngine.h"
 #include "UI/Mixer/GroupIndicatorComponent.h"
+#include "UI/Mixer/MeteredFader.h"
 
 namespace Nimbus::MainLayout {
 
@@ -38,16 +39,13 @@ private:
     juce::ComboBox routingComboBox;
     juce::Slider pan;
     juce::Label volumeLabel;
-    juce::Slider fader;
+    UI::Mixer::MeteredFader fader;
 
     juce::DrawableButton muteButton{"Mute", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton soloButton{"Solo", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton armButton{"Arm", juce::DrawableButton::ImageOnButtonBackground};
 
     int trackIndex = -1;
-
-    // Helper for rendering meter
-    void drawMeter(juce::Graphics& g, juce::Rectangle<int> bounds, float level);
 
     std::function<float()> levelProvider;
     void mouseDown(const juce::MouseEvent& event) override;

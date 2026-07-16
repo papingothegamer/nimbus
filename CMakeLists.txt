@@ -147,6 +147,8 @@ target_sources(Nimbus PRIVATE
     Source/UI/MainLayout/DeviceChainComponent.h
     Source/UI/Mixer/GroupIndicatorComponent.cpp
     Source/UI/Mixer/GroupIndicatorComponent.h
+    Source/UI/Mixer/MeteredFader.cpp
+    Source/UI/Mixer/MeteredFader.h
     Source/UI/Settings/SettingsMenuComponent.cpp
     Source/UI/Settings/SettingsMenuComponent.h
     Source/UI/DetailView/PianoRollComponent.cpp
