@@ -25,10 +25,8 @@ public:
     void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override;
     void mouseDown(const juce::MouseEvent& event) override;
 
-    // juce::ChangeListener
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
 
-    // TimelineProject::Listener
     void trackMuteChanged(int track, bool isMuted) override;
     void trackSoloChanged(int track, bool isSoloed) override;
     void trackArmChanged(int track, bool isArmed) override;
@@ -46,24 +44,20 @@ private:
     int trackIndex;
     float currentLevel = 0.0f;
 
-    // --- Audacity 4 Style Controls ---
-    juce::ToggleButton powerToggle; // Doubles as Track Number / Active State
+    juce::TextButton powerToggle; 
     juce::Label nameLabel;
     
-    juce::TextButton muteButton{"M"};
-    juce::TextButton soloButton{"S"};
+    juce::DrawableButton muteButton{"Mute", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton soloButton{"Solo", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton armButton{"Arm", juce::DrawableButton::ImageOnButtonBackground};
     
     juce::Slider panSlider{juce::Slider::LinearHorizontal, juce::Slider::NoTextBox};
     juce::Slider gainSlider{juce::Slider::LinearHorizontal, juce::Slider::NoTextBox};
-    juce::TextButton effectsButton{"Effects"};
 
-    // --- Grouping & Utility ---
-    juce::TextButton foldButton;
+    juce::DrawableButton foldButton{"Fold", juce::DrawableButton::ImageOnButtonBackground};
     juce::TextButton linkIcon{"Link"};
 
-    // Helper for SVG rendering
-    void setupSvgButton(juce::DrawableButton& btn, const char* svgData, int svgSize);
+    void loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackHeaderComponent)
 };

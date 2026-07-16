@@ -48,15 +48,20 @@ void BottomMixerComponent::trackAdded(int trackIndex, const TrackModel& track) {
     resized();
 }
 
-void BottomMixerComponent::trackRemoved(int trackIndex) {
-    if (trackIndex >= 0 && trackIndex < trackStrips.size()) {
-        trackStrips.remove(trackIndex);
-        
-        for (int i = trackIndex; i < trackStrips.size(); ++i) {
-            trackStrips[i]->setTrackIndex(i);
-        }
-        resized();
+void BottomMixerComponent::trackRemoved(int trackIndex)
+{
+    // 1. Remove the channel strip from the array
+    trackStrips.remove(trackIndex);
+
+    // 2. Shift the index of all subsequent strips down by 1
+    for (int i = trackIndex; i < trackStrips.size(); ++i)
+    {
+        trackStrips[i]->setTrackIndex(i);
     }
+
+    // 3. Force a layout recalculation
+    resized();
+    repaint();
 }
 
 void BottomMixerComponent::tracksGrouped() {

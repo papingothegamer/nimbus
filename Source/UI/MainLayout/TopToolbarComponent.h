@@ -4,6 +4,7 @@
 #include "Core/NimbusEngine.h"
 #include "UI/DesignSystem/Iconography.h"
 #include "UI/DesignSystem/Colors.h"
+#include "UI/DesignSystem/Typography.h" // Added missing include
 
 namespace Nimbus::MainLayout {
 
@@ -26,33 +27,29 @@ private:
     NimbusEngine& engine;
     int currentZoom = 100;
 
-    // --- Row 1 Components ---
     juce::TextButton audioSetupButton { "Audio Setup" };
     juce::TextButton shareButton { "Share" };
     juce::Label workspaceLabel;
 
-    // --- Row 2 Structural Toolbars ---
     juce::Component transportGroupContainer;
     juce::Component toolsGroupContainer;
     juce::Component actionGroupContainer;
 
-    // --- Toolbar Components ---
-    juce::TextButton undoButton{DesignSystem::Iconography::Undo};
-    juce::TextButton redoButton{DesignSystem::Iconography::Redo};
+    juce::DrawableButton undoButton{"Undo", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton redoButton{"Redo", juce::DrawableButton::ImageOnButtonBackground};
     juce::Label projectNameLabel;
 
-    juce::TextButton zoomOutButton{DesignSystem::Iconography::ZoomOut};
+    juce::DrawableButton zoomOutButton{"ZoomOut", juce::DrawableButton::ImageOnButtonBackground};
     juce::Label zoomLevelLabel;
-    juce::TextButton zoomInButton{DesignSystem::Iconography::ZoomIn};
+    juce::DrawableButton zoomInButton{"ZoomIn", juce::DrawableButton::ImageOnButtonBackground};
 
-    juce::TextButton pauseButton{DesignSystem::Iconography::Pause};
-    juce::TextButton playButton{DesignSystem::Iconography::Play};
-    juce::TextButton stopButton{DesignSystem::Iconography::Stop};
-    juce::TextButton jumpStartButton{DesignSystem::Iconography::JumpStart};
-    juce::TextButton jumpEndButton{DesignSystem::Iconography::FastForward}; 
-    juce::TextButton recordButton{DesignSystem::Iconography::RecordGlobal};
+    juce::DrawableButton pauseButton{"Pause", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton playButton{"Play", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton stopButton{"Stop", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton jumpStartButton{"JumpStart", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton jumpEndButton{"JumpEnd", juce::DrawableButton::ImageOnButtonBackground}; 
+    juce::DrawableButton recordButton{"Record", juce::DrawableButton::ImageOnButtonBackground};
 
-    // --- Time Displays ---
     class DisplayBox : public juce::Component {
     public:
         DisplayBox(const juce::String& h, const juce::String& val, juce::Colour valColor) 
@@ -89,14 +86,14 @@ private:
     DisplayBox bpmDisplay{"BPM", "120.0", juce::Colour(0xffff9900)}; 
     DisplayBox sigDisplay{"SIG.", "4/4", DesignSystem::Colors::TextSecondary};
 
-    juce::TextButton loopButton{DesignSystem::Iconography::Loop};
-    juce::TextButton metronomeToggle{DesignSystem::Iconography::Metronome};
+    juce::DrawableButton loopButton{"Loop", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton metronomeToggle{"Metronome", juce::DrawableButton::ImageOnButtonBackground};
     
-    juce::TextButton followButton{DesignSystem::Iconography::Follow};
-    juce::TextButton pianoRollToggle{DesignSystem::Iconography::PianoOff};
-    juce::TextButton mixerToggle{DesignSystem::Iconography::Tune};
-    juce::TextButton settingsButton{DesignSystem::Iconography::Settings};
-    juce::TextButton saveProjectButton{DesignSystem::Iconography::Save};
+    juce::DrawableButton followButton{"Follow", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton pianoRollToggle{"Piano", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton mixerToggle{"Mixer", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton settingsButton{"Settings", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton saveProjectButton{"Save", juce::DrawableButton::ImageOnButtonBackground};
 
     juce::Label cpuLabel;
 

@@ -30,41 +30,37 @@ void TimelineProject::setTrackName(int trackIndex, const juce::String& newName) 
     }
 }
 
-void TimelineProject::removeTrack(int index) {
-    if (index >= 0 && index < tracks.size()) {
-        // Clear selection if the current selected clip belongs to this track
-        bool hasSelection = std::visit([](auto&& ptr) { return ptr != nullptr; }, currentSelectedClip);
-        if (hasSelection) {
-            bool found = false;
-            for (auto& clip : trackClips[index]) {
-                if (clip == currentSelectedClip) {
-                    found = true;
-                    break;
-                }
-            }
-            if (found) {
-                setSelectedClip(std::shared_ptr<AudioClip>{nullptr});
-            }
-        }
+void TimelineProject::removeTrack(int index)
+{
+    if (index >= 0 && index < tracks.size())
+    {
+        bool isGroup = tracks[index].isGroup;
         
+        // CRITICAL FIX: Use 'auto' so it correctly identifies as Nimbus::TrackID
+        auto groupId = tracks[index].id; 
+
+        // 1. Remove the target track (the group folder itself, or a standard track)
         tracks.erase(tracks.begin() + index);
-        trackClips.erase(trackClips.begin() + index);
         
-        juce::SparseSet<int> newSelection;
-        for (int i = 0; i < selectedTracks.getNumRanges(); ++i) {
-            auto range = selectedTracks.getRange(i);
-            for (int r = range.getStart(); r < range.getEnd(); ++r) {
-                if (r < index) newSelection.addRange(juce::Range<int>(r, r + 1));
-                else if (r > index) newSelection.addRange(juce::Range<int>(r - 1, r));
+        // Broadcast removal so the UI components shift their indices down
+        listeners.call([index](Listener& l) { l.trackRemoved(index); });
+
+        // 2. Cascading Delete for Group Children
+        if (isGroup)
+        {
+            // Because we erased the group, its first child is now sitting exactly at 'index'.
+            // We keep erasing at 'index' as long as the track belongs to the deleted group.
+            while (index < tracks.size() && tracks[index].parentGroupId == groupId)
+            {
+                tracks.erase(tracks.begin() + index);
+                listeners.call([index](Listener& l) { l.trackRemoved(index); });
             }
         }
-        selectedTracks = newSelection;
-        
-        listeners.call(&Listener::trackRemoved, index);
-        listeners.call(&Listener::trackSelectionChanged);
+
+        // 3. Broadcast a selection update
+        listeners.call([](Listener& l) { l.trackSelectionChanged(); });
     }
 }
-
 void TimelineProject::groupTracks(const juce::SparseSet<int>& trackIndices) {
     if (trackIndices.isEmpty()) return;
     

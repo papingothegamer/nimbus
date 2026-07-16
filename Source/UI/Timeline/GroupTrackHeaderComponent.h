@@ -1,5 +1,4 @@
 #pragma once
-
 #include <JuceHeader.h>
 #include "Core/NimbusEngine.h"
 
@@ -13,34 +12,23 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
     void setTrackIndex(int newIndex);
-    
-    // TimelineProject::Listener
-    void trackSelectionChanged() override;
-    void trackFoldStateChanged(int changedTrackIndex, bool isFolded) override;
 
-    void mouseDown(const juce::MouseEvent& event) override;
-    void mouseDoubleClick(const juce::MouseEvent& event) override;
+    void trackFoldStateChanged(int track, bool isFolded) override;
+    void trackMuteChanged(int track, bool isMuted) override;
+    void trackSoloChanged(int track, bool isSoloed) override;
 
 private:
     NimbusEngine& engine;
     int trackIndex;
 
+    juce::TextButton powerToggle;
     juce::Label nameLabel;
-    juce::TextButton numberButton;
-    juce::TextButton foldButton{">"};
     
-    // Group controls
-    juce::TextButton muteButton{"M"};
-    juce::TextButton soloButton{"S"};
+    juce::DrawableButton foldButton{"Fold", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton muteButton{"Mute", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton soloButton{"Solo", juce::DrawableButton::ImageOnButtonBackground};
 
-    // Routing placeholders
-    juce::Label sourceLabel{"", "Audio From"};
-    juce::ComboBox sourceBox;
-    juce::Label destLabel{"", "Audio To"};
-    juce::ComboBox destBox;
-
-    void updateSelectionState();
-    void updateFoldState();
+    void loadSvgIcon(juce::DrawableButton& btn, const juce::String& iconName);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GroupTrackHeaderComponent)
 };

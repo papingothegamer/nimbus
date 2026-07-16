@@ -264,21 +264,29 @@ void TimelineComponent::trackAdded(int trackIndex, const TrackModel& track) {
     resized();
 }
 
-void TimelineComponent::trackRemoved(int trackIndex) {
-    if (trackIndex >= 0 && trackIndex < trackLanes.size()) {
-        trackLanes.remove(trackIndex);
-        trackHeaders.remove(trackIndex);
-        
-        for (int i = trackIndex; i < trackHeaders.size(); ++i) {
-            if (auto* groupHeader = dynamic_cast<Timeline::GroupTrackHeaderComponent*>(trackHeaders[i])) {
-                groupHeader->setTrackIndex(i);
-            } else if (auto* standardHeader = dynamic_cast<Timeline::TrackHeaderComponent*>(trackHeaders[i])) {
-                standardHeader->setTrackIndex(i);
-            }
-            trackLanes[i]->setTrackIndex(i);
+void TimelineComponent::trackRemoved(int trackIndex)
+{
+    // 1. Remove the UI components from the arrays
+    trackHeaders.remove(trackIndex);
+    trackLanes.remove(trackIndex);
+
+    // 2. Shift the index of all subsequent tracks down by 1
+    for (int i = trackIndex; i < trackHeaders.size(); ++i)
+    {
+        // Safely cast the generic juce::Component back to your specific track headers
+        if (auto* header = dynamic_cast<Timeline::TrackHeaderComponent*>(trackHeaders[i])) {
+            header->setTrackIndex(i);
         }
-        resized();
+        else if (auto* groupHeader = dynamic_cast<Timeline::GroupTrackHeaderComponent*>(trackHeaders[i])) {
+            groupHeader->setTrackIndex(i);
+        }
+        
+        trackLanes[i]->setTrackIndex(i);
     }
+
+    // 3. Force a layout recalculation
+    resized();
+    repaint();
 }
 
 void TimelineComponent::tracksGrouped() {
@@ -306,42 +314,38 @@ void TimelineComponent::resized() {
     auto bounds = getLocalBounds();
     
     int headerWidth = 150;
-    int trackHeight = 110;
+    int standardTrackHeight = 65; // Shrunk to Audacity proportions
 
     // Seeking Bar at the top
     seekingBar.setBounds(bounds.removeFromTop(24).withTrimmedLeft(headerWidth));
-    
     viewport.setBounds(bounds);
     
     int currentY = 0;
     int containerWidth = bounds.getWidth() - viewport.getScrollBarThickness();
     
     for (int i = 0; i < trackHeaders.size(); ++i) {
-        int currentTrackHeight = trackHeight; // default
+        int currentTrackHeight = standardTrackHeight; 
         bool isHidden = false;
         
         if (i < engine.getTimelineProject().getNumTracks()) {
             const auto& track = engine.getTimelineProject().getTrack(i);
             
-            // Check if parent group is folded
+            // Hide children if parent group is folded
             if (!track.parentGroupId.isNull()) {
                 for (int j = 0; j < engine.getTimelineProject().getNumTracks(); ++j) {
                     const auto& parentTrack = engine.getTimelineProject().getTrack(j);
                     if (parentTrack.id == track.parentGroupId) {
-                        if (parentTrack.isFolded) {
-                            isHidden = true;
-                        }
+                        if (parentTrack.isFolded) isHidden = true;
                         break;
                     }
                 }
             }
             
-            if (track.isGroup && track.isFolded) {
-                currentTrackHeight = 32;
+            // Compact heights for folded tracks and groups
+            if (track.isGroup) {
+                currentTrackHeight = 35; 
             } else if (track.isFolded) {
-                currentTrackHeight = 32;
-            } else if (track.isGroup) {
-                currentTrackHeight = 32;
+                currentTrackHeight = 35;
             }
         }
         
@@ -361,7 +365,6 @@ void TimelineComponent::resized() {
     
     trackContainer.setBounds(0, 0, containerWidth, currentY);
 }
-
 void TimelineComponent::timerCallback() {
     bool shouldRepaint = false;
     

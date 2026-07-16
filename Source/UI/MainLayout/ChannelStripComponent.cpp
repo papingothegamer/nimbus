@@ -93,34 +93,40 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
         }
     };
 
-    if (!master) {
+ if (!master) {
+      auto loadSvgIcon = [](juce::DrawableButton& btn, const juce::String& iconName) {
+            int size = 0;
+            if (const char* data = BinaryData::getNamedResource(iconName.toUTF8(), size)) {
+                if (auto svg = juce::Drawable::createFromImageData(data, size)) {
+                    // Pass to BOTH normal and ON states!
+                    btn.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
+                }
+            }
+        };
+
         addAndMakeVisible(muteButton);
         muteButton.setClickingTogglesState(true);
         muteButton.setToggleState(true, juce::dontSendNotification); // Active by default
-        muteButton.onClick = [this] {
+        loadSvgIcon(muteButton, DesignSystem::Iconography::Unmute); // Default to Unmute icon
+        muteButton.onClick = [this, loadSvgIcon] {
             bool isMuted = !muteButton.getToggleState();
             engine.getTimelineProject().setTrackMuted(trackIndex, isMuted);
-            muteButton.setButtonText(isMuted ? DesignSystem::Iconography::VolumeOff : DesignSystem::Iconography::VolumeSource);
+            loadSvgIcon(muteButton, isMuted ? DesignSystem::Iconography::Mute : DesignSystem::Iconography::Unmute);
         };
+
         addAndMakeVisible(soloButton);
-        addAndMakeVisible(armButton);
-        
-        muteButton.setButtonText(DesignSystem::Iconography::VolumeSource);
-        soloButton.setButtonText(DesignSystem::Iconography::Solo);
-        soloButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::Solo);
-        armButton.setButtonText(DesignSystem::Iconography::RecordArm);
-        armButton.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::RecordDanger);
-        
-        muteButton.setClickingTogglesState(true);
         soloButton.setClickingTogglesState(true);
-        armButton.setClickingTogglesState(true);
-        armButton.onClick = [this]() {
-            engine.getTimelineProject().setTrackArmed(trackIndex, armButton.getToggleState());
-        };
+        loadSvgIcon(soloButton, DesignSystem::Iconography::Solo);
         soloButton.onClick = [this]() {
             engine.getTimelineProject().setTrackSoloed(trackIndex, soloButton.getToggleState());
         };
 
+        addAndMakeVisible(armButton);
+        armButton.setClickingTogglesState(true);
+        loadSvgIcon(armButton, DesignSystem::Iconography::RecordArm);
+        armButton.onClick = [this]() {
+            engine.getTimelineProject().setTrackArmed(trackIndex, armButton.getToggleState());
+        };
     }
 
     engine.getTimelineProject().addListener(this);
@@ -251,12 +257,7 @@ void ChannelStripComponent::resized() {
     nameLabel.setBounds(contentBounds.removeFromTop(20));
     contentBounds.removeFromTop(2);
     
-    // 2. Input combo
-    if (!master) {
-        inputComboBox.setBounds(contentBounds.removeFromTop(20).reduced(2, 0));
-        contentBounds.removeFromTop(2);
-    }
-    
+ 
     // 3. Pan knob
     pan.setBounds(contentBounds.removeFromTop(40).reduced(8, 0));
     contentBounds.removeFromTop(2);
@@ -275,14 +276,7 @@ void ChannelStripComponent::resized() {
     volumeLabel.setBounds(contentBounds.removeFromTop(20).reduced(4, 0));
     contentBounds.removeFromTop(2);
     
-    // Bottom: Routing combo and stereo button
-    if (!master) {
-        routingComboBox.setBounds(contentBounds.removeFromBottom(20).reduced(2, 0));
-        contentBounds.removeFromBottom(2);
-    } else {
-        routingComboBox.setBounds(contentBounds.removeFromBottom(20).reduced(2, 0));
-        contentBounds.removeFromBottom(2);
-    }
+
     
     // 6. Fader takes remaining space
     fader.setBounds(contentBounds.reduced(4, 0));
@@ -325,10 +319,16 @@ void ChannelStripComponent::mouseDown(const juce::MouseEvent& event) {
 void ChannelStripComponent::trackMuteChanged(int track, bool isMuted) {
     if (track == trackIndex) {
         muteButton.setToggleState(!isMuted, juce::dontSendNotification);
-        muteButton.setButtonText(isMuted ? DesignSystem::Iconography::VolumeOff : DesignSystem::Iconography::VolumeSource);
+        
+        int size = 0;
+        juce::String iconName = isMuted ? DesignSystem::Iconography::Mute : DesignSystem::Iconography::Unmute;
+        if (const char* data = BinaryData::getNamedResource(iconName.toUTF8(), size)) {
+            if (auto svg = juce::Drawable::createFromImageData(data, size)) {
+                muteButton.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
+            }
+        }
     }
 }
-
 void ChannelStripComponent::trackArmChanged(int track, bool isArmed) {
     if (track == trackIndex) {
         armButton.setToggleState(isArmed, juce::dontSendNotification);

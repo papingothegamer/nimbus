@@ -17,25 +17,34 @@ void TopToolbarComponent::DisplayBox::paint(juce::Graphics& g) {
 }
 
 TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
-    auto setupIconBtn = [](juce::TextButton& btn) {
+    auto setupIconBtn = [](juce::DrawableButton& btn) {
         btn.getProperties().set("transparentBackground", true);
-        btn.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
-        btn.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::PrimaryAction);
-        btn.setColour(juce::TextButton::textColourOffId, DesignSystem::Colors::TextSecondary);
-        btn.setColour(juce::TextButton::textColourOnId, DesignSystem::Colors::TextPrimary);
+        btn.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
+        btn.setColour(juce::DrawableButton::backgroundOnColourId, DesignSystem::Colors::PrimaryAction.withAlpha(0.2f));
         btn.setWantsKeyboardFocus(false);
     };
 
+    auto loadSvgIcon = [](juce::DrawableButton& btn, const juce::String& iconName) {
+        int size = 0;
+        if (const char* data = BinaryData::getNamedResource(iconName.toUTF8(), size)) {
+            if (auto svg = juce::Drawable::createFromImageData(data, size)) {
+                // Pass svg.get() to BOTH the normal state (1st arg) and the "ON" state (5th arg)
+                btn.setImages(svg.get(), nullptr, nullptr, nullptr, svg.get(), nullptr, nullptr, nullptr);
+            }
+        }
+    };
 
-    // --- Row 2 Structural Group Enclosures ---
+
     addAndMakeVisible(transportGroupContainer);
     addAndMakeVisible(toolsGroupContainer);
     addAndMakeVisible(actionGroupContainer);
 
-    // Setup action group buttons
     setupIconBtn(undoButton);
     setupIconBtn(redoButton);
     setupIconBtn(saveProjectButton);
+    loadSvgIcon(undoButton, DesignSystem::Iconography::Undo);
+    loadSvgIcon(redoButton, DesignSystem::Iconography::Redo);
+    loadSvgIcon(saveProjectButton, DesignSystem::Iconography::Save);
     actionGroupContainer.addAndMakeVisible(undoButton);
     actionGroupContainer.addAndMakeVisible(redoButton);
     actionGroupContainer.addAndMakeVisible(saveProjectButton);
@@ -49,9 +58,10 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     };
     addAndMakeVisible(projectNameLabel);
 
-    // Setup Tools Group (Zoom + Core Modifiers)
     setupIconBtn(zoomOutButton);
     setupIconBtn(zoomInButton);
+    loadSvgIcon(zoomOutButton, DesignSystem::Iconography::ZoomOut);
+    loadSvgIcon(zoomInButton, DesignSystem::Iconography::ZoomIn);
     toolsGroupContainer.addAndMakeVisible(zoomOutButton);
     toolsGroupContainer.addAndMakeVisible(zoomInButton);
     
@@ -64,13 +74,12 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         juce::String text = zoomLevelLabel.getText().retainCharacters("0123456789");
         int zoom = text.getIntValue();
         if (zoom < 10) zoom = 10;
-        if (zoom > 500) zoom = 500;
+        if (zoom > 150) zoom = 150;
         currentZoom = zoom;
         zoomLevelLabel.setText(juce::String(currentZoom) + "%", juce::dontSendNotification);
     };
     toolsGroupContainer.addAndMakeVisible(zoomLevelLabel);
 
-    // Setup Transport Group Buttons
     setupIconBtn(pauseButton);
     setupIconBtn(playButton);
     setupIconBtn(stopButton);
@@ -79,6 +88,15 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     setupIconBtn(recordButton);
     setupIconBtn(loopButton);
     setupIconBtn(metronomeToggle);
+
+    loadSvgIcon(pauseButton, DesignSystem::Iconography::Pause);
+    loadSvgIcon(playButton, DesignSystem::Iconography::Play);
+    loadSvgIcon(stopButton, DesignSystem::Iconography::Stop);
+    loadSvgIcon(jumpStartButton, DesignSystem::Iconography::JumpStart);
+    loadSvgIcon(jumpEndButton, DesignSystem::Iconography::FastForward);
+    loadSvgIcon(recordButton, DesignSystem::Iconography::RecordGlobal);
+    loadSvgIcon(loopButton, DesignSystem::Iconography::Loop);
+    loadSvgIcon(metronomeToggle, DesignSystem::Iconography::Metronome);
 
     transportGroupContainer.addAndMakeVisible(pauseButton);
     transportGroupContainer.addAndMakeVisible(playButton);
@@ -89,7 +107,6 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     transportGroupContainer.addAndMakeVisible(loopButton);
     transportGroupContainer.addAndMakeVisible(metronomeToggle);
     
-    // Setup Right Displays & Layout Utilities
     addAndMakeVisible(barsDisplay);
     addAndMakeVisible(timeDisplay);
     addAndMakeVisible(bpmDisplay);
@@ -127,6 +144,7 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     metronomeToggle.setClickingTogglesState(true);
 
     setupIconBtn(followButton);
+    loadSvgIcon(followButton, DesignSystem::Iconography::Follow);
     followButton.setClickingTogglesState(true);
     followButton.setToggleState(engine.isFollowPlayheadEnabled(), juce::dontSendNotification);
     followButton.onClick = [this]() {
@@ -138,9 +156,13 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     setupIconBtn(mixerToggle);
     setupIconBtn(settingsButton);
     
+    loadSvgIcon(pianoRollToggle, DesignSystem::Iconography::PianoOff);
+    loadSvgIcon(mixerToggle, DesignSystem::Iconography::Tune);
+    loadSvgIcon(settingsButton, DesignSystem::Iconography::Settings);
+
     pianoRollToggle.setClickingTogglesState(true);
-    pianoRollToggle.onClick = [this]() {
-        pianoRollToggle.setButtonText(pianoRollToggle.getToggleState() ? DesignSystem::Iconography::PianoOn : DesignSystem::Iconography::PianoOff);
+    pianoRollToggle.onClick = [this, loadSvgIcon]() {
+        loadSvgIcon(pianoRollToggle, pianoRollToggle.getToggleState() ? DesignSystem::Iconography::PianoOn : DesignSystem::Iconography::PianoOff);
         if (onDetailToggle) onDetailToggle();
     };
     mixerToggle.setClickingTogglesState(true);
@@ -154,14 +176,13 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     cpuLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextSecondary);
     addAndMakeVisible(cpuLabel);
 
-    // Dynamic Engine Callbacks
     zoomOutButton.onClick = [this]() {
-        currentZoom = juce::jlimit(10, 500, currentZoom - 10);
+        currentZoom = juce::jlimit(10, 150, currentZoom - 10);
         zoomLevelLabel.setText(juce::String(currentZoom) + "%", juce::dontSendNotification);
         if (onZoomOut) onZoomOut();
     };
     zoomInButton.onClick = [this]() {
-        currentZoom = juce::jlimit(10, 500, currentZoom + 10);
+        currentZoom = juce::jlimit(10, 150, currentZoom + 10);
         zoomLevelLabel.setText(juce::String(currentZoom) + "%", juce::dontSendNotification);
         if (onZoomIn) onZoomIn();
     };
@@ -224,7 +245,6 @@ TopToolbarComponent::~TopToolbarComponent() {}
 void TopToolbarComponent::paint(juce::Graphics& g) {
     g.fillAll(DesignSystem::Colors::PanelBackground);
 
-    // Tier 1 — Top Menu Bar filling
     g.setColour(DesignSystem::Colors::ModuleBackground);
     g.fillRect(0, 0, getWidth(), 28);
     
@@ -233,7 +253,6 @@ void TopToolbarComponent::paint(juce::Graphics& g) {
     g.drawText("File     Edit     Select     View     Record     Tracks     Generate     Effect     Analyze     Tools     Extra     Help",
                12, 0, getWidth() - 300, 28, juce::Justification::centredLeft, false);
 
-    // Subtle Tier Separation lines
     g.setColour(DesignSystem::Colors::Divider.withAlpha(0.7f));
     g.fillRect(0, 28, getWidth(), 1);
     g.fillRect(0, getHeight() - 1, getWidth(), 1);
@@ -242,19 +261,16 @@ void TopToolbarComponent::paint(juce::Graphics& g) {
 void TopToolbarComponent::resized() {
     auto bounds = getLocalBounds();
     
-    // Tier 1 layout allocations
     auto topStrip = bounds.removeFromTop(28);
     workspaceLabel.setBounds(topStrip.removeFromRight(140).reduced(4, 0));
     shareButton.setBounds(topStrip.removeFromRight(70).reduced(2, 3));
     audioSetupButton.setBounds(topStrip.removeFromRight(95).reduced(2, 3));
 
-    // Space buffer allocation between rows
     bounds.removeFromTop(6);
     auto lowerRow = bounds.reduced(8, 2);
 
     constexpr auto targetButtonSize = 30;
 
-    // Row 2 Group Layout Allocations using standard FlexBoxes[cite: 3]
     juce::FlexBox actionLayout;
     actionGroupContainer.setBounds(lowerRow.removeFromLeft(90).withHeight(targetButtonSize));
     actionLayout.flexDirection = juce::FlexBox::Direction::row;
@@ -285,7 +301,6 @@ void TopToolbarComponent::resized() {
     lowerRow.removeFromLeft(8);
     projectNameLabel.setBounds(lowerRow.removeFromLeft(140).withHeight(targetButtonSize));
 
-    // Far Right Utility Alignments[cite: 3]
     barsDisplay.setBounds(lowerRow.removeFromRight(82).withHeight(36).withY(30));
     timeDisplay.setBounds(lowerRow.removeFromRight(138).withHeight(36).withY(30));
     sigDisplay.setBounds(lowerRow.removeFromRight(52).withHeight(36).withY(30));
@@ -301,7 +316,6 @@ void TopToolbarComponent::resized() {
 void TopToolbarComponent::timerCallback() {
     bool isPlaying = engine.getTransport().isPlaying();
     playButton.setToggleState(isPlaying, juce::dontSendNotification);
-    playButton.setButtonText(isPlaying ? DesignSystem::Iconography::Pause : DesignSystem::Iconography::Play);
     
     bool isRecording = engine.getTransport().isRecording();
     recordButton.setToggleState(isRecording, juce::dontSendNotification);
@@ -345,7 +359,6 @@ void TopToolbarComponent::timerCallback() {
     
     bool isLooping = engine.getTransport().isLooping();
     loopButton.setToggleState(isLooping, juce::dontSendNotification);
-    loopButton.setButtonText(DesignSystem::Iconography::Loop);
 }
 
 } // namespace Nimbus::MainLayout

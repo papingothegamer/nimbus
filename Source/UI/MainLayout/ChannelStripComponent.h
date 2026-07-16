@@ -40,10 +40,9 @@ private:
     juce::Label volumeLabel;
     juce::Slider fader;
 
-    juce::TextButton muteButton{"M"};
-    juce::TextButton soloButton{"S"};
-    juce::TextButton armButton{"O"};
-    juce::TextButton linkIcon{"Link"}; // Mock stereo link icon
+    juce::DrawableButton muteButton{"Mute", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton soloButton{"Solo", juce::DrawableButton::ImageOnButtonBackground};
+    juce::DrawableButton armButton{"Arm", juce::DrawableButton::ImageOnButtonBackground};
 
     int trackIndex = -1;
 
