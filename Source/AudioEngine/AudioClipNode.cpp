@@ -58,8 +58,18 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
             renderLength -= (currentTransportPos + numSamples - clipEnd);
         }
 
+        double ratio = 1.0;
+        if (clipModel->isWarpEnabled() && clipModel->getMatchDawTempo()) {
+            double dawTempo = globalTransport.getTempo();
+            double originalTempo = clipModel->getOriginalBpm();
+            if (originalTempo > 0.0 && dawTempo > 0.0) {
+                ratio = dawTempo / originalTempo;
+            }
+        }
+
         // The position inside the audio file corresponding to the first sample we need to render
-        int filePosition = (currentTransportPos + renderStartOffset) - clipStart + clipModel->getSourceOffsetSamples();
+        double timeIntoClip = (currentTransportPos + renderStartOffset) - clipStart;
+        int filePosition = static_cast<int>(clipModel->getSourceOffsetSamples() + (timeIntoClip * ratio));
 
         // Clear regions before and after
         if (renderStartOffset > 0) {
@@ -69,18 +79,27 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
             buffer.clear(renderStartOffset + renderLength, numSamples - (renderStartOffset + renderLength));
         }
 
-        // Create an alias buffer just for the region we want to render
-        juce::AudioBuffer<float> subBuffer(buffer.getArrayOfWritePointers(), buffer.getNumChannels(), renderStartOffset, renderLength);
-        
-        diskStreamer->processBlock(subBuffer, filePosition, renderLength);
-        
-        static int logCounter = 0;
-        if (logCounter++ % 100 == 0) {
-            float sum = 0.0f;
-            for (int i = 0; i < subBuffer.getNumSamples(); ++i) {
-                sum += std::abs(subBuffer.getSample(0, i));
+        if (ratio == 1.0) {
+            // Create an alias buffer just for the region we want to render
+            juce::AudioBuffer<float> subBuffer(buffer.getArrayOfWritePointers(), buffer.getNumChannels(), renderStartOffset, renderLength);
+            diskStreamer->processBlock(subBuffer, filePosition, renderLength);
+        } else {
+            int samplesToRead = static_cast<int>(std::ceil(renderLength * ratio)) + 4; // Add padding for interpolation
+            if (readBuffer.getNumSamples() < samplesToRead || readBuffer.getNumChannels() < buffer.getNumChannels()) {
+                readBuffer.setSize(buffer.getNumChannels(), samplesToRead, false, false, true);
             }
-            juce::Logger::writeToLog("AudioClipNode processed: transport=" + juce::String(currentTransportPos) + " clipStart=" + juce::String(clipStart) + " filePos=" + juce::String(filePosition) + " len=" + juce::String(renderLength) + " sum=" + juce::String(sum));
+            readBuffer.clear();
+            
+            juce::AudioBuffer<float> subReadBuffer(readBuffer.getArrayOfWritePointers(), readBuffer.getNumChannels(), 0, samplesToRead);
+            diskStreamer->processBlock(subReadBuffer, filePosition, samplesToRead);
+            
+            for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
+                auto* outPtr = buffer.getWritePointer(ch) + renderStartOffset;
+                auto* inPtr = readBuffer.getReadPointer(ch);
+                
+                if (ch == 0) interpolatorLeft.process(ratio, inPtr, outPtr, renderLength);
+                else if (ch == 1) interpolatorRight.process(ratio, inPtr, outPtr, renderLength);
+            }
         }
 
     }

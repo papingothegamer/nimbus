@@ -23,14 +23,26 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
     // --- Audio Panel ---
     addChildComponent(audioPanel);
     audioPanel.addContent(&warpButton);
-    audioPanel.addContent(&preservePitchButton);
-    audioPanel.addContent(&pitchShiftBox);
+    audioPanel.addContent(&matchTempoButton);
+    audioPanel.addContent(&warpModeBox);
+    
+    warpModeBox.addItem("Beats", 1);
+    warpModeBox.addItem("Tones", 2);
+    warpModeBox.addItem("Complex", 3);
+    warpModeBox.addItem("Complex Pro", 4);
+    warpModeBox.setJustificationType(juce::Justification::centredLeft);
+    warpModeBox.setColour(juce::ComboBox::backgroundColourId, DesignSystem::Colors::PanelBackground.darker(0.5f));
+    warpModeBox.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+    
+    pitchDial = std::make_unique<NimbusRotaryDial>("Pitch", -12.0f, 12.0f, 0.0f, " st", [this](float v) {
+        if (currentAudioClip) {
+            currentAudioClip->setPitchShift(v);
+            engine.getTimelineProject().notifyClipModified();
+        }
+    });
+    audioPanel.addContent(pitchDial.get());
+    
     audioPanel.addContent(&gainBox);
-    
-    pitchShiftBox.setRange(-24.0, 24.0, 1.0);
-    pitchShiftBox.setSuffix(" st");
-    pitchShiftBox.setNumDecimalPlaces(0);
-    
     gainBox.setRange(-36.0, 36.0, 0.1);
     gainBox.setSuffix(" dB");
     gainBox.setNumDecimalPlaces(1);
@@ -105,10 +117,11 @@ void ClipPropertiesComponent::layoutPanels() {
         audioPanel.setBounds(audioBounds);
         
         warpButton.setBounds(5, 5, 50, 20);
-        preservePitchButton.setBounds(60, 5, 55, 20);
+        matchTempoButton.setBounds(60, 5, 55, 20);
+        warpModeBox.setBounds(5, 30, 110, 20);
         
-        pitchShiftBox.setBounds(5, 30, 110, 20);
-        gainBox.setBounds(5, 55, 110, 20);
+        pitchDial->setBounds(5, 55, 50, 60);
+        gainBox.setBounds(60, 60, 55, 20);
     }
 }
 
@@ -132,6 +145,14 @@ void ClipPropertiesComponent::setMidiClip(std::shared_ptr<MidiClip> clip) {
 
 void ClipPropertiesComponent::setAudioClip(std::shared_ptr<AudioClip> clip) {
     currentAudioClip = clip;
+    if (clip) {
+        warpButton.setToggleState(clip->isWarpEnabled(), juce::dontSendNotification);
+        matchTempoButton.setToggleState(clip->getMatchDawTempo(), juce::dontSendNotification);
+        warpModeBox.setSelectedId(static_cast<int>(clip->getWarpMode()) + 1, juce::dontSendNotification);
+        // Note: setting pitchDial value needs access to the inner slider.
+        // For now, we rely on the dial initializing to 0.0, but ideally we'd add setValue to NimbusRotaryDial.
+        gainBox.setValue(clip->getGain(), juce::dontSendNotification);
+    }
 }
 
 void ClipPropertiesComponent::quantizeAction() {

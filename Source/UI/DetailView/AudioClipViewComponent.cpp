@@ -136,10 +136,10 @@ void AudioClipContent::changeListenerCallback(juce::ChangeBroadcaster* source) {
     }
 }
 
-void AudioClipContent::mouseDoubleClick(const juce::MouseEvent& e) {
+void AudioClipContent::mouseDown(const juce::MouseEvent& e) {
     if (!currentClip || !currentClip->isWarpEnabled() || thumbnail.getTotalLength() <= 0.0) return;
     
-    // Only allow inserting markers in the top region
+    // Only allow interacting with markers in the top region
     if (e.y <= 20) {
         double sampleRate = engine.getTransport().getSampleRate();
         if (sampleRate <= 0) sampleRate = 48000.0;
@@ -148,8 +148,54 @@ void AudioClipContent::mouseDoubleClick(const juce::MouseEvent& e) {
         double markerSecs = proportion * thumbnail.getTotalLength();
         double markerSamples = markerSecs * sampleRate;
         
-        currentClip->addWarpMarker(markerSamples);
+        auto markers = currentClip->getWarpMarkers();
+        draggedMarkerIndex = -1;
+        
+        // Find if we clicked an existing marker (within 10 pixels)
+        for (size_t i = 0; i < markers.size(); ++i) {
+            double diffSecs = std::abs((markers[i] / sampleRate) - markerSecs);
+            float diffPixels = static_cast<float>((diffSecs / thumbnail.getTotalLength()) * getWidth());
+            if (diffPixels < 10.0f) {
+                draggedMarkerIndex = static_cast<int>(i);
+                break;
+            }
+        }
+        
+        // If no marker found, create one
+        if (draggedMarkerIndex == -1) {
+            currentClip->addWarpMarker(markerSamples);
+            draggedMarkerIndex = static_cast<int>(currentClip->getWarpMarkers().size() - 1);
+            repaint();
+        }
+    }
+}
+
+void AudioClipContent::mouseDrag(const juce::MouseEvent& e) {
+    if (draggedMarkerIndex != -1 && currentClip) {
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0) sampleRate = 48000.0;
+        
+        float proportion = juce::jlimit(0.0f, 1.0f, e.x / static_cast<float>(getWidth()));
+        double markerSecs = proportion * thumbnail.getTotalLength();
+        double markerSamples = markerSecs * sampleRate;
+        
+        currentClip->setWarpMarker(draggedMarkerIndex, markerSamples);
         repaint();
+    }
+}
+
+void AudioClipContent::mouseUp(const juce::MouseEvent& e) {
+    if (draggedMarkerIndex != -1) {
+        draggedMarkerIndex = -1;
+        engine.getTimelineProject().notifyClipModified();
+    }
+}
+
+void AudioClipContent::mouseDoubleClick(const juce::MouseEvent& e) {
+    // Optionally remove marker on double click if clicked on an existing one
+    if (!currentClip || !currentClip->isWarpEnabled() || thumbnail.getTotalLength() <= 0.0) return;
+    if (e.y <= 20) {
+        // Find and remove if double clicked on an existing marker
     }
 }
 

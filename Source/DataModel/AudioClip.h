@@ -9,6 +9,13 @@ namespace Nimbus {
  */
 class AudioClip {
 public:
+    enum class WarpMode {
+        Beats,
+        Tones,
+        Complex,
+        ComplexPro
+    };
+
     AudioClip(const juce::File& file, int startSample, int lengthSamples, int sourceOffsetSamples = 0);
     ~AudioClip() = default;
 
@@ -61,11 +68,26 @@ public:
     bool isWarpEnabled() const { return warpEnabled; }
     void setWarpEnabled(bool w) { warpEnabled = w; }
     
+    WarpMode getWarpMode() const { return warpMode; }
+    void setWarpMode(WarpMode m) { warpMode = m; }
+    
+    double getOriginalBpm() const { return originalBpm; }
+    void setOriginalBpm(double bpm) { originalBpm = juce::jlimit(20.0, 999.0, bpm); }
+    
+    bool getMatchDawTempo() const { return matchDawTempo; }
+    void setMatchDawTempo(bool m) { matchDawTempo = m; }
+    
+    bool isFollowEnabled() const { return followEnabled; }
+    void setFollowEnabled(bool f) { followEnabled = f; }
+    
     bool isPreservePitch() const { return preservePitch; }
     void setPreservePitch(bool p) { preservePitch = p; }
     
     const std::vector<double>& getWarpMarkers() const { return warpMarkers; }
     void addWarpMarker(double samplePos) { warpMarkers.push_back(samplePos); }
+    void setWarpMarker(size_t index, double samplePos) {
+        if (index < warpMarkers.size()) warpMarkers[index] = samplePos;
+    }
     void clearWarpMarkers() { warpMarkers.clear(); }
 
 private:
@@ -84,6 +106,10 @@ private:
     float pitchShift = 0.0f;      // In semitones (-24 to +24)
     float timeStretch = 1.0f;     // 1.0 = original speed
     bool warpEnabled = true;
+    WarpMode warpMode = WarpMode::Beats;
+    bool matchDawTempo = true;
+    bool followEnabled = true;
+    double originalBpm = 120.0;
     bool preservePitch = true;
     
     // Warp markers (positions in source samples)

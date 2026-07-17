@@ -18,14 +18,18 @@ public:
 
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
 
+    void mouseDown(const juce::MouseEvent& e) override;
+    void mouseDrag(const juce::MouseEvent& e) override;
+    void mouseUp(const juce::MouseEvent& e) override;
+    void mouseDoubleClick(const juce::MouseEvent& e) override;
+
     double getTotalLength() const { return thumbnail.getTotalLength(); }
 
 private:
-    void mouseDoubleClick(const juce::MouseEvent& e) override;
-
     NimbusEngine& engine;
     std::shared_ptr<AudioClip> currentClip;
     juce::AudioThumbnail thumbnail;
+    int draggedMarkerIndex = -1;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioClipContent)
 };

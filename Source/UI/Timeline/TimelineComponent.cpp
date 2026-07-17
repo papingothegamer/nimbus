@@ -556,9 +556,34 @@ void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int 
         }
         
         if (isAudio) {
-            auto clip = std::make_shared<AudioClip>(file, static_cast<int>(droppedSample), static_cast<int>(sampleRate * 4.0));
-            clip->setName(file.getFileNameWithoutExtension());
-            engine.getTimelineProject().addClipToTrack(targetTrackIndex, clip);
+            juce::MessageBoxOptions options = juce::MessageBoxOptions()
+                   .withIconType(juce::MessageBoxIconType::QuestionIcon)
+                   .withTitle("Match DAW Tempo?")
+                   .withMessage("Do you want to match this clip to the project's current BPM (" + juce::String(engine.getTransport().getTempo(), 1) + " BPM)?")
+                   .withButton("Match Tempo (Auto)")
+                   .withButton("Specify Tempo...")
+                   .withButton("Keep Original");
+                   
+            juce::AlertWindow::showAsync(options, [this, file, droppedSample, sampleRate, targetTrackIndex](int result) {
+                auto clip = std::make_shared<AudioClip>(file, static_cast<int>(droppedSample), static_cast<int>(sampleRate * 4.0));
+                clip->setName(file.getFileNameWithoutExtension());
+                
+                if (result == 1 || result == 2) { 
+                    clip->setWarpEnabled(true);
+                    clip->setMatchDawTempo(true);
+                    clip->setOriginalBpm(120.0);
+                } else {
+                    clip->setWarpEnabled(false);
+                    clip->setMatchDawTempo(false);
+                }
+                
+                engine.getTimelineProject().addClipToTrack(targetTrackIndex, clip);
+                
+                if (result == 2) {
+                    // Specify tempo: auto-select the clip to open the clip properties
+                    engine.getTimelineProject().setSelectedClip(clip);
+                }
+            });
         } else if (isMidi) {
             auto clip = std::make_shared<MidiClip>(static_cast<int>(droppedSample), static_cast<int>(sampleRate * 4.0));
             clip->setName(file.getFileNameWithoutExtension());

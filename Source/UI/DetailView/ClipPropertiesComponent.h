@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 #include "Core/NimbusEngine.h"
 #include "AbletonWidgets.h"
+#include "Core/Plugins/Stock/StockPluginUI.h"
 
 namespace Nimbus::DetailView {
 
@@ -37,8 +38,9 @@ private:
     // === Audio Panel ===
     UI::AbletonPanel audioPanel{"Audio"};
     UI::AbletonToggleButton warpButton{"Warp"};
-    UI::AbletonToggleButton preservePitchButton{"Preserve"};
-    UI::AbletonNumberBox pitchShiftBox;
+    UI::AbletonToggleButton matchTempoButton{"Match"};
+    juce::ComboBox warpModeBox;
+    std::unique_ptr<NimbusRotaryDial> pitchDial;
     UI::AbletonNumberBox gainBox;
     
     // === Notes Panel ===

@@ -4,6 +4,7 @@
 #include "DataModel/AudioClip.h"
 #include "DiskStreaming/DiskStreamer.h"
 #include "Transport.h"
+#include <JuceHeader.h>
 #include <memory>
 
 namespace Nimbus {
@@ -28,6 +29,10 @@ private:
     Transport& globalTransport;
 
     int lastProcessedTransportPos = -1;
+
+    juce::LagrangeInterpolator interpolatorLeft;
+    juce::LagrangeInterpolator interpolatorRight;
+    juce::AudioBuffer<float> readBuffer;
 };
 
 } // namespace Nimbus

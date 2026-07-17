@@ -99,9 +99,28 @@ void DetailViewComponent::trackSelectionChanged() {
         return;
     }
     
-    if (engine.getTimelineProject().getSelectedClip().valueless_by_exception() || 
-        (std::holds_alternative<std::shared_ptr<AudioClip>>(engine.getTimelineProject().getSelectedClip()) && std::get<std::shared_ptr<AudioClip>>(engine.getTimelineProject().getSelectedClip()) == nullptr) ||
-        (std::holds_alternative<std::shared_ptr<MidiClip>>(engine.getTimelineProject().getSelectedClip()) && std::get<std::shared_ptr<MidiClip>>(engine.getTimelineProject().getSelectedClip()) == nullptr)) {
+    auto& project = engine.getTimelineProject();
+    auto clip = project.getSelectedClip();
+    bool hasClip = false;
+    
+    if (std::holds_alternative<std::shared_ptr<AudioClip>>(clip)) {
+        hasClip = std::get<std::shared_ptr<AudioClip>>(clip) != nullptr;
+    } else if (std::holds_alternative<std::shared_ptr<MidiClip>>(clip)) {
+        hasClip = std::get<std::shared_ptr<MidiClip>>(clip) != nullptr;
+    }
+    
+    if (!hasClip) {
+        auto& sel = project.getSelectedTracks();
+        if (sel.getNumRanges() > 0) {
+            int trackIndex = sel.getRange(0).getStart();
+            if (trackIndex < project.getNumTracks()) {
+                auto clips = project.getClipsOnTrack(trackIndex);
+                if (!clips.empty()) {
+                    project.setSelectedClip(clips.front());
+                    return; // selectedClipChanged will be called
+                }
+            }
+        }
         
         pianoRoll.setVisible(false);
         pianoRollTimeline.setVisible(false);
@@ -110,16 +129,16 @@ void DetailViewComponent::trackSelectionChanged() {
         
         placeholderLabel.setVisible(true);
         
-        auto& sel = engine.getTimelineProject().getSelectedTracks();
-        if (sel.getNumRanges() > 0) {
-            int trackIndex = sel.getRange(0).getStart();
+        auto& currentSel = engine.getTimelineProject().getSelectedTracks();
+        if (currentSel.getNumRanges() > 0) {
+            int trackIndex = currentSel.getRange(0).getStart();
             if (trackIndex < engine.getTimelineProject().getNumTracks()) {
                 const auto& track = engine.getTimelineProject().getTrack(trackIndex);
                 
                 juce::String type = track.isMidi ? "MIDI" : "Audio";
-                if (sel.getTotalRange().getLength() > 1 || sel.getNumRanges() > 1) {
+                if (currentSel.getTotalRange().getLength() > 1 || currentSel.getNumRanges() > 1) {
                     int count = 0;
-                    for (int i = 0; i < sel.getNumRanges(); ++i) count += sel.getRange(i).getLength();
+                    for (int i = 0; i < currentSel.getNumRanges(); ++i) count += currentSel.getRange(i).getLength();
                     placeholderLabel.setText("Selected " + juce::String(count) + " Tracks properties...", juce::dontSendNotification);
                 } else {
                     placeholderLabel.setText("Selected " + type + " Track properties... (" + track.name + ")", juce::dontSendNotification);
