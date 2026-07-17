@@ -450,7 +450,9 @@ void TimelineComponent::zoom(double factor) {
     double playheadAbsoluteXBefore = positionSeconds * pixelsPerSecond;
     double playheadScreenX = playheadAbsoluteXBefore - scrollOffsetX;
     
-    pixelsPerSecond = juce::jlimit(5.0, 500.0, pixelsPerSecond * factor);
+    pixelsPerSecond = juce::jlimit(10.0, 200.0, pixelsPerSecond * factor);
+    
+    if (onZoomLevelChanged) onZoomLevelChanged(static_cast<int>(pixelsPerSecond));
     
     double playheadAbsoluteXAfter = positionSeconds * pixelsPerSecond;
     scrollOffsetX = juce::jmax(0.0, playheadAbsoluteXAfter - playheadScreenX);
@@ -458,6 +460,28 @@ void TimelineComponent::zoom(double factor) {
     for (auto* lane : trackLanes) {
         lane->resized();
     }
+    repaint();
+}
+
+void TimelineComponent::setZoomLevel(int percentage) {
+    double playheadScreenX = 0;
+    double sampleRate = engine.getTransport().getSampleRate();
+    if (sampleRate <= 0.0) sampleRate = 48000.0;
+    double positionSeconds = engine.getTransport().getCurrentPosition() / sampleRate;
+    if (positionSeconds > 0) {
+        playheadScreenX = (positionSeconds * pixelsPerSecond) - scrollOffsetX;
+    }
+    
+    pixelsPerSecond = juce::jlimit(10.0, 200.0, static_cast<double>(percentage));
+    
+    if (positionSeconds > 0) {
+        double playheadAbsoluteXAfter = positionSeconds * pixelsPerSecond;
+        scrollOffsetX = juce::jmax(0.0, playheadAbsoluteXAfter - playheadScreenX);
+    }
+    
+    if (onZoomLevelChanged) onZoomLevelChanged(static_cast<int>(pixelsPerSecond));
+    
+    resized();
     repaint();
 }
 

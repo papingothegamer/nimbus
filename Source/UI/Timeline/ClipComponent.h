@@ -20,6 +20,8 @@ public:
     void mouseDoubleClick(const juce::MouseEvent& event) override;
 
     AnyClipPtr getClip() const { return clipData; }
+    
+    static juce::Colour getClipColor(int index);
 
 private:
     NimbusEngine& engine;
@@ -27,11 +29,16 @@ private:
     juce::AudioThumbnailCache thumbnailCache{5};
     juce::AudioThumbnail thumbnail;
     
-    bool isResizing = false;
+    bool isResizingLeft = false;
+    bool isResizingRight = false;
     bool isDragging = false;
+    bool isSelectingTime = false;
     int dragStartX = 0;
     double originalStartSamples = 0;
     double originalLengthSamples = 0;
+    double originalSourceOffsetSamples = 0;
+
+    void showPropertiesMenu();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ClipComponent)
 };

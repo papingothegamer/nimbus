@@ -33,6 +33,10 @@ void TopToolbarComponent::loadSvgIcon(juce::DrawableButton& btn, const juce::Str
     }
 }
 
+void TopToolbarComponent::setZoomLevel(int zoomPercentage) {
+    zoomLevelLabel.setText(juce::String(zoomPercentage) + "%", juce::dontSendNotification);
+}
+
 TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     auto setupIconBtn = [](juce::DrawableButton& btn) {
         btn.getProperties().set("transparentBackground", true);
@@ -88,9 +92,9 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         juce::String text = zoomLevelLabel.getText().retainCharacters("0123456789");
         int zoom = text.getIntValue();
         if (zoom < 10) zoom = 10;
-        if (zoom > 150) zoom = 150;
-        currentZoom = zoom;
-        zoomLevelLabel.setText(juce::String(currentZoom) + "%", juce::dontSendNotification);
+        if (zoom > 200) zoom = 200;
+        
+        if (onZoomLevelRequested) onZoomLevelRequested(zoom);
     };
     toolsGroupContainer.addAndMakeVisible(zoomLevelLabel);
 
@@ -201,13 +205,10 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
 
     // --- Button callbacks ---
     zoomOutButton.onClick = [this]() {
-        currentZoom = juce::jlimit(10, 150, currentZoom - 10);
-        zoomLevelLabel.setText(juce::String(currentZoom) + "%", juce::dontSendNotification);
         if (onZoomOut) onZoomOut();
     };
+    
     zoomInButton.onClick = [this]() {
-        currentZoom = juce::jlimit(10, 150, currentZoom + 10);
-        zoomLevelLabel.setText(juce::String(currentZoom) + "%", juce::dontSendNotification);
         if (onZoomIn) onZoomIn();
     };
     saveProjectButton.onClick = [this]() {

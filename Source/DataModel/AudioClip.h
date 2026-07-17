@@ -33,6 +33,12 @@ public:
     const juce::String& getName() const { return name; }
     void setName(const juce::String& n) { name = n; }
     
+    int getColorIndex() const { return colorIndex; }
+    void setColorIndex(int c) { colorIndex = c; }
+    
+    int getNumChannels() const { return numChannels; }
+    void setNumChannels(int c) { numChannels = c; }
+    
     float getGain() const { return gain; }
     void setGain(float g) { gain = juce::jlimit(0.0f, 2.0f, g); }
     
@@ -82,6 +88,9 @@ private:
     
     // Warp markers (positions in source samples)
     std::vector<double> warpMarkers;
+    
+    int colorIndex = -1;
+    int numChannels = 2;
 };
 
 } // namespace Nimbus

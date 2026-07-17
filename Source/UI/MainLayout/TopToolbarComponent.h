@@ -22,6 +22,9 @@ public:
     std::function<void()> onDetailToggle;
     std::function<void()> onZoomIn;
     std::function<void()> onZoomOut;
+    std::function<void(int)> onZoomLevelRequested;
+    
+    void setZoomLevel(int zoomPercentage);
 
 private:
     NimbusEngine& engine;

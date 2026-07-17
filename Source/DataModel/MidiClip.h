@@ -19,6 +19,9 @@ public:
     double getLengthSamples() const { return lengthSamples; }
     void setLengthSamples(double newLength) { lengthSamples = newLength; }
 
+    double getSourceOffsetSamples() const { return sourceOffsetSamples; }
+    void setSourceOffsetSamples(double offset) { sourceOffsetSamples = offset; }
+
     // MIDI Data
     juce::MidiMessageSequence& getSequence() { return sequence; }
     const juce::MidiMessageSequence& getSequence() const { return sequence; }
@@ -38,6 +41,7 @@ public:
 private:
     double startSample{0.0};
     double lengthSamples{0.0};
+    double sourceOffsetSamples{0.0};
 
     // We store the raw MIDI events here.
     // Time is in samples relative to the start of the clip.

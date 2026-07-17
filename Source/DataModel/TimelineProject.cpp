@@ -229,6 +229,37 @@ void TimelineProject::setTrackSelected(int trackIndex, bool clearExisting) {
     listeners.call(&Listener::trackSelectionChanged);
 }
 
+void TimelineProject::setTimeSelection(double startSamples, double endSamples) {
+    if (timeSelectionStartSamples != startSamples || timeSelectionEndSamples != endSamples) {
+        timeSelectionStartSamples = startSamples;
+        timeSelectionEndSamples = endSamples;
+        listeners.call(&Listener::timeSelectionChanged);
+    }
+}
+
+void TimelineProject::setTimeSelectedTracks(const juce::SparseSet<int>& tracks) {
+    if (timeSelectedTracks != tracks) {
+        timeSelectedTracks = tracks;
+        listeners.call(&Listener::timeSelectionChanged);
+    }
+}
+
+void TimelineProject::addTimeSelectedTrack(int trackIndex) {
+    if (!timeSelectedTracks.contains(trackIndex)) {
+        timeSelectedTracks.addRange(juce::Range<int>(trackIndex, trackIndex + 1));
+        listeners.call(&Listener::timeSelectionChanged);
+    }
+}
+
+void TimelineProject::clearTimeSelection() {
+    if (timeSelectionStartSamples >= 0 || timeSelectionEndSamples >= 0 || !timeSelectedTracks.isEmpty()) {
+        timeSelectionStartSamples = -1.0;
+        timeSelectionEndSamples = -1.0;
+        timeSelectedTracks.clear();
+        listeners.call(&Listener::timeSelectionChanged);
+    }
+}
+
 void TimelineProject::toggleTrackSelection(int trackIndex) {
     if (trackIndex >= 0) {
         if (selectedTracks.contains(trackIndex)) {
@@ -259,6 +290,13 @@ void TimelineProject::addClipToTrack(int trackIndex, AnyClipPtr clip) {
         trackClips.resize(trackIndex + 1);
         tracks.resize(trackIndex + 1);
     }
+    
+    std::visit([](auto&& c) {
+        if (c->getColorIndex() == -1) {
+            c->setColorIndex(juce::Random::getSystemRandom().nextInt(70));
+        }
+    }, clip);
+    
     trackClips[trackIndex].push_back(std::move(clip));
     listeners.call(&Listener::trackClipsChanged, trackIndex);
 }
@@ -316,6 +354,91 @@ double TimelineProject::getTotalDurationSamples() const {
     }
     // Return at least some minimal duration so UI doesn't break, e.g. 5 seconds (5 * 44100 = 220500) if project is empty
     return maxDuration > 0.0 ? maxDuration : 220500.0; 
+}
+
+void TimelineProject::copySelectedClips() {
+    clipboardClips.clear();
+    
+    if (currentSelectedClip != AnyClipPtr{}) {
+        auto clonedClip = std::visit([](auto&& c) -> AnyClipPtr {
+            using T = std::decay_t<decltype(c)>;
+            return std::make_shared<typename T::element_type>(*c);
+        }, currentSelectedClip);
+        clipboardClips.push_back(clonedClip);
+    } else if (timeSelectionStartSamples >= 0 && timeSelectionEndSamples >= 0 && timeSelectionStartSamples != timeSelectionEndSamples) {
+        // Copy all clips within the time selection for selected tracks
+        double minSamples = std::min(timeSelectionStartSamples, timeSelectionEndSamples);
+        double maxSamples = std::max(timeSelectionStartSamples, timeSelectionEndSamples);
+        
+        for (int trackIndex = 0; trackIndex < getNumTracks(); ++trackIndex) {
+            if (timeSelectedTracks.contains(trackIndex) || selectedTracks.contains(trackIndex)) {
+                for (const auto& clip : trackClips[trackIndex]) {
+                    double clipStart = 0;
+                    double clipLength = 0;
+                    std::visit([&](auto&& c) { clipStart = c->getStartSample(); clipLength = c->getLengthSamples(); }, clip);
+                    double clipEnd = clipStart + clipLength;
+                    
+                    if (clipStart < maxSamples && clipEnd > minSamples) {
+                        auto clonedClip = std::visit([](auto&& c) -> AnyClipPtr {
+                            using T = std::decay_t<decltype(c)>;
+                            return std::make_shared<typename T::element_type>(*c);
+                        }, clip);
+                        
+                        // Adjust the cloned clip to start relative to the selection if we wanted complex pasting,
+                        // but for now just copy the exact clip properties
+                        clipboardClips.push_back(clonedClip);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void TimelineProject::pasteClips(int trackIndex, double startSample) {
+    if (clipboardClips.empty() || trackIndex < 0 || trackIndex >= tracks.size()) return;
+    
+    // For simplicity, paste the first clip exactly at startSample.
+    // If there were multiple clips, we would need to calculate relative offsets.
+    double offset = startSample;
+    if (clipboardClips.size() > 0) {
+        double originalFirstStart = 0;
+        std::visit([&](auto&& c) { originalFirstStart = c->getStartSample(); }, clipboardClips[0]);
+        
+        for (const auto& clip : clipboardClips) {
+            auto clonedClip = std::visit([](auto&& c) -> AnyClipPtr {
+                using T = std::decay_t<decltype(c)>;
+                return std::make_shared<typename T::element_type>(*c);
+            }, clip);
+            
+            double originalStart = 0;
+            std::visit([&](auto&& c) { originalStart = c->getStartSample(); }, clonedClip);
+            
+            double relativeStart = originalStart - originalFirstStart;
+            std::visit([&](auto&& c) { c->setStartSample(startSample + relativeStart); }, clonedClip);
+            
+            addClipToTrack(trackIndex, clonedClip);
+        }
+    }
+}
+
+void TimelineProject::duplicateTrack(int trackIndex) {
+    if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        TrackModel newTrack = tracks[trackIndex];
+        newTrack.id = TrackID(); // Generate new UUID
+        newTrack.name = newTrack.name + " (Copy)";
+        
+        insertTrack(trackIndex + 1, newTrack);
+        
+        // Copy all clips from the original track to the new track
+        auto originalClips = getClipsOnTrack(trackIndex);
+        for (const auto& clip : originalClips) {
+            auto clonedClip = std::visit([](auto&& c) -> AnyClipPtr {
+                using T = std::decay_t<decltype(c)>;
+                return std::make_shared<typename T::element_type>(*c);
+            }, clip);
+            addClipToTrack(trackIndex + 1, clonedClip);
+        }
+    }
 }
 
 // Force rebuild

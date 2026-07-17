@@ -16,9 +16,12 @@ public:
     ~TrackLaneComponent() override;
 
     void paint(juce::Graphics& g) override;
+    void paintOverChildren(juce::Graphics& g) override;
     void resized() override;
     
     void mouseDown(const juce::MouseEvent& event) override;
+    void mouseDrag(const juce::MouseEvent& event) override;
+    void mouseUp(const juce::MouseEvent& event) override;
     void mouseDoubleClick(const juce::MouseEvent& event) override;
 
     void setTrackIndex(int newIndex);
@@ -32,6 +35,8 @@ public:
     
     // TimelineProject::Listener
     void trackClipsChanged(int changedTrackIndex) override;
+    void trackNameChanged(int changedTrackIndex, const juce::String& newName) override;
+    void timeSelectionChanged() override;
 
 private:
     NimbusEngine& engine;
@@ -39,6 +44,8 @@ private:
     int trackIndex;
 
     juce::OwnedArray<ClipComponent> clipComponents;
+    
+    bool isDraggingSelection = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackLaneComponent)
 };

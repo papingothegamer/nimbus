@@ -5,55 +5,176 @@
 
 namespace Nimbus::Timeline {
 
+juce::Colour ClipComponent::getClipColor(int index) {
+    if (index < 0) return juce::Colour(0xff0a84ff);
+    float hue = std::fmod(index * 0.381966f, 1.0f);
+    return juce::Colour::fromHSV(hue, 0.75f, 0.75f, 1.0f);
+}
+
+class ColorGridComponent : public juce::PopupMenu::CustomComponent {
+public:
+    ColorGridComponent(int cols, int rows, std::function<void(int)> onSelect) 
+        : juce::PopupMenu::CustomComponent(false), columns(cols), numRows(rows), onColorSelected(std::move(onSelect)) {
+    }
+    
+    void getIdealSize(int& idealWidth, int& idealHeight) override {
+        idealWidth = columns * 16 + 4;
+        idealHeight = numRows * 16 + 4;
+    }
+    
+    void paint(juce::Graphics& g) override {
+        g.fillAll(juce::Colour(0xff1e1e1e));
+        for (int i = 0; i < columns * numRows; ++i) {
+            int x = 2 + (i % columns) * 16;
+            int y = 2 + (i / columns) * 16;
+            g.setColour(ClipComponent::getClipColor(i));
+            g.fillRect(x + 1, y + 1, 14, 14);
+            if (hoverIndex == i) {
+                g.setColour(juce::Colours::white);
+                g.drawRect(x, y, 16, 16, 2);
+            }
+        }
+    }
+    void mouseMove(const juce::MouseEvent& event) override {
+        int col = (event.x - 2) / 16;
+        int row = (event.y - 2) / 16;
+        int idx = (col >= 0 && col < columns && row >= 0 && row < numRows) ? row * columns + col : -1;
+        if (idx != hoverIndex) { hoverIndex = idx; repaint(); }
+    }
+    void mouseExit(const juce::MouseEvent&) override { hoverIndex = -1; repaint(); }
+    void mouseDown(const juce::MouseEvent& event) override {
+        if (hoverIndex != -1) {
+            if (onColorSelected) onColorSelected(hoverIndex);
+            juce::PopupMenu::dismissAllActiveMenus();
+        }
+    }
+private:
+    int columns, numRows;
+    int hoverIndex = -1;
+    std::function<void(int)> onColorSelected;
+};
+
 ClipComponent::ClipComponent(AnyClipPtr clip, NimbusEngine& e)
     : engine(e), clipData(clip), thumbnail(512, engine.getFormatManager(), thumbnailCache) {
+    
     if (std::holds_alternative<std::shared_ptr<AudioClip>>(clipData)) {
         auto audioClip = std::get<std::shared_ptr<AudioClip>>(clipData);
         if (audioClip) {
             thumbnail.setSource(new juce::FileInputSource(audioClip->getSourceFile()));
         }
     }
+    
+    // No label needed, we draw the text in paint
+}
+
+void ClipComponent::showPropertiesMenu() {
+    juce::PopupMenu menu;
+    
+    juce::PopupMenu colorMenu;
+    auto* grid = new ColorGridComponent(10, 7, [this](int newColor) {
+        std::visit([newColor](auto&& c) { c->setColorIndex(newColor); }, clipData);
+        repaint();
+        engine.getTimelineProject().notifyClipModified();
+    });
+    colorMenu.addCustomItem(1, std::unique_ptr<juce::PopupMenu::CustomComponent>(grid));
+    menu.addSubMenu("Clip Color", colorMenu);
+    
+    menu.addSeparator();
+    menu.addItem(2, "Cut");
+    menu.addItem(3, "Copy");
+    menu.addItem(4, "Delete");
+    
+    // Position menu explicitly under the ellipsis
+    auto bounds = getLocalBounds();
+    auto headerBounds = bounds.removeFromTop(18);
+    auto ellipsisBounds = headerBounds.withTrimmedLeft(headerBounds.getWidth() - 20);
+    
+    juce::PopupMenu::Options options;
+    options = options.withTargetScreenArea(localAreaToGlobal(ellipsisBounds));
+    
+    menu.showMenuAsync(options, [this](int result) {
+        if (result == 4) {
+            engine.getTimelineProject().removeClip(clipData);
+        }
+    });
 }
 
 ClipComponent::~ClipComponent() = default;
 
 void ClipComponent::paint(juce::Graphics& g) {
     bool isAudio = std::holds_alternative<std::shared_ptr<AudioClip>>(clipData);
-    juce::Colour baseColour = isAudio ? juce::Colour::fromString("#FF0A84FF") // vibrant blue
-                                      : juce::Colour::fromString("#FFFF9F0A"); // vibrant orange
-
-    // Draw clip background (solid vibrant color with subtle transparency)
-    g.setColour(baseColour.withAlpha(0.8f));
-    g.fillRoundedRectangle(getLocalBounds().toFloat(), 4.0f);
     
-    // Draw selection highlight
+    int colorIndex = 0;
+    juce::String name = "Clip";
+    std::visit([&](auto&& c) { colorIndex = c->getColorIndex(); name = c->getName(); }, clipData);
+    
+    juce::Colour baseColour = getClipColor(colorIndex);
+    bool isDark = baseColour.getPerceivedBrightness() < 0.5f;
+    juce::Colour textColour = isDark ? juce::Colours::white : juce::Colours::black;
+    
+    auto bounds = getLocalBounds();
+    auto headerBounds = bounds.removeFromTop(18);
+
+    // Draw header
+    g.setColour(baseColour.darker(0.2f));
+    g.fillRect(headerBounds);
+    
+    // Draw Text
+    g.setColour(textColour);
+    g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f));
+    g.drawText(" " + name, headerBounds.reduced(2, 0).withTrimmedRight(20), juce::Justification::centredLeft, true);
+    
+    // Draw ellipsis
+    float cx = headerBounds.getRight() - 10.0f;
+    float cy = headerBounds.getCentreY();
+    g.setColour(textColour);
+    g.fillEllipse(cx - 5.0f, cy - 1.5f, 3.0f, 3.0f);
+    g.fillEllipse(cx, cy - 1.5f, 3.0f, 3.0f);
+    g.fillEllipse(cx + 5.0f, cy - 1.5f, 3.0f, 3.0f);
+
+    // Draw body
+    g.setColour(baseColour.withAlpha(0.85f));
+    g.fillRect(bounds);
+    
+    // Selection highlight
     if (engine.getTimelineProject().getSelectedClip() == clipData) {
         g.setColour(juce::Colours::white.withAlpha(0.3f));
-        g.fillRoundedRectangle(getLocalBounds().toFloat(), 4.0f);
+        g.fillRect(getLocalBounds());
         g.setColour(juce::Colours::white);
-        g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), 4.0f, 1.0f);
+        g.drawRect(getLocalBounds(), 1);
     }
 
-    // Draw waveform
+    // Draw waveform or MIDI
+    g.setColour(juce::Colour(0xff212121)); // Audacity dark waveform
+    
     if (isAudio) {
-        g.setColour(juce::Colours::white.withAlpha(0.9f));
+        auto audioClip = std::get<std::shared_ptr<AudioClip>>(clipData);
         if (thumbnail.getTotalLength() > 0.0) {
-            auto audioClip = std::get<std::shared_ptr<AudioClip>>(clipData);
             double sampleRate = engine.getTransport().getSampleRate();
             if (sampleRate <= 0) sampleRate = 48000.0;
             
             double startSecs = audioClip->getSourceOffsetSamples() / sampleRate;
             double endSecs = startSecs + (audioClip->getLengthSamples() / sampleRate);
             
-            thumbnail.drawChannels(g, getLocalBounds().withTrimmedTop(4).withTrimmedBottom(4), startSecs, endSecs, 1.0f);
+            int numChannels = audioClip->getNumChannels();
+            if (numChannels == 2) {
+                auto topHalf = bounds.removeFromTop(bounds.getHeight() / 2);
+                thumbnail.drawChannel(g, topHalf.reduced(0, 1), startSecs, endSecs, 0, 1.0f);
+                g.setColour(juce::Colours::black.withAlpha(0.2f));
+                g.fillRect(bounds.getX(), bounds.getY() - 1, bounds.getWidth(), 1); // Divider
+                g.setColour(juce::Colour(0xff212121));
+                thumbnail.drawChannel(g, bounds.reduced(0, 1), startSecs, endSecs, 1, 1.0f);
+            } else {
+                thumbnail.drawChannels(g, bounds.reduced(0, 2), startSecs, endSecs, 1.0f);
+            }
         } else {
             g.setFont(DesignSystem::Typography::getPrimaryFont());
-            g.drawText("Loading...", getLocalBounds(), juce::Justification::centred, false);
+            g.setColour(juce::Colours::white);
+            g.drawText("Loading...", bounds, juce::Justification::centred, false);
         }
     } else if (std::holds_alternative<std::shared_ptr<MidiClip>>(clipData)) {
         auto midiClip = std::get<std::shared_ptr<MidiClip>>(clipData);
         if (midiClip) {
-            g.setColour(juce::Colours::black.withAlpha(0.5f));
             int minNote = 127;
             int maxNote = 0;
             for (int i = 0; i < midiClip->getSequence().getNumEvents(); ++i) {
@@ -64,29 +185,39 @@ void ClipComponent::paint(juce::Graphics& g) {
                 }
             }
             if (maxNote < minNote) { minNote = 60; maxNote = 72; }
-            int range = juce::jmax(1, maxNote - minNote + 2); // padding
+            int range = juce::jmax(1, maxNote - minNote + 2);
             
             double clipSamples = midiClip->getLengthSamples();
+            double offsetSamples = midiClip->getSourceOffsetSamples();
+            
             for (int i = 0; i < midiClip->getSequence().getNumEvents(); ++i) {
                 auto* event = midiClip->getSequence().getEventPointer(i);
                 if (event->message.isNoteOn()) {
-                    double noteStart = event->message.getTimeStamp();
-                    double noteLength = 48000.0 * 0.25; // default
+                    double noteStart = event->message.getTimeStamp() * 48000.0;
+                    double noteLength = 48000.0 * 0.25;
                     
                     for (int j = i + 1; j < midiClip->getSequence().getNumEvents(); ++j) {
                         auto* offEvent = midiClip->getSequence().getEventPointer(j);
                         if (offEvent->message.isNoteOff() && offEvent->message.getNoteNumber() == event->message.getNoteNumber()) {
-                            noteLength = offEvent->message.getTimeStamp() - noteStart;
+                            noteLength = offEvent->message.getTimeStamp() * 48000.0 - noteStart;
                             break;
                         }
                     }
                     
-                    if (clipSamples > 0.0) {
-                        float x = static_cast<float>((noteStart / clipSamples) * getWidth());
-                        float w = static_cast<float>((noteLength / clipSamples) * getWidth());
-                        float y = static_cast<float>(maxNote + 1 - event->message.getNoteNumber()) / static_cast<float>(range) * getHeight();
-                        float h = juce::jmax(2.0f, getHeight() / static_cast<float>(range));
-                        g.fillRect(x, y, juce::jmax(1.0f, w), h);
+                    double drawStart = noteStart - offsetSamples;
+                    if (drawStart + noteLength > 0 && drawStart < clipSamples && clipSamples > 0.0) {
+                        float x = static_cast<float>((drawStart / clipSamples) * bounds.getWidth());
+                        float w = static_cast<float>((noteLength / clipSamples) * bounds.getWidth());
+                        float y = bounds.getY() + static_cast<float>(maxNote + 1 - event->message.getNoteNumber()) / static_cast<float>(range) * bounds.getHeight();
+                        float h = juce::jmax(2.0f, bounds.getHeight() / static_cast<float>(range));
+                        
+                        float vel = event->message.getFloatVelocity();
+                        g.setColour(juce::Colour(0xff212121).withAlpha(0.4f + 0.6f * vel));
+                        
+                        // Clip the drawing rect to bounds
+                        juce::Rectangle<float> rect(x, y, juce::jmax(1.0f, w), h);
+                        rect = rect.getIntersection(bounds.toFloat());
+                        g.fillRect(rect);
                     }
                 }
             }
@@ -95,48 +226,47 @@ void ClipComponent::paint(juce::Graphics& g) {
 }
 
 void ClipComponent::resized() {
-    //
 }
 
 void ClipComponent::mouseDown(const juce::MouseEvent& event) {
     engine.getTimelineProject().setSelectedClip(clipData);
     
+    if (event.y <= 18 && event.x >= getWidth() - 20) {
+        showPropertiesMenu();
+        return;
+    }
+    
     if (event.mods.isPopupMenu()) {
-        juce::PopupMenu menu;
-        menu.addItem(1, "Cut");
-        menu.addItem(2, "Copy");
-        menu.addSeparator();
-        menu.addItem(3, "Delete");
-        
-        menu.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
-            if (result == 3) {
-                engine.getTimelineProject().removeClip(clipData);
-            }
-        });
+        if (auto* parent = dynamic_cast<Timeline::TrackLaneComponent*>(getParentComponent())) {
+            parent->showContextMenu(event.getEventRelativeTo(parent));
+        }
         return;
     }
 
     dragStartX = event.getScreenX();
     
-    if (std::holds_alternative<std::shared_ptr<AudioClip>>(clipData)) {
-        if (auto ac = std::get<std::shared_ptr<AudioClip>>(clipData)) {
-            originalStartSamples = ac->getStartSample();
-            originalLengthSamples = ac->getLengthSamples();
-        }
-    } else if (std::holds_alternative<std::shared_ptr<MidiClip>>(clipData)) {
-        if (auto mc = std::get<std::shared_ptr<MidiClip>>(clipData)) {
-            originalStartSamples = mc->getStartSample();
-            originalLengthSamples = mc->getLengthSamples();
+    std::visit([&](auto&& c) {
+        originalStartSamples = c->getStartSample();
+        originalLengthSamples = c->getLengthSamples();
+        originalSourceOffsetSamples = c->getSourceOffsetSamples();
+    }, clipData);
+    
+    bool isHeaderClick = event.y <= 18;
+    isResizingLeft = (event.x <= 5);
+    isResizingRight = (event.x >= getWidth() - 5);
+    isDragging = isHeaderClick && !isResizingLeft && !isResizingRight;
+    isSelectingTime = !isHeaderClick && !isResizingLeft && !isResizingRight;
+    
+    if (isSelectingTime) {
+        if (auto* parent = getParentComponent()) {
+            parent->mouseDown(event.getEventRelativeTo(parent));
         }
     }
-    
-    isResizing = (event.x >= getWidth() - 5);
-    isDragging = !isResizing;
 }
 
 void ClipComponent::mouseMove(const juce::MouseEvent& event) {
-    if (event.x >= getWidth() - 5) {
-        setMouseCursor(juce::MouseCursor::RightEdgeResizeCursor);
+    if (event.x <= 5 || event.x >= getWidth() - 5) {
+        setMouseCursor(juce::MouseCursor::LeftRightResizeCursor);
     } else {
         setMouseCursor(juce::MouseCursor::NormalCursor);
     }
@@ -145,24 +275,23 @@ void ClipComponent::mouseMove(const juce::MouseEvent& event) {
 void ClipComponent::mouseDrag(const juce::MouseEvent& event) {
     if (event.mods.isPopupMenu()) return;
     
+    if (isSelectingTime) {
+        if (auto* parent = getParentComponent()) {
+            parent->mouseDrag(event.getEventRelativeTo(parent));
+        }
+        return;
+    }
+    
     int deltaX = event.getScreenX() - dragStartX;
     
-    // We need to know pixels per second to convert deltaX to samples
-    // For now, we'll try to find the timeline component parent to get pixelsPerSecond
-    double pixelsPerSecond = 100.0; // fallback
-    if (auto* parent = getParentComponent()) {
-        // TrackLaneComponent -> tracksContainer -> viewport -> TimelineComponent
-        // Simplest way is to ask the engine or assume a fixed pixel rate for now
-        // TimelineComponent has getPixelsPerSecond(), but we don't have a direct ref here.
-        // We'll traverse parents to find it.
-        auto* comp = getParentComponent();
-        while (comp != nullptr) {
-            if (auto* tc = dynamic_cast<TimelineComponent*>(comp)) {
-                pixelsPerSecond = tc->getPixelsPerSecond();
-                break;
-            }
-            comp = comp->getParentComponent();
+    double pixelsPerSecond = 100.0;
+    auto* comp = getParentComponent();
+    while (comp != nullptr) {
+        if (auto* tc = dynamic_cast<TimelineComponent*>(comp)) {
+            pixelsPerSecond = tc->getPixelsPerSecond();
+            break;
         }
+        comp = comp->getParentComponent();
     }
     
     double sampleRate = engine.getTransport().getSampleRate();
@@ -171,25 +300,34 @@ void ClipComponent::mouseDrag(const juce::MouseEvent& event) {
     double deltaSeconds = static_cast<double>(deltaX) / pixelsPerSecond;
     double deltaSamples = deltaSeconds * sampleRate;
     
-    // Also snap to grid
     double tempo = engine.getTransport().getTempo();
     double secondsPerBeat = 60.0 / tempo;
-    double snapSeconds = secondsPerBeat / 4.0; // 1/16th note snap
+    double snapSeconds = secondsPerBeat / 4.0;
     
-    if (isResizing) {
+    if (isResizingRight) {
         double newLengthSamples = originalLengthSamples + deltaSamples;
         double newLengthSeconds = newLengthSamples / sampleRate;
         double snappedLengthSeconds = std::round(newLengthSeconds / snapSeconds) * snapSeconds;
         newLengthSamples = juce::jmax(100.0, snappedLengthSeconds * sampleRate);
         
-        if (std::holds_alternative<std::shared_ptr<AudioClip>>(clipData)) {
-            if (auto ac = std::get<std::shared_ptr<AudioClip>>(clipData)) {
-                ac->setLengthSamples(newLengthSamples);
-            }
-        } else if (std::holds_alternative<std::shared_ptr<MidiClip>>(clipData)) {
-            if (auto mc = std::get<std::shared_ptr<MidiClip>>(clipData)) {
-                mc->setLengthSamples(newLengthSamples);
-            }
+        std::visit([newLengthSamples](auto&& c) { c->setLengthSamples(newLengthSamples); }, clipData);
+        
+    } else if (isResizingLeft) {
+        double newStartSamples = originalStartSamples + deltaSamples;
+        double newStartSeconds = newStartSamples / sampleRate;
+        double snappedStartSeconds = std::round(newStartSeconds / snapSeconds) * snapSeconds;
+        newStartSamples = juce::jmax(0.0, snappedStartSeconds * sampleRate);
+        
+        double actualDeltaSamples = newStartSamples - originalStartSamples;
+        double newLengthSamples = originalLengthSamples - actualDeltaSamples;
+        double newOffsetSamples = originalSourceOffsetSamples + actualDeltaSamples;
+        
+        if (newLengthSamples > 100.0 && newOffsetSamples >= 0.0) {
+            std::visit([&](auto&& c) {
+                c->setStartSample(newStartSamples);
+                c->setLengthSamples(newLengthSamples);
+                c->setSourceOffsetSamples(newOffsetSamples);
+            }, clipData);
         }
     } else if (isDragging) {
         double newStartSamples = originalStartSamples + deltaSamples;
@@ -197,30 +335,30 @@ void ClipComponent::mouseDrag(const juce::MouseEvent& event) {
         double snappedStartSeconds = std::round(newStartSeconds / snapSeconds) * snapSeconds;
         newStartSamples = juce::jmax(0.0, snappedStartSeconds * sampleRate);
         
-        if (std::holds_alternative<std::shared_ptr<AudioClip>>(clipData)) {
-            if (auto ac = std::get<std::shared_ptr<AudioClip>>(clipData)) {
-                ac->setStartSample(newStartSamples);
-            }
-        } else if (std::holds_alternative<std::shared_ptr<MidiClip>>(clipData)) {
-            if (auto mc = std::get<std::shared_ptr<MidiClip>>(clipData)) {
-                mc->setStartSample(newStartSamples);
-            }
-        }
+        std::visit([newStartSamples](auto&& c) { c->setStartSample(newStartSamples); }, clipData);
     }
     
     if (auto* parent = getParentComponent()) {
         parent->resized();
     }
+    repaint();
 }
 
 void ClipComponent::mouseUp(const juce::MouseEvent& event) {
+    if (isSelectingTime) {
+        if (auto* parent = getParentComponent()) {
+            parent->mouseUp(event.getEventRelativeTo(parent));
+        }
+        isSelectingTime = false;
+        return;
+    }
+
     isDragging = false;
-    isResizing = false;
+    isResizingLeft = false;
+    isResizingRight = false;
     setMouseCursor(juce::MouseCursor::NormalCursor);
 }
 
-void ClipComponent::mouseDoubleClick(const juce::MouseEvent& event) {
-    // Intentionally empty for now, removed test note addition.
-}
+void ClipComponent::mouseDoubleClick(const juce::MouseEvent& event) {}
 
 } // namespace Nimbus::Timeline

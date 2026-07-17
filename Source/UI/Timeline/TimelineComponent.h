@@ -40,6 +40,9 @@ public:
     void resized() override;
     void timerCallback() override;
 
+    void setZoomLevel(int percentage);
+    void zoom(double factor);
+
     // TimelineProject::Listener
     void trackAdded(int trackIndex, const TrackModel& track) override;
     void trackRemoved(int trackIndex) override;
@@ -53,10 +56,10 @@ public:
     bool isInterestedInFileDrag(const juce::StringArray& files) override;
     void filesDropped(const juce::StringArray& files, int x, int y) override;
     
-    void zoom(double factor);
-    
     double getPixelsPerSecond() const { return pixelsPerSecond; }
     double getScrollOffsetX() const { return scrollOffsetX; }
+    
+    std::function<void(int)> onZoomLevelChanged;
 
 private:
     NimbusEngine& engine;

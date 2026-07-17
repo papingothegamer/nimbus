@@ -109,6 +109,7 @@ DisplaySettingsComponent::DisplaySettingsComponent(NimbusEngine& e) : engine(e) 
     themeCombo.setSelectedId(1, juce::dontSendNotification);
     
     addAndMakeVisible(zoomLabel);
+    zoomLabel.setText("Global UI Scale", juce::dontSendNotification);
     zoomLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
     
     addAndMakeVisible(zoomInput);

@@ -57,6 +57,7 @@ public:
         virtual void trackStereoChanged(int trackIndex, bool isStereo) {}
         virtual void trackNameChanged(int trackIndex, const juce::String& newName) {}
         virtual void trackSelectionChanged() {}
+        virtual void timeSelectionChanged() {}
         virtual void trackFoldStateChanged(int trackIndex, bool isFolded) {}
         virtual void tracksGrouped() {}
         virtual void trackClipsChanged(int trackIndex) {}
@@ -115,6 +116,16 @@ public:
     void deselectAllTracks();
     const juce::SparseSet<int>& getSelectedTracks() const { return selectedTracks; }
     
+    // Time Selection
+    void setTimeSelection(double startSamples, double endSamples);
+    void setTimeSelectedTracks(const juce::SparseSet<int>& tracks);
+    void addTimeSelectedTrack(int trackIndex);
+    void clearTimeSelection();
+    
+    double getTimeSelectionStart() const { return timeSelectionStartSamples; }
+    double getTimeSelectionEnd() const { return timeSelectionEndSamples; }
+    const juce::SparseSet<int>& getTimeSelectedTracks() const { return timeSelectedTracks; }
+    
     // Project Metadata
     const juce::String& getProjectName() const { return projectName; }
     void setProjectName(const juce::String& name) { projectName = name; }
@@ -134,6 +145,11 @@ public:
     void removeClip(AnyClipPtr clip);
     std::vector<AnyClipPtr> getClipsOnTrack(int trackIndex) const;
     double getTotalDurationSamples() const;
+    
+    // Clipboard & Duplication
+    void copySelectedClips();
+    void pasteClips(int trackIndex, double startSample);
+    void duplicateTrack(int trackIndex);
 
     void notifyClipModified();
 
@@ -147,6 +163,11 @@ private:
     juce::SparseSet<int> selectedTracks;
     int lastSelectedTrack = -1; // For shift-select logic
     AnyClipPtr currentSelectedClip;
+    std::vector<AnyClipPtr> clipboardClips;
+    
+    double timeSelectionStartSamples = -1.0;
+    double timeSelectionEndSamples = -1.0;
+    juce::SparseSet<int> timeSelectedTracks;
 
     juce::String projectName = "Untitled Project";
     juce::String keySignature = "C MAJ";

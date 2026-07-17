@@ -202,13 +202,14 @@ void TrackHeaderComponent::mouseDown(const juce::MouseEvent& event) {
         m.addItem(2, "Insert Audio Track", true, false);
         m.addItem(3, "Insert MIDI Track", true, false);
         m.addSeparator();
-        m.addItem(4, "Duplicate", false, false);
+        m.addItem(4, "Duplicate", true, false);
         m.addItem(5, "Delete", true, false);
         m.addSeparator();
         m.addItem(6, "Group Tracks", true, false);
         m.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
             if (result == 2) { engine.addTrack(false); }
             else if (result == 3) { engine.addTrack(true); }
+            else if (result == 4) { engine.getTimelineProject().duplicateTrack(trackIndex); }
             else if (result == 5) { engine.getTimelineProject().removeTrack(trackIndex); }
             else if (result == 6) { engine.getTimelineProject().groupTracks(engine.getTimelineProject().getSelectedTracks()); }
         });

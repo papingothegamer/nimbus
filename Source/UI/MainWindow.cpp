@@ -43,6 +43,8 @@ MainWindow::MainContentComponent::MainContentComponent(NimbusEngine& e)
     topToolbar.onDetailToggle = [this]() { toggleDetailView(); };
     topToolbar.onZoomIn = [this]() { timelineComponent.zoom(1.1); };
     topToolbar.onZoomOut = [this]() { timelineComponent.zoom(0.9); };
+    topToolbar.onZoomLevelRequested = [this](int zoom) { timelineComponent.setZoomLevel(zoom); };
+    timelineComponent.onZoomLevelChanged = [this](int percentage) { topToolbar.setZoomLevel(percentage); };
 
     juce::Logger::writeToLog("Adding children to MainContentComponent");
     addAndMakeVisible(topToolbar);
