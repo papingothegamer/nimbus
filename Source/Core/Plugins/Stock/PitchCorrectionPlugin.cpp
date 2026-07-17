@@ -30,7 +30,7 @@ public:
         scaleCombo.onChange = [this]() { plugin.setScale(scaleCombo.getSelectedId() - 1); };
         addAndMakeVisible(scaleCombo);
         
-        speedSlider = std::make_unique<PluginDial>("Speed", 0.0, 100.0, plugin.getSpeed(), [this](float v) { plugin.setSpeed(v); });
+        speedSlider = std::make_unique<NimbusRotaryDial>("Speed", 0.0, 100.0, plugin.getSpeed(), "", [this](float v) { plugin.setSpeed(v); });
         addAndMakeVisible(speedSlider.get());
         
         header = std::make_unique<PluginHeader>("Pitch Correction");
@@ -89,7 +89,7 @@ private:
     PitchCorrectionPlugin& plugin;
     juce::ComboBox keyCombo;
     juce::ComboBox scaleCombo;
-    std::unique_ptr<PluginDial> speedSlider;
+    std::unique_ptr<NimbusRotaryDial> speedSlider;
     std::unique_ptr<PluginHeader> header;
 };
 

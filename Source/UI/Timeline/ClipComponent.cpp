@@ -156,7 +156,7 @@ void ClipComponent::paint(juce::Graphics& g) {
             double startSecs = audioClip->getSourceOffsetSamples() / sampleRate;
             double endSecs = startSecs + (audioClip->getLengthSamples() / sampleRate);
             
-            int numChannels = audioClip->getNumChannels();
+            int numChannels = thumbnail.getNumChannels();
             if (numChannels == 2) {
                 auto topHalf = bounds.removeFromTop(bounds.getHeight() / 2);
                 thumbnail.drawChannel(g, topHalf.reduced(0, 1), startSecs, endSecs, 0, 1.0f);

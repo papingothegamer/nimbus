@@ -7,9 +7,9 @@ namespace Nimbus {
 class DelayPluginEditor : public juce::Component, private juce::Timer {
 public:
     DelayPluginEditor(DelayPlugin& p) : plugin(p) {
-        timeSlider = std::make_unique<PluginDial>("Time", 1.0, 2000.0, plugin.getDelayTimeMs(), [this](float v) { plugin.setDelayTimeMs(v); }, " ms");
-        fbSlider = std::make_unique<PluginDial>("Feedback", 0.0, 0.95, plugin.getFeedback(), [this](float v) { plugin.setFeedback(v); });
-        mixSlider = std::make_unique<PluginDial>("Mix", 0.0, 1.0, plugin.getMix(), [this](float v) { plugin.setMix(v); });
+        timeSlider = std::make_unique<NimbusRotaryDial>("Time", 1.0, 2000.0, plugin.getDelayTimeMs(), " ms", [this](float v) { plugin.setDelayTimeMs(v); });
+        fbSlider = std::make_unique<NimbusRotaryDial>("Feedback", 0.0, 0.95, plugin.getFeedback(), "", [this](float v) { plugin.setFeedback(v); });
+        mixSlider = std::make_unique<NimbusRotaryDial>("Mix", 0.0, 1.0, plugin.getMix(), "", [this](float v) { plugin.setMix(v); });
         
         addAndMakeVisible(timeSlider.get());
         addAndMakeVisible(fbSlider.get());
@@ -55,9 +55,9 @@ public:
 
 private:
     DelayPlugin& plugin;
-    std::unique_ptr<PluginDial> timeSlider;
-    std::unique_ptr<PluginDial> fbSlider;
-    std::unique_ptr<PluginDial> mixSlider;
+    std::unique_ptr<NimbusRotaryDial> timeSlider;
+    std::unique_ptr<NimbusRotaryDial> fbSlider;
+    std::unique_ptr<NimbusRotaryDial> mixSlider;
     std::unique_ptr<PluginHeader> header;
 };
 

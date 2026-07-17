@@ -39,9 +39,16 @@ void AudioClipContent::paint(juce::Graphics& g) {
     }
     
     if (thumbnail.getTotalLength() > 0.0) {
-        // Draw the full waveform dimmed
+        auto clipBounds = g.getClipBounds();
+        double visibleStartSecs = (clipBounds.getX() / (double)getWidth()) * thumbnail.getTotalLength();
+        double visibleEndSecs = (clipBounds.getRight() / (double)getWidth()) * thumbnail.getTotalLength();
+        
+        visibleStartSecs = juce::jlimit(0.0, thumbnail.getTotalLength(), visibleStartSecs);
+        visibleEndSecs = juce::jlimit(0.0, thumbnail.getTotalLength(), visibleEndSecs);
+
+        // Draw the full waveform dimmed (only for visible bounds)
         g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.3f));
-        thumbnail.drawChannels(g, getLocalBounds().reduced(2), 0.0, thumbnail.getTotalLength(), 1.0f);
+        thumbnail.drawChannels(g, clipBounds.reduced(2), visibleStartSecs, visibleEndSecs, 1.0f);
         
         // Highlight the active cropped region
         double sampleRate = engine.getTransport().getSampleRate();
@@ -57,28 +64,34 @@ void AudioClipContent::paint(juce::Graphics& g) {
         g.saveState();
         g.reduceClipRegion(juce::Rectangle<int>(static_cast<int>(x1), 0, static_cast<int>(x2 - x1), getHeight()));
         g.setColour(DesignSystem::Colors::PrimaryAction);
-        thumbnail.drawChannels(g, getLocalBounds().reduced(2), 0.0, thumbnail.getTotalLength(), 1.0f);
+        thumbnail.drawChannels(g, clipBounds.reduced(2), visibleStartSecs, visibleEndSecs, 1.0f);
         g.restoreState();
         
         // Draw region borders
         g.setColour(juce::Colours::white.withAlpha(0.8f));
-        g.drawVerticalLine(static_cast<int>(x1), 0.0f, static_cast<float>(getHeight()));
-        g.drawVerticalLine(static_cast<int>(x2), 0.0f, static_cast<float>(getHeight()));
+        if (x1 >= clipBounds.getX() && x1 <= clipBounds.getRight()) {
+            g.drawVerticalLine(static_cast<int>(x1), 0.0f, static_cast<float>(getHeight()));
+        }
+        if (x2 >= clipBounds.getX() && x2 <= clipBounds.getRight()) {
+            g.drawVerticalLine(static_cast<int>(x2), 0.0f, static_cast<float>(getHeight()));
+        }
         
         // Draw warp markers
         if (currentClip->isWarpEnabled()) {
             g.setColour(juce::Colours::yellow);
             for (double markerSample : currentClip->getWarpMarkers()) {
                 double markerSecs = markerSample / sampleRate;
-                float mx = static_cast<float>((markerSecs / thumbnail.getTotalLength()) * getWidth());
-                
-                // Draw vertical line
-                g.drawVerticalLine(static_cast<int>(mx), 0.0f, static_cast<float>(getHeight()));
-                
-                // Draw triangle marker at the top
-                juce::Path p;
-                p.addTriangle(mx - 4.0f, 0.0f, mx + 4.0f, 0.0f, mx, 8.0f);
-                g.fillPath(p);
+                if (markerSecs >= visibleStartSecs && markerSecs <= visibleEndSecs) {
+                    float mx = static_cast<float>((markerSecs / thumbnail.getTotalLength()) * getWidth());
+                    
+                    // Draw vertical line
+                    g.drawVerticalLine(static_cast<int>(mx), 0.0f, static_cast<float>(getHeight()));
+                    
+                    // Draw triangle marker at the top
+                    juce::Path p;
+                    p.addTriangle(mx - 4.0f, 0.0f, mx + 4.0f, 0.0f, mx, 8.0f);
+                    g.fillPath(p);
+                }
             }
         }
     } else {

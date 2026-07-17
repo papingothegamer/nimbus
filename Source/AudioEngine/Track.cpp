@@ -44,12 +44,6 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
 
     juce::AudioBuffer<float> trackBlock(trackBuffer.getArrayOfWritePointers(), numChannels, numSamples);
 
-    if (muted_.load(std::memory_order_relaxed)) {
-        trackBlock.clear();
-        meter.processBlock(trackBlock);
-        return;
-    }
-
     trackBlock.clear();
     trackMidiBuffer.clear();
 
@@ -126,14 +120,18 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
         
         fader.processBlock(stereoBlock, trackMidiBuffer);
         
-        for (int ch = 0; ch < 2; ++ch) {
-            buffer.addFrom(ch, 0, stereoBlock, ch, 0, numSamples);
+        if (!muted_.load(std::memory_order_relaxed)) {
+            for (int ch = 0; ch < 2; ++ch) {
+                buffer.addFrom(ch, 0, stereoBlock, ch, 0, numSamples);
+            }
         }
     } else {
         fader.processBlock(trackBlock, trackMidiBuffer);
         
-        for (int ch = 0; ch < std::min(buffer.getNumChannels(), trackBlock.getNumChannels()); ++ch) {
-            buffer.addFrom(ch, 0, trackBlock, ch, 0, numSamples);
+        if (!muted_.load(std::memory_order_relaxed)) {
+            for (int ch = 0; ch < std::min(buffer.getNumChannels(), trackBlock.getNumChannels()); ++ch) {
+                buffer.addFrom(ch, 0, trackBlock, ch, 0, numSamples);
+            }
         }
     }
 

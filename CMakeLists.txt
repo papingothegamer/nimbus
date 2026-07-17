@@ -49,8 +49,10 @@ juce_add_binary_data(Nimbus_Assets
         Assets/Icons/Nimbus/arrow-right-thick.svg
         Assets/Icons/Nimbus/arrow-up-down.svg
         Assets/Icons/Nimbus/chevron-down.svg
+        Assets/Icons/Nimbus/chevron-left.svg
         Assets/Icons/Nimbus/chevron-right.svg
         Assets/Icons/Nimbus/chevron-up.svg
+        Assets/Icons/Nimbus/reset-default.svg
         Assets/Icons/Nimbus/content-cut.svg
         Assets/Icons/Nimbus/copy.svg
         Assets/Icons/Nimbus/cursor-move.svg

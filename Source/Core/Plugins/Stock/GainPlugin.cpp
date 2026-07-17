@@ -7,7 +7,7 @@ namespace Nimbus {
 class GainPluginEditor : public juce::Component, private juce::Timer {
 public:
     GainPluginEditor(GainPlugin& p) : plugin(p) {
-        gainSlider = std::make_unique<PluginDial>("Gain", -60.0, 24.0, plugin.getGainDecibels(), [this](float v) { plugin.setGainDecibels(v); }, " dB");
+        gainSlider = std::make_unique<NimbusRotaryDial>("Gain", -60.0, 24.0, plugin.getGainDecibels(), " dB", [this](float v) { plugin.setGainDecibels(v); });
         addAndMakeVisible(gainSlider.get());
         
         phaseButton.setButtonText(juce::CharPointer_UTF8("\xc3\x98")); // Phi symbol
@@ -60,7 +60,7 @@ public:
 
 private:
     GainPlugin& plugin;
-    std::unique_ptr<PluginDial> gainSlider;
+    std::unique_ptr<NimbusRotaryDial> gainSlider;
     juce::ToggleButton phaseButton;
     std::unique_ptr<PluginHeader> header;
 };

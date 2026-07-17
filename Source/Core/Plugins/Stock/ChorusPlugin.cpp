@@ -7,9 +7,9 @@ namespace Nimbus {
 class ChorusPluginEditor : public juce::Component, private juce::Timer {
 public:
     ChorusPluginEditor(ChorusPlugin& p) : plugin(p) {
-        rateSlider = std::make_unique<PluginDial>("Rate", 0.1, 10.0, plugin.getRate(), [this](float v) { plugin.setRate(v); }, " Hz");
-        depthSlider = std::make_unique<PluginDial>("Depth", 0.0, 1.0, plugin.getDepth(), [this](float v) { plugin.setDepth(v); });
-        mixSlider = std::make_unique<PluginDial>("Mix", 0.0, 1.0, plugin.getMix(), [this](float v) { plugin.setMix(v); });
+        rateSlider = std::make_unique<NimbusRotaryDial>("Rate", 0.1, 10.0, plugin.getRate(), " Hz", [this](float v) { plugin.setRate(v); });
+        depthSlider = std::make_unique<NimbusRotaryDial>("Depth", 0.0, 1.0, plugin.getDepth(), "", [this](float v) { plugin.setDepth(v); });
+        mixSlider = std::make_unique<NimbusRotaryDial>("Mix", 0.0, 1.0, plugin.getMix(), "", [this](float v) { plugin.setMix(v); });
         
         addAndMakeVisible(rateSlider.get());
         addAndMakeVisible(depthSlider.get());
@@ -55,9 +55,9 @@ public:
 
 private:
     ChorusPlugin& plugin;
-    std::unique_ptr<PluginDial> rateSlider;
-    std::unique_ptr<PluginDial> depthSlider;
-    std::unique_ptr<PluginDial> mixSlider;
+    std::unique_ptr<NimbusRotaryDial> rateSlider;
+    std::unique_ptr<NimbusRotaryDial> depthSlider;
+    std::unique_ptr<NimbusRotaryDial> mixSlider;
     std::unique_ptr<PluginHeader> header;
 };
 

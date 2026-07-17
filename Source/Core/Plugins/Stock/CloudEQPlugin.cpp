@@ -387,27 +387,24 @@ public:
         };
         addAndMakeVisible(comboShape);
         
-        slFreq = std::make_unique<PluginDial>("Freq", 20.0f, 20000.0f, 1000.0f, [this](float v) {
+        slFreq = std::make_unique<NimbusRotaryDial>("Freq", 20.0f, 20000.0f, 1000.0f, " Hz", [this](float v) {
             plugin.getBand(currentBand).freq.store(v);
             plugin.updateDSP();
             graph->repaint();
-        }, " Hz");
-        slFreq->setDefaultValue(1000.0f);
+        });
         slFreq->getSlider().setSkewFactorFromMidPoint(1000.0f);
         
-        slGain = std::make_unique<PluginDial>("Gain", -24.0f, 24.0f, 0.0f, [this](float v) {
+        slGain = std::make_unique<NimbusRotaryDial>("Gain", -24.0f, 24.0f, 0.0f, " dB", [this](float v) {
             plugin.getBand(currentBand).gainDb.store(v);
             plugin.updateDSP();
             graph->repaint();
-        }, " dB");
-        slGain->setDefaultValue(0.0f);
+        });
         
-        slQ = std::make_unique<PluginDial>("Q", 0.1f, 18.0f, 0.707f, [this](float v) {
+        slQ = std::make_unique<NimbusRotaryDial>("Q", 0.1f, 18.0f, 0.707f, "", [this](float v) {
             plugin.getBand(currentBand).q.store(v);
             plugin.updateDSP();
             graph->repaint();
         });
-        slQ->setDefaultValue(0.707f);
         
         addAndMakeVisible(slFreq.get());
         addAndMakeVisible(slGain.get());
@@ -477,12 +474,14 @@ public:
         auto bounds = getLocalBounds().reduced(12);
         
         // Dials and shape selector on the left
-        auto leftColumn = bounds.removeFromLeft(64);
-        comboShape.setBounds(leftColumn.removeFromTop(24).reduced(2, 0));
-        leftColumn.removeFromTop(8); // gap
-        slFreq->setBounds(leftColumn.removeFromTop(60));
-        slGain->setBounds(leftColumn.removeFromTop(60));
-        slQ->setBounds(leftColumn.removeFromTop(60));
+        auto controlsArea = bounds.removeFromLeft(140);
+        comboShape.setBounds(controlsArea.removeFromTop(24).reduced(2, 0));
+        controlsArea.removeFromTop(8); // gap
+        
+        auto topRow = controlsArea.removeFromTop(controlsArea.getHeight() / 2);
+        slFreq->setBounds(topRow.removeFromLeft(70));
+        slGain->setBounds(topRow);
+        slQ->setBounds(controlsArea.removeFromLeft(70));
         
         bounds.removeFromLeft(8); // spacing
         
@@ -517,7 +516,7 @@ private:
     std::unique_ptr<CloudEQGraph> graph;
     int currentBand = 0;
     juce::ComboBox comboShape;
-    std::unique_ptr<PluginDial> slFreq, slGain, slQ;
+    std::unique_ptr<NimbusRotaryDial> slFreq, slGain, slQ;
     std::array<juce::TextButton, 8> btnBands;
     juce::DrawableButton btnRTA{"RTA", juce::DrawableButton::ImageFitted};
     juce::DrawableButton btnExpand{"Expand", juce::DrawableButton::ImageFitted};
