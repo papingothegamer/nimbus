@@ -13,7 +13,7 @@ void MixerResizerBar::mouseDown(const juce::MouseEvent& e) {
     dragStartH = mixerHeight;
 }
 void MixerResizerBar::mouseDrag(const juce::MouseEvent& e) {
-    mixerHeight = juce::jlimit(310, 800, dragStartH - e.getDistanceFromDragStartY());
+    mixerHeight = juce::jlimit(310, 450, dragStartH - e.getDistanceFromDragStartY());
     if (onHeightChanged) onHeightChanged();
 }
 

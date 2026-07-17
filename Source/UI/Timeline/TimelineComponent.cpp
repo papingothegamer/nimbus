@@ -379,27 +379,29 @@ void TimelineComponent::resized() {
 void TimelineComponent::timerCallback() {
     bool shouldRepaint = false;
     
-    if (engine.getTransport().isPlaying() && engine.isFollowPlayheadEnabled()) {
-        double positionSamples = engine.getTransport().getCurrentPosition();
-        double sampleRate = engine.getTransport().getSampleRate();
-        if (sampleRate <= 0.0) sampleRate = 48000.0;
-        
-        double positionSeconds = positionSamples / sampleRate;
-        int playheadAbsoluteX = static_cast<int>(positionSeconds * pixelsPerSecond);
-        
-        int headerWidth = 150;
-        int lanesWidth = getWidth() - headerWidth;
-        
-        int targetPlayheadScreenX = lanesWidth / 3;
-        
-        if (playheadAbsoluteX > targetPlayheadScreenX) {
-            scrollOffsetX = playheadAbsoluteX - targetPlayheadScreenX;
-        } else {
-            scrollOffsetX = 0.0;
-        }
-        
-        for (auto* lane : trackLanes) {
-            lane->resized();
+    if (engine.getTransport().isPlaying()) {
+        if (engine.isFollowPlayheadEnabled()) {
+            double positionSamples = engine.getTransport().getCurrentPosition();
+            double sampleRate = engine.getTransport().getSampleRate();
+            if (sampleRate <= 0.0) sampleRate = 48000.0;
+            
+            double positionSeconds = positionSamples / sampleRate;
+            int playheadAbsoluteX = static_cast<int>(positionSeconds * pixelsPerSecond);
+            
+            int headerWidth = 150;
+            int lanesWidth = getWidth() - headerWidth;
+            
+            int targetPlayheadScreenX = lanesWidth / 3;
+            
+            if (playheadAbsoluteX > targetPlayheadScreenX) {
+                scrollOffsetX = playheadAbsoluteX - targetPlayheadScreenX;
+            } else {
+                scrollOffsetX = 0.0;
+            }
+            
+            for (auto* lane : trackLanes) {
+                lane->resized();
+            }
         }
         shouldRepaint = true;
     } else if (seekingBar.dragMode != SeekingBarComponent::DragMode::None) {
