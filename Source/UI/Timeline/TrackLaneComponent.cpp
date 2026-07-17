@@ -295,7 +295,23 @@ void TrackLaneComponent::setTrackIndex(int newIndex) {
 
 void TrackLaneComponent::mouseDown(const juce::MouseEvent& event) {
     if (event.mods.isPopupMenu()) {
-        showContextMenu(event);
+        auto& project = engine.getTimelineProject();
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0) sampleRate = 48000.0;
+        double clickSeconds = (event.x + timeline.getScrollOffsetX()) / timeline.getPixelsPerSecond();
+        double startSamples = clickSeconds * sampleRate;
+        
+        double selStart = project.getTimeSelectionStart();
+        double selEnd = project.getTimeSelectionEnd();
+        if (selStart >= 0 && selEnd >= 0 && selStart != selEnd) {
+            double minSamples = std::min(selStart, selEnd);
+            double maxSamples = std::max(selStart, selEnd);
+            if (startSamples >= minSamples && startSamples <= maxSamples && project.getTimeSelectedTracks().contains(trackIndex)) {
+                showContextMenuForTimeSelection(event);
+                return;
+            }
+        }
+        showContextMenuForLane(event);
     } else {
         double sampleRate = engine.getTransport().getSampleRate();
         if (sampleRate <= 0) sampleRate = 48000.0;
@@ -360,60 +376,58 @@ void TrackLaneComponent::mouseUp(const juce::MouseEvent& event) {
     isDraggingSelection = false;
 }
 
-void TrackLaneComponent::showContextMenu(const juce::MouseEvent& event) {
+void TrackLaneComponent::showContextMenuForClip(const juce::MouseEvent& event, AnyClipPtr clip) {
     juce::PopupMenu menu;
-    
     menu.addItem(1, "Cut", true, false);
     menu.addItem(2, "Copy", true, false);
-    menu.addItem(28, "Paste", true, false);
     menu.addItem(3, "Duplicate", true, false);
     menu.addItem(4, "Delete", true, false);
     menu.addSeparator();
-    menu.addItem(5, "Zoom to Time Selection");
-    menu.addItem(6, "Zoom Back from Time Selection");
-    menu.addSeparator();
-    menu.addItem(7, "Consolidate");
-    menu.addItem(8, "Consolidate Time to New Scene");
-    menu.addItem(9, "Insert Empty MIDI Clip(s)");
-    menu.addItem(10, "Loop Selection");
-    menu.addItem(11, "Freeze Track");
-    menu.addSeparator();
+    menu.addItem(5, "Rename", true, false);
     
-    juce::PopupMenu gridMenu;
-    gridMenu.addItem(12, "Widest");
-    gridMenu.addItem(13, "Wide");
-    gridMenu.addItem(14, "Medium");
-    gridMenu.addItem(15, "Narrow");
-    gridMenu.addItem(16, "Narrowest");
-    menu.addSubMenu("Adaptive Grid", gridMenu);
-    
-    juce::PopupMenu fixedGridMenu;
-    fixedGridMenu.addItem(17, "8 Bars");
-    fixedGridMenu.addItem(18, "4 Bars");
-    fixedGridMenu.addItem(19, "2 Bars");
-    fixedGridMenu.addItem(20, "1 Bar");
-    fixedGridMenu.addItem(21, "1/2");
-    fixedGridMenu.addItem(22, "1/4");
-    fixedGridMenu.addItem(23, "1/8");
-    fixedGridMenu.addItem(24, "1/16");
-    fixedGridMenu.addItem(25, "1/32");
-    menu.addSubMenu("Fixed Grid", fixedGridMenu);
-    
-    menu.addItem(26, "Off");
-    menu.addItem(27, "Triplet Grid");
-    
-    float clickX = event.position.x;
     menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this).withMousePosition(),
-        [this, clickX](int result) {
-            if (result == 4) { // Delete
-                auto& project = engine.getTimelineProject();
-                double selStart = project.getTimeSelectionStart();
-                double selEnd = project.getTimeSelectionEnd();
+        [this, clip](int result) {
+            if (result == 1) { // Cut
+                engine.getTimelineProject().setSelectedClip(clip);
+                engine.getTimelineProject().copySelectedClips();
+                engine.getTimelineProject().removeClip(clip);
+            } else if (result == 2) { // Copy
+                engine.getTimelineProject().setSelectedClip(clip);
+                engine.getTimelineProject().copySelectedClips();
+            } else if (result == 3) { // Duplicate
+                // Currently just copy + paste right after clip end
+                engine.getTimelineProject().setSelectedClip(clip);
+                engine.getTimelineProject().copySelectedClips();
+                double endSample = 0;
+                std::visit([&](auto&& c) { endSample = c->getStartSample() + c->getLengthSamples(); }, clip);
+                engine.getTimelineProject().pasteClips(trackIndex, endSample);
+            } else if (result == 4) { // Delete
+                engine.getTimelineProject().removeClip(clip);
+            }
+        });
+}
+
+void TrackLaneComponent::showContextMenuForTimeSelection(const juce::MouseEvent& event) {
+    juce::PopupMenu menu;
+    menu.addItem(1, "Cut", true, false);
+    menu.addItem(2, "Copy", true, false);
+    menu.addItem(3, "Duplicate", true, false);
+    menu.addItem(4, "Delete", true, false);
+    
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this).withMousePosition(),
+        [this](int result) {
+            auto& project = engine.getTimelineProject();
+            double selStart = project.getTimeSelectionStart();
+            double selEnd = project.getTimeSelectionEnd();
+            
+            if (selStart >= 0 && selEnd >= 0 && selStart != selEnd) {
+                if (result == 2 || result == 1 || result == 3) { // Copy / Cut / Duplicate
+                    project.copySelectedClips();
+                }
                 
-                if (selStart >= 0 && selEnd >= 0 && selStart != selEnd) {
+                if (result == 1 || result == 4) { // Cut / Delete
                     double minSamples = std::min(selStart, selEnd);
                     double maxSamples = std::max(selStart, selEnd);
-                    
                     auto clips = project.getClipsOnTrack(trackIndex);
                     for (auto clip : clips) {
                         double clipStart = 0;
@@ -440,34 +454,38 @@ void TrackLaneComponent::showContextMenu(const juce::MouseEvent& event) {
                     }
                     project.clearTimeSelection();
                     project.notifyClipModified();
-                } else {
-                    auto selected = engine.getTimelineProject().getSelectedClip();
-                    if (selected != AnyClipPtr{}) {
-                        engine.getTimelineProject().removeClip(selected);
-                    }
                 }
-            } else if (result == 2) { // Copy
-                engine.getTimelineProject().copySelectedClips();
-            } else if (result == 28) { // Paste
-                double sampleRate = engine.getTransport().getSampleRate();
-                if (sampleRate <= 0) sampleRate = 48000.0;
-                double pixelsPerSecond = timeline.getPixelsPerSecond();
-                double scrollX = timeline.getScrollOffsetX();
-                double clickSeconds = (clickX + scrollX) / pixelsPerSecond;
-                double pasteStartSamples = clickSeconds * sampleRate;
+                
+                if (result == 3) { // Duplicate
+                    double maxSamples = std::max(selStart, selEnd);
+                    project.pasteClips(trackIndex, maxSamples);
+                }
+            }
+        });
+}
+
+void TrackLaneComponent::showContextMenuForLane(const juce::MouseEvent& event) {
+    juce::PopupMenu menu;
+    menu.addItem(28, "Paste", true, false);
+    menu.addSeparator();
+    menu.addItem(9, "Insert Empty MIDI Clip(s)", true, false);
+    
+    float clickX = event.position.x;
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this).withMousePosition(),
+        [this, clickX](int result) {
+            double sampleRate = engine.getTransport().getSampleRate();
+            if (sampleRate <= 0) sampleRate = 48000.0;
+            double pixelsPerSecond = timeline.getPixelsPerSecond();
+            double scrollX = timeline.getScrollOffsetX();
+            double clickSeconds = (clickX + scrollX) / pixelsPerSecond;
+            double pasteStartSamples = clickSeconds * sampleRate;
+            
+            if (result == 28) { // Paste
                 engine.getTimelineProject().pasteClips(trackIndex, pasteStartSamples);
             } else if (result == 9) { // Insert Empty MIDI Clip
                 double tempo = engine.getTransport().getTempo();
                 double secondsPerBeat = 60.0 / tempo;
-                double sampleRate = engine.getTransport().getSampleRate();
-                if (sampleRate <= 0) sampleRate = 48000.0;
-                
-                double pixelsPerSecond = timeline.getPixelsPerSecond();
-                double scrollX = timeline.getScrollOffsetX();
-                
-                double clickSeconds = (clickX + scrollX) / pixelsPerSecond;
                 double snappedSeconds = std::round(clickSeconds / secondsPerBeat) * secondsPerBeat;
-                
                 double startSamples = snappedSeconds * sampleRate;
                 double lengthSamples = (secondsPerBeat * 4.0) * sampleRate; // 1 bar
                 

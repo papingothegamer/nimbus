@@ -238,7 +238,7 @@ void ClipComponent::mouseDown(const juce::MouseEvent& event) {
     
     if (event.mods.isPopupMenu()) {
         if (auto* parent = dynamic_cast<Timeline::TrackLaneComponent*>(getParentComponent())) {
-            parent->showContextMenu(event.getEventRelativeTo(parent));
+            parent->showContextMenuForClip(event.getEventRelativeTo(parent), clipData);
         }
         return;
     }

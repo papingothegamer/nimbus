@@ -23,11 +23,14 @@ public:
     void mouseDrag(const juce::MouseEvent& event) override;
     void mouseUp(const juce::MouseEvent& event) override;
     void mouseDoubleClick(const juce::MouseEvent& event) override;
+    
+    void showContextMenuForClip(const juce::MouseEvent& event, AnyClipPtr clip);
+    void showContextMenuForTimeSelection(const juce::MouseEvent& event);
+    void showContextMenuForLane(const juce::MouseEvent& event);
 
     void setTrackIndex(int newIndex);
     
     void updateClips();
-    void showContextMenu(const juce::MouseEvent& event);
     
     // FileDragAndDropTarget
     bool isInterestedInFileDrag(const juce::StringArray& files) override;

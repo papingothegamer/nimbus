@@ -51,6 +51,9 @@ public:
 
     void paintOverChildren(juce::Graphics& g) override;
     void mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) override;
+    void mouseDown(const juce::MouseEvent& event) override;
+    void mouseDrag(const juce::MouseEvent& event) override;
+    void mouseUp(const juce::MouseEvent& event) override;
     
     // juce::FileDragAndDropTarget
     bool isInterestedInFileDrag(const juce::StringArray& files) override;
@@ -72,6 +75,9 @@ private:
     
     double pixelsPerSecond = 50.0;
     double scrollOffsetX = 0.0;
+    
+    bool isDraggingSelection = false;
+    int selectionStartTrackIndex = -1;
     
     SeekingBarComponent seekingBar{engine, pixelsPerSecond, scrollOffsetX};
 

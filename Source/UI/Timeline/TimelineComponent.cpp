@@ -569,4 +569,83 @@ void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int 
     }
 }
 
+void TimelineComponent::mouseDown(const juce::MouseEvent& event) {
+    if (event.mods.isPopupMenu()) return; // Global context menu could go here
+    
+    int headerWidth = 150;
+    if (event.position.x < headerWidth) return;
+    
+    double sampleRate = engine.getTransport().getSampleRate();
+    if (sampleRate <= 0) sampleRate = 48000.0;
+    
+    double clickSeconds = (event.position.x - headerWidth + scrollOffsetX) / pixelsPerSecond;
+    double startSamples = clickSeconds * sampleRate;
+    
+    auto& project = engine.getTimelineProject();
+    project.setSelectedClip(AnyClipPtr{});
+    if (!event.mods.isShiftDown()) project.clearTimeSelection();
+    
+    project.setTimeSelection(startSamples, startSamples);
+    selectionStartTrackIndex = std::max(0, project.getNumTracks() - 1);
+    
+    // Check if we actually clicked inside a lane by finding total track height
+    int yOffset = viewport.getViewPositionY() + event.position.y - 24;
+    int currentY = 0;
+    for (int i = 0; i < trackHeaders.size(); ++i) {
+        if (trackHeaders[i]->isVisible()) {
+            if (yOffset >= currentY && yOffset < currentY + trackHeaders[i]->getHeight()) {
+                selectionStartTrackIndex = i;
+                break;
+            }
+            currentY += trackHeaders[i]->getHeight();
+        }
+    }
+    
+    if (selectionStartTrackIndex >= 0 && selectionStartTrackIndex < project.getNumTracks()) {
+        project.addTimeSelectedTrack(selectionStartTrackIndex);
+    }
+    isDraggingSelection = true;
+}
+
+void TimelineComponent::mouseDrag(const juce::MouseEvent& event) {
+    if (isDraggingSelection) {
+        int headerWidth = 150;
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0) sampleRate = 48000.0;
+        
+        double currentSeconds = (event.position.x - headerWidth + scrollOffsetX) / pixelsPerSecond;
+        double endSamples = currentSeconds * sampleRate;
+        
+        auto& project = engine.getTimelineProject();
+        project.setTimeSelection(project.getTimeSelectionStart(), endSamples);
+        
+        int yOffset = viewport.getViewPositionY() + event.position.y - 24;
+        int currentY = 0;
+        int draggedTrackIndex = std::max(0, project.getNumTracks() - 1);
+        
+        for (int i = 0; i < trackHeaders.size(); ++i) {
+            if (trackHeaders[i]->isVisible()) {
+                if (yOffset >= currentY && yOffset < currentY + trackHeaders[i]->getHeight()) {
+                    draggedTrackIndex = i;
+                    break;
+                }
+                currentY += trackHeaders[i]->getHeight();
+            }
+        }
+        
+        if (draggedTrackIndex >= 0 && selectionStartTrackIndex >= 0) {
+            int startTrack = std::min(selectionStartTrackIndex, draggedTrackIndex);
+            int endTrack = std::max(selectionStartTrackIndex, draggedTrackIndex);
+            
+            juce::SparseSet<int> selectedTracks;
+            selectedTracks.addRange(juce::Range<int>(startTrack, endTrack + 1));
+            project.setTimeSelectedTracks(selectedTracks);
+        }
+    }
+}
+
+void TimelineComponent::mouseUp(const juce::MouseEvent& event) {
+    isDraggingSelection = false;
+}
+
 } // namespace Nimbus
