@@ -22,25 +22,51 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
     
     // --- Audio Panel ---
     addChildComponent(audioPanel);
-    audioPanel.addContent(&warpButton);
     audioPanel.addContent(&matchTempoButton);
-    audioPanel.addContent(&warpModeBox);
+    audioPanel.addContent(&preservePitchButton);
+    audioPanel.addContent(&algorithmBox);
     
-    warpModeBox.addItem("Beats", 1);
-    warpModeBox.addItem("Tones", 2);
-    warpModeBox.addItem("Complex", 3);
-    warpModeBox.addItem("Complex Pro", 4);
-    warpModeBox.setJustificationType(juce::Justification::centredLeft);
-    warpModeBox.setColour(juce::ComboBox::backgroundColourId, DesignSystem::Colors::PanelBackground.darker(0.5f));
-    warpModeBox.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+    algorithmBox.addItem("Melodic", 1);
+    algorithmBox.addItem("Percussive", 2);
+    algorithmBox.setJustificationType(juce::Justification::centredLeft);
+    algorithmBox.setColour(juce::ComboBox::backgroundColourId, DesignSystem::Colors::PanelBackground.darker(0.5f));
+    algorithmBox.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+    algorithmBox.onChange = [this] {
+        if (currentAudioClip) {
+            currentAudioClip->setAlgorithm(static_cast<AudioClip::StretchAlgorithm>(algorithmBox.getSelectedId() - 1));
+            engine.getTimelineProject().notifyClipModified();
+        }
+    };
+    
+    matchTempoButton.onClick = [this] {
+        if (currentAudioClip) {
+            currentAudioClip->setMatchDawTempo(matchTempoButton.getToggleState());
+            engine.getTimelineProject().notifyClipModified();
+        }
+    };
+    
+    preservePitchButton.onClick = [this] {
+        if (currentAudioClip) {
+            currentAudioClip->setPreservePitch(preservePitchButton.getToggleState());
+            engine.getTimelineProject().notifyClipModified();
+        }
+    };
     
     pitchDial = std::make_unique<NimbusRotaryDial>("Pitch", -12.0f, 12.0f, 0.0f, " st", [this](float v) {
         if (currentAudioClip) {
-            currentAudioClip->setPitchShift(v);
+            currentAudioClip->setPitchShiftSemitones(static_cast<int>(v));
             engine.getTimelineProject().notifyClipModified();
         }
     });
     audioPanel.addContent(pitchDial.get());
+    
+    speedFader = std::make_unique<NimbusHorizontalFader>("Speed", 0.1f, 10.0f, 1.0f, "x", [this](float v) {
+        if (currentAudioClip) {
+            currentAudioClip->setSpeedMultiplier(v);
+            engine.getTimelineProject().notifyClipModified();
+        }
+    });
+    audioPanel.addContent(speedFader.get());
     
     audioPanel.addContent(&gainBox);
     gainBox.setRange(-36.0, 36.0, 0.1);
@@ -80,49 +106,9 @@ void ClipPropertiesComponent::resized() {
 }
 
 void ClipPropertiesComponent::layoutPanels() {
-    auto bounds = getLocalBounds();
-    
-    int panelWidth = getWidth(); // Take full width
-    int panelHeight = 85;
-    int margin = 5;
-    
-    // Layout Clip Panel
-    auto clipBounds = bounds.removeFromTop(panelHeight).reduced(margin);
-    clipPanel.setBounds(clipBounds);
-    
-    // Position inside clipPanel
-    clipNameLabel.setBounds(5, 5, panelWidth - 20, 20);
-    signatureLabel.setBounds(5, 30, panelWidth - 20, 15);
-    loopButton.setBounds(5, 55, 60, 20);
-    
-    // Layout Audio or Notes Panel
-    if (isMidiMode) {
-        audioPanel.setVisible(false);
-        notesPanel.setVisible(true);
-        
-        auto notesBounds = bounds.removeFromTop(panelHeight).reduced(margin);
-        notesPanel.setBounds(notesBounds);
-        
-        quantizeButton.setBounds(5, 5, 60, 20);
-        quantizeBox.setBounds(70, 5, 45, 20);
-        
-        transposeBox.setBounds(5, 30, 110, 20);
-        velocityScaleBox.setBounds(5, 55, 110, 20);
-        
-    } else {
-        notesPanel.setVisible(false);
-        audioPanel.setVisible(true);
-        
-        auto audioBounds = bounds.removeFromTop(panelHeight).reduced(margin);
-        audioPanel.setBounds(audioBounds);
-        
-        warpButton.setBounds(5, 5, 50, 20);
-        matchTempoButton.setBounds(60, 5, 55, 20);
-        warpModeBox.setBounds(5, 30, 110, 20);
-        
-        pitchDial->setBounds(5, 55, 50, 60);
-        gainBox.setBounds(60, 60, 55, 20);
-    }
+    clipPanel.setVisible(false);
+    audioPanel.setVisible(false);
+    notesPanel.setVisible(false);
 }
 
 void ClipPropertiesComponent::setMidiMode(bool isMidi) {
@@ -146,11 +132,11 @@ void ClipPropertiesComponent::setMidiClip(std::shared_ptr<MidiClip> clip) {
 void ClipPropertiesComponent::setAudioClip(std::shared_ptr<AudioClip> clip) {
     currentAudioClip = clip;
     if (clip) {
-        warpButton.setToggleState(clip->isWarpEnabled(), juce::dontSendNotification);
         matchTempoButton.setToggleState(clip->getMatchDawTempo(), juce::dontSendNotification);
-        warpModeBox.setSelectedId(static_cast<int>(clip->getWarpMode()) + 1, juce::dontSendNotification);
-        // Note: setting pitchDial value needs access to the inner slider.
-        // For now, we rely on the dial initializing to 0.0, but ideally we'd add setValue to NimbusRotaryDial.
+        preservePitchButton.setToggleState(clip->getPreservePitch(), juce::dontSendNotification);
+        algorithmBox.setSelectedId(static_cast<int>(clip->getAlgorithm()) + 1, juce::dontSendNotification);
+        pitchDial->setValue(clip->getPitchShiftSemitones());
+        speedFader->setValue(clip->getSpeedMultiplier());
         gainBox.setValue(clip->getGain(), juce::dontSendNotification);
     }
 }

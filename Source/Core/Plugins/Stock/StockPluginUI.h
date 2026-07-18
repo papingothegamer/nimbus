@@ -106,6 +106,70 @@ private:
     juce::String suffix;
 };
 
+class NimbusHorizontalFader : public juce::Component {
+public:
+    NimbusHorizontalFader(const juce::String& name, float min, float max, float init, const juce::String& suffixStr, std::function<void(float)> cb)
+    : callback(cb), suffix(suffixStr) {
+        label.setText(name, juce::dontSendNotification);
+        label.setJustificationType(juce::Justification::centredLeft);
+        label.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f));
+        label.setColour(juce::Label::textColourId, DesignSystem::Colors::TextSecondary);
+        addAndMakeVisible(label);
+        
+        slider.setSliderStyle(juce::Slider::LinearHorizontal);
+        slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+        slider.setRange(min, max, 0.01);
+        slider.setValue(init, juce::dontSendNotification);
+        slider.setDoubleClickReturnValue(true, init);
+        
+        // Match the aesthetic of metering fader (MeteredFader uses custom track/thumb drawing, we'll override LookAndFeel locally)
+        slider.setColour(juce::Slider::trackColourId, DesignSystem::Colors::ComponentBackground);
+        slider.setColour(juce::Slider::backgroundColourId, DesignSystem::Colors::PanelBackground.darker());
+        slider.setColour(juce::Slider::thumbColourId, DesignSystem::Colors::PrimaryAction); // Bright highlight
+        
+        slider.onValueChange = [this] {
+            if (callback) callback(slider.getValue());
+            valueField.setText(juce::String(slider.getValue(), 2) + suffix, juce::dontSendNotification);
+        };
+        addAndMakeVisible(slider);
+        
+        valueField.setText(juce::String(init, 2) + suffix, juce::dontSendNotification);
+        valueField.setJustificationType(juce::Justification::centredRight);
+        valueField.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f).boldened());
+        valueField.setEditable(true);
+        valueField.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+        valueField.setColour(juce::Label::outlineColourId, juce::Colours::transparentBlack);
+        valueField.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
+        valueField.onTextChange = [this] {
+            float v = valueField.getText().retainCharacters("-0123456789.").getFloatValue();
+            slider.setValue(v);
+        };
+        addAndMakeVisible(valueField);
+    }
+    
+    void resized() override {
+        auto bounds = getLocalBounds();
+        auto topRow = bounds.removeFromTop(18);
+        label.setBounds(topRow.removeFromLeft(topRow.getWidth() / 2));
+        valueField.setBounds(topRow);
+        
+        bounds.removeFromTop(2); // Spacing
+        slider.setBounds(bounds.removeFromTop(10)); // Slim fader track
+    }
+    
+    void setValue(float v) {
+        slider.setValue(v, juce::dontSendNotification);
+        valueField.setText(juce::String(v, 2) + suffix, juce::dontSendNotification);
+    }
+
+private:
+    juce::Label label;
+    juce::Slider slider;
+    juce::Label valueField;
+    std::function<void(float)> callback;
+    juce::String suffix;
+};
+
 class PluginDial : public juce::Component {
 public:
     PluginDial(const juce::String& name, double min, double max, double start, std::function<void(float)> cb, const juce::String& suffix = "") 

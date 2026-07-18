@@ -7,7 +7,6 @@
 #include "Stock/GainPlugin.h"
 #include "Stock/CloudEQPlugin.h"
 #include "Stock/MultibandCompressorPlugin.h"
-#include "Stock/PitchCorrectionPlugin.h"
 
 namespace Nimbus {
 
@@ -25,7 +24,7 @@ juce::StringArray StockPluginFactory::getCategories() {
 juce::StringArray StockPluginFactory::getPluginsInCategory(const juce::String& category) {
     if (category == "EQ & Filters") return { "Filter", "Cloud EQ" };
     if (category == "Dynamics") return { "Compressor", "Multiband Compressor" };
-    if (category == "Modulation") return { "Chorus", "Pitch Correction" };
+    if (category == "Modulation") return { "Chorus" };
     if (category == "Delay & Loop") return { "Delay" };
     if (category == "Reverb") return { "Reverb" };
     if (category == "Utility") return { "Gain" };
@@ -41,7 +40,6 @@ std::unique_ptr<IStockPlugin> StockPluginFactory::createPlugin(const juce::Strin
     if (name == "Gain") return std::make_unique<GainPlugin>();
     if (name == "Cloud EQ") return std::make_unique<CloudEQPlugin>();
     if (name == "Multiband Compressor") return std::make_unique<MultibandCompressorPlugin>();
-    if (name == "Pitch Correction") return std::make_unique<PitchCorrectionPlugin>();
     
     return nullptr;
 }

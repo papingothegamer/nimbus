@@ -9,11 +9,9 @@ namespace Nimbus {
  */
 class AudioClip {
 public:
-    enum class WarpMode {
-        Beats,
-        Tones,
-        Complex,
-        ComplexPro
+    enum class StretchAlgorithm {
+        Percussive,
+        Melodic
     };
 
     AudioClip(const juce::File& file, int startSample, int lengthSamples, int sourceOffsetSamples = 0);
@@ -62,33 +60,23 @@ public:
     float getPitchShift() const { return pitchShift; }
     void setPitchShift(float p) { pitchShift = juce::jlimit(-24.0f, 24.0f, p); }
     
-    float getTimeStretch() const { return timeStretch; }
-    void setTimeStretch(float t) { timeStretch = juce::jlimit(0.1f, 10.0f, t); }
-    
-    bool isWarpEnabled() const { return warpEnabled; }
-    void setWarpEnabled(bool w) { warpEnabled = w; }
-    
-    WarpMode getWarpMode() const { return warpMode; }
-    void setWarpMode(WarpMode m) { warpMode = m; }
+    bool getMatchDawTempo() const { return matchDawTempo; }
+    void setMatchDawTempo(bool m) { matchDawTempo = m; }
     
     double getOriginalBpm() const { return originalBpm; }
     void setOriginalBpm(double bpm) { originalBpm = juce::jlimit(20.0, 999.0, bpm); }
     
-    bool getMatchDawTempo() const { return matchDawTempo; }
-    void setMatchDawTempo(bool m) { matchDawTempo = m; }
+    double getSpeedMultiplier() const { return speedMultiplier; }
+    void setSpeedMultiplier(double s) { speedMultiplier = juce::jlimit(0.1, 10.0, s); }
     
-    bool isFollowEnabled() const { return followEnabled; }
-    void setFollowEnabled(bool f) { followEnabled = f; }
+    int getPitchShiftSemitones() const { return pitchShiftSemitones; }
+    void setPitchShiftSemitones(int st) { pitchShiftSemitones = juce::jlimit(-24, 24, st); }
     
-    bool isPreservePitch() const { return preservePitch; }
+    bool getPreservePitch() const { return preservePitch; }
     void setPreservePitch(bool p) { preservePitch = p; }
     
-    const std::vector<double>& getWarpMarkers() const { return warpMarkers; }
-    void addWarpMarker(double samplePos) { warpMarkers.push_back(samplePos); }
-    void setWarpMarker(size_t index, double samplePos) {
-        if (index < warpMarkers.size()) warpMarkers[index] = samplePos;
-    }
-    void clearWarpMarkers() { warpMarkers.clear(); }
+    StretchAlgorithm getAlgorithm() const { return algorithm; }
+    void setAlgorithm(StretchAlgorithm a) { algorithm = a; }
 
 private:
     juce::File sourceFile;
@@ -104,16 +92,14 @@ private:
     int fadeInCurve = 0;          // 0=Linear, 1=Log, 2=Exp, 3=S-Curve
     int fadeOutCurve = 0;
     float pitchShift = 0.0f;      // In semitones (-24 to +24)
-    float timeStretch = 1.0f;     // 1.0 = original speed
-    bool warpEnabled = true;
-    WarpMode warpMode = WarpMode::Beats;
-    bool matchDawTempo = true;
-    bool followEnabled = true;
+    
+    // Audacity-style stretching
+    double speedMultiplier = 1.0;
+    int pitchShiftSemitones = 0;
+    bool matchDawTempo = false;
     double originalBpm = 120.0;
     bool preservePitch = true;
-    
-    // Warp markers (positions in source samples)
-    std::vector<double> warpMarkers;
+    StretchAlgorithm algorithm = StretchAlgorithm::Melodic;
     
     int colorIndex = -1;
     int numChannels = 2;

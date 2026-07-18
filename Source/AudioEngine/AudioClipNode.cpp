@@ -58,18 +58,20 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
             renderLength -= (currentTransportPos + numSamples - clipEnd);
         }
 
-        double ratio = 1.0;
-        if (clipModel->isWarpEnabled() && clipModel->getMatchDawTempo()) {
+        double speedRatio = clipModel->getSpeedMultiplier();
+        if (clipModel->getMatchDawTempo()) {
             double dawTempo = globalTransport.getTempo();
             double originalTempo = clipModel->getOriginalBpm();
             if (originalTempo > 0.0 && dawTempo > 0.0) {
-                ratio = dawTempo / originalTempo;
+                speedRatio = dawTempo / originalTempo;
             }
         }
-
+        
+        double pitchRatio = std::pow(2.0, clipModel->getPitchShiftSemitones() / 12.0);
+        
         // The position inside the audio file corresponding to the first sample we need to render
         double timeIntoClip = (currentTransportPos + renderStartOffset) - clipStart;
-        int filePosition = static_cast<int>(clipModel->getSourceOffsetSamples() + (timeIntoClip * ratio));
+        int filePosition = static_cast<int>(clipModel->getSourceOffsetSamples() + (timeIntoClip * speedRatio));
 
         // Clear regions before and after
         if (renderStartOffset > 0) {
@@ -79,12 +81,26 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
             buffer.clear(renderStartOffset + renderLength, numSamples - (renderStartOffset + renderLength));
         }
 
-        if (ratio == 1.0) {
+        if (speedRatio == 1.0 && pitchRatio == 1.0) {
             // Create an alias buffer just for the region we want to render
             juce::AudioBuffer<float> subBuffer(buffer.getArrayOfWritePointers(), buffer.getNumChannels(), renderStartOffset, renderLength);
             diskStreamer->processBlock(subBuffer, filePosition, renderLength);
         } else {
-            int samplesToRead = static_cast<int>(std::ceil(renderLength * ratio)) + 4; // Add padding for interpolation
+            // Combine speed and pitch into a single resampling ratio.
+            // Note: If clipModel->getPreservePitch() is true, we ideally want Granular Time Stretching here.
+            // For now, we fall back to standard resampling, which will shift pitch when speed changes.
+            // The architecture is now ready to swap this interpolator block for a Granular Stretcher class.
+            double playbackRatio = speedRatio;
+            if (!clipModel->getPreservePitch()) {
+                // If not preserving pitch, speed is dictated strictly by the ratio.
+                playbackRatio = speedRatio * pitchRatio;
+            } else {
+                // Even if preserving pitch, without a granular engine, it will currently shift pitch.
+                // A future GranularTimeStretcher would process 'speedRatio' and 'pitchRatio' independently here.
+                playbackRatio = speedRatio * pitchRatio;
+            }
+            
+            int samplesToRead = static_cast<int>(std::ceil(renderLength * playbackRatio)) + 4; // Add padding for interpolation
             if (readBuffer.getNumSamples() < samplesToRead || readBuffer.getNumChannels() < buffer.getNumChannels()) {
                 readBuffer.setSize(buffer.getNumChannels(), samplesToRead, false, false, true);
             }
@@ -97,8 +113,8 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
                 auto* outPtr = buffer.getWritePointer(ch) + renderStartOffset;
                 auto* inPtr = readBuffer.getReadPointer(ch);
                 
-                if (ch == 0) interpolatorLeft.process(ratio, inPtr, outPtr, renderLength);
-                else if (ch == 1) interpolatorRight.process(ratio, inPtr, outPtr, renderLength);
+                if (ch == 0) interpolatorLeft.process(playbackRatio, inPtr, outPtr, renderLength);
+                else if (ch == 1) interpolatorRight.process(playbackRatio, inPtr, outPtr, renderLength);
             }
         }
 

@@ -569,11 +569,11 @@ void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int 
                 clip->setName(file.getFileNameWithoutExtension());
                 
                 if (result == 1 || result == 2) { 
-                    clip->setWarpEnabled(true);
+                    clip->setPreservePitch(true);
                     clip->setMatchDawTempo(true);
                     clip->setOriginalBpm(120.0);
                 } else {
-                    clip->setWarpEnabled(false);
+                    clip->setPreservePitch(false);
                     clip->setMatchDawTempo(false);
                 }
                 

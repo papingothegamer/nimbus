@@ -37,10 +37,11 @@ private:
     
     // === Audio Panel ===
     UI::AbletonPanel audioPanel{"Audio"};
-    UI::AbletonToggleButton warpButton{"Warp"};
-    UI::AbletonToggleButton matchTempoButton{"Match"};
-    juce::ComboBox warpModeBox;
+    UI::AbletonToggleButton matchTempoButton{"Match Project Tempo"};
+    UI::AbletonToggleButton preservePitchButton{"Preserve Pitch"};
+    juce::ComboBox algorithmBox;
     std::unique_ptr<NimbusRotaryDial> pitchDial;
+    std::unique_ptr<NimbusHorizontalFader> speedFader;
     UI::AbletonNumberBox gainBox;
     
     // === Notes Panel ===
