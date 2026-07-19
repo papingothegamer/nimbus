@@ -1,4 +1,8 @@
 # UI & Routing Fixes Session
+**Date**: 2026-07-19
+
+## 0. Plugin Cleanup
+- **Action**: Deleted the `Multiband Compressor` plugin and removed all references from the factory (`StockPluginFactory.cpp`) and build scripts (`CMakeLists.txt`) to declutter the stock plugins list.
 
 ## 1. Detail View Tabbing Bug
 - **Bug**: Switching from 'Device View' back to 'Clip View' on an active track resulted in a blank lower panel until the track header was clicked again.

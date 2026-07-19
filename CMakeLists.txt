@@ -197,7 +197,6 @@ target_sources(Nimbus PRIVATE
     Source/Core/Plugins/Stock/ReverbPlugin.cpp
     Source/Core/Plugins/Stock/StockPluginUI.h
     Source/Core/Plugins/Stock/CloudEQPlugin.cpp
-    Source/Core/Plugins/Stock/MultibandCompressorPlugin.cpp
 )
 
 # Link JUCE modules
