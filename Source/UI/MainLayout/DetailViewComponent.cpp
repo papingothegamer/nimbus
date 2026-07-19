@@ -79,6 +79,7 @@ void DetailViewComponent::resized() {
         audioClipView.setBounds(area);
         
         trackSelectionChanged(); // Restore clip view visibility logic
+        selectedClipChanged();   // Explicitly toggle component visibility
     }
 }
 
@@ -101,13 +102,7 @@ void DetailViewComponent::trackSelectionChanged() {
     
     auto& project = engine.getTimelineProject();
     auto clip = project.getSelectedClip();
-    bool hasClip = false;
-    
-    if (std::holds_alternative<std::shared_ptr<AudioClip>>(clip)) {
-        hasClip = std::get<std::shared_ptr<AudioClip>>(clip) != nullptr;
-    } else if (std::holds_alternative<std::shared_ptr<MidiClip>>(clip)) {
-        hasClip = std::get<std::shared_ptr<MidiClip>>(clip) != nullptr;
-    }
+    bool hasClip = clip != nullptr;
     
     if (!hasClip) {
         auto& sel = project.getSelectedTracks();
@@ -153,40 +148,35 @@ void DetailViewComponent::trackSelectionChanged() {
 void DetailViewComponent::selectedClipChanged() {
     auto clip = engine.getTimelineProject().getSelectedClip();
     bool hasValidClip = false;
-    
-    if (std::holds_alternative<std::shared_ptr<MidiClip>>(clip)) {
-        auto midiClip = std::get<std::shared_ptr<MidiClip>>(clip);
-        if (midiClip) {
-            hasValidClip = true;
-            placeholderLabel.setVisible(false);
-            clipProperties.setVisible(true);
-            clipProperties.setMidiMode(true);
-            clipProperties.updateClipInfo("MIDI Clip", midiClip->getStartSample(), midiClip->getLengthSamples());
-            
-            pianoRollTimeline.setVisible(true);
-            pianoRollTimeline.setMidiClip(midiClip);
-            
-            pianoRoll.setVisible(true);
-            pianoRoll.setMidiClip(midiClip);
-            
-            audioClipView.setVisible(false);
-            audioClipView.setAudioClip(nullptr);
-        }
-    } else if (std::holds_alternative<std::shared_ptr<AudioClip>>(clip)) {
-        auto audioClip = std::get<std::shared_ptr<AudioClip>>(clip);
-        if (audioClip) {
-            hasValidClip = true;
-            pianoRoll.setVisible(false);
-            pianoRollTimeline.setVisible(false);
-            clipProperties.setVisible(true);
-            clipProperties.setMidiMode(false);
-            clipProperties.updateClipInfo("Audio Clip", audioClip->getStartSample(), audioClip->getLengthSamples());
-            
-            audioClipView.setVisible(true);
-            audioClipView.setAudioClip(audioClip);
-            
-            placeholderLabel.setVisible(false);
-        }
+    if (auto midiClip = std::dynamic_pointer_cast<MidiClip>(clip)) {
+        hasValidClip = true;
+        placeholderLabel.setVisible(false);
+        clipProperties.setVisible(true);
+        clipProperties.setMidiMode(true);
+        clipProperties.setMidiClip(midiClip);
+        clipProperties.updateClipInfo("MIDI Clip", midiClip->startSample.get(), midiClip->lengthSamples.get());
+        
+        pianoRollTimeline.setVisible(true);
+        pianoRollTimeline.setMidiClip(midiClip);
+        
+        pianoRoll.setVisible(true);
+        pianoRoll.setMidiClip(midiClip);
+        
+        audioClipView.setVisible(false);
+        audioClipView.setAudioClip(nullptr);
+    } else if (auto audioClip = std::dynamic_pointer_cast<AudioClip>(clip)) {
+        hasValidClip = true;
+        pianoRoll.setVisible(false);
+        pianoRollTimeline.setVisible(false);
+        clipProperties.setVisible(true);
+        clipProperties.setMidiMode(false);
+        clipProperties.setAudioClip(audioClip);
+        clipProperties.updateClipInfo("Audio Clip", audioClip->startSample.get(), audioClip->lengthSamples.get());
+        
+        audioClipView.setVisible(true);
+        audioClipView.setAudioClip(audioClip);
+        
+        placeholderLabel.setVisible(false);
     }
     
     if (!hasValidClip) {

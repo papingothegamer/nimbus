@@ -5,7 +5,7 @@
 
 namespace Nimbus {
 
-class AbletonRotaryLAF : public juce::LookAndFeel_V4 {
+class PluginDialLookAndFeel : public juce::LookAndFeel_V4 {
 public:
     void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height, float sliderPos,
                           const float rotaryStartAngle, const float rotaryEndAngle, juce::Slider&) override {
@@ -34,76 +34,14 @@ public:
         g.setColour(juce::Colours::white);
         g.fillPath(p);
     }
-};
 
-class NimbusRotaryDial : public juce::Component {
-public:
-    NimbusRotaryDial(const juce::String& name, float min, float max, float init, const juce::String& suffixStr, std::function<void(float)> cb)
-    : callback(cb), suffix(suffixStr) {
-        label.setText(name, juce::dontSendNotification);
-        label.setJustificationType(juce::Justification::centred);
-        label.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f));
-        label.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
-        addAndMakeVisible(label);
-        
-        slider.setLookAndFeel(&laf);
-        slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-        slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
-        slider.setRange(min, max, 1.0);
-        slider.setValue(init, juce::dontSendNotification);
-        slider.setDoubleClickReturnValue(true, init);
-        slider.onValueChange = [this] {
-            if (callback) callback(slider.getValue());
-            valueField.setText(juce::String(slider.getValue(), 0) + suffix, juce::dontSendNotification);
-        };
-        addAndMakeVisible(slider);
-        
-        valueField.setText(juce::String(init, 0) + suffix, juce::dontSendNotification);
-        valueField.setJustificationType(juce::Justification::centred);
-        valueField.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f));
-        valueField.setEditable(true);
-        // No bounding box
-        valueField.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
-        valueField.setColour(juce::Label::outlineColourId, juce::Colours::transparentBlack);
-        valueField.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
-        valueField.onTextChange = [this] {
-            float v = valueField.getText().retainCharacters("-0123456789.").getFloatValue();
-            slider.setValue(v);
-        };
-        addAndMakeVisible(valueField);
+    juce::Label* createSliderTextBox(juce::Slider& slider) override {
+        auto* l = juce::LookAndFeel_V4::createSliderTextBox(slider);
+        l->setFont(DesignSystem::Typography::getPrimaryFont().withHeight(11.0f));
+        l->setColour(juce::Label::outlineColourId, juce::Colours::transparentBlack);
+        l->setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+        return l;
     }
-    
-    ~NimbusRotaryDial() override { slider.setLookAndFeel(nullptr); }
-    
-    void resized() override {
-        auto bounds = getLocalBounds();
-        // Dynamic scaling: Label takes top 20, Field takes bottom 20. Dial takes rest.
-        label.setBounds(bounds.removeFromTop(18));
-        valueField.setBounds(bounds.removeFromBottom(18));
-        
-        // Ensure dial is a square
-        int dialSize = juce::jmin(bounds.getWidth(), bounds.getHeight());
-        slider.setBounds(bounds.getCentreX() - dialSize / 2, bounds.getCentreY() - dialSize / 2, dialSize, dialSize);
-    }
-    
-    void setValue(float v) {
-        slider.setValue(v, juce::dontSendNotification);
-        valueField.setText(juce::String(v, 2) + suffix, juce::dontSendNotification);
-    }
-    
-    void setDefaultValue(double val) {
-        slider.setDoubleClickReturnValue(true, val);
-    }
-    
-    juce::Slider& getSlider() { return slider; }
-
-private:
-    AbletonRotaryLAF laf;
-    juce::Label label;
-    juce::Slider slider;
-    juce::Label valueField;
-    std::function<void(float)> callback;
-    juce::String suffix;
 };
 
 class NimbusHorizontalFader : public juce::Component {
@@ -172,7 +110,7 @@ private:
 
 class PluginDial : public juce::Component {
 public:
-    PluginDial(const juce::String& name, double min, double max, double start, std::function<void(float)> cb, const juce::String& suffix = "") 
+    PluginDial(const juce::String& name, double min, double max, double start, const juce::String& suffix, std::function<void(float)> cb) 
         : paramName(name), callback(cb) 
     {
         slider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
@@ -182,10 +120,18 @@ public:
         slider.setRange(min, max);
         slider.setValue(start, juce::dontSendNotification);
         slider.setDoubleClickReturnValue(true, start);
+        slider.setLookAndFeel(&laf);
+        slider.setColour(juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+        slider.setColour(juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
+        slider.setColour(juce::Slider::textBoxTextColourId, DesignSystem::Colors::TextPrimary);
         slider.onValueChange = [this]() {
             if (callback) callback((float)slider.getValue());
         };
         addAndMakeVisible(slider);
+    }
+    
+    ~PluginDial() override {
+        slider.setLookAndFeel(nullptr);
     }
     
     juce::Slider& getSlider() { return slider; }
@@ -215,6 +161,7 @@ public:
     }
     
 private:
+    PluginDialLookAndFeel laf;
     juce::String paramName;
     juce::Slider slider;
     std::function<void(float)> callback;

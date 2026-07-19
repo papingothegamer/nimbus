@@ -136,16 +136,16 @@ public:
         };
         addAndMakeVisible(carousel);
 
-        roomSizeDial = std::make_unique<NimbusRotaryDial>("Room size", 0.0f, 100.0f, plugin.getRoomSize(), "%", [this](float v) { plugin.setRoomSize(v); });
-        widthDial = std::make_unique<NimbusRotaryDial>("Stereo width", 0.0f, 100.0f, plugin.getStereoWidth(), "%", [this](float v) { plugin.setStereoWidth(v); });
-        preDelayDial = std::make_unique<NimbusRotaryDial>("Pre-delay", 0.0f, 200.0f, plugin.getPreDelay(), "ms", [this](float v) { plugin.setPreDelay(v); });
+        roomSizeDial = std::make_unique<PluginDial>("Room size", 0.0f, 100.0f, plugin.getRoomSize(), "%", [this](float v) { plugin.setRoomSize(v); });
+        widthDial = std::make_unique<PluginDial>("Stereo width", 0.0f, 100.0f, plugin.getStereoWidth(), "%", [this](float v) { plugin.setStereoWidth(v); });
+        preDelayDial = std::make_unique<PluginDial>("Pre-delay", 0.0f, 200.0f, plugin.getPreDelay(), "ms", [this](float v) { plugin.setPreDelay(v); });
         
-        dampDial = std::make_unique<NimbusRotaryDial>("Damping", 0.0f, 100.0f, plugin.getDamping(), "%", [this](float v) { plugin.setDamping(v); });
-        reverbDial = std::make_unique<NimbusRotaryDial>("Reverberance", 0.0f, 100.0f, plugin.getReverberance(), "%", [this](float v) { plugin.setReverberance(v); });
-        lowToneDial = std::make_unique<NimbusRotaryDial>("Low tone", 0.0f, 100.0f, plugin.getLowTone(), "%", [this](float v) { plugin.setLowTone(v); });
-        highToneDial = std::make_unique<NimbusRotaryDial>("High tone", 0.0f, 100.0f, plugin.getHighTone(), "%", [this](float v) { plugin.setHighTone(v); });
-        wetGainDial = std::make_unique<NimbusRotaryDial>("Wet gain", -20.0f, 10.0f, plugin.getWetGain(), "dB", [this](float v) { plugin.setWetGain(v); });
-        dryGainDial = std::make_unique<NimbusRotaryDial>("Dry gain", -20.0f, 10.0f, plugin.getDryGain(), "dB", [this](float v) { plugin.setDryGain(v); });
+        dampDial = std::make_unique<PluginDial>("Damping", 0.0f, 100.0f, plugin.getDamping(), "%", [this](float v) { plugin.setDamping(v); });
+        reverbDial = std::make_unique<PluginDial>("Reverberance", 0.0f, 100.0f, plugin.getReverberance(), "%", [this](float v) { plugin.setReverberance(v); });
+        lowToneDial = std::make_unique<PluginDial>("Low tone", 0.0f, 100.0f, plugin.getLowTone(), "%", [this](float v) { plugin.setLowTone(v); });
+        highToneDial = std::make_unique<PluginDial>("High tone", 0.0f, 100.0f, plugin.getHighTone(), "%", [this](float v) { plugin.setHighTone(v); });
+        wetGainDial = std::make_unique<PluginDial>("Wet gain", -20.0f, 10.0f, plugin.getWetGain(), "dB", [this](float v) { plugin.setWetGain(v); });
+        dryGainDial = std::make_unique<PluginDial>("Dry gain", -20.0f, 10.0f, plugin.getDryGain(), "dB", [this](float v) { plugin.setDryGain(v); });
 
         addAndMakeVisible(roomSizeDial.get());
         addAndMakeVisible(widthDial.get());
@@ -245,16 +245,16 @@ private:
     ReverbPlugin& plugin;
     PresetCarousel carousel;
 
-    std::unique_ptr<NimbusRotaryDial> roomSizeDial;
-    std::unique_ptr<NimbusRotaryDial> widthDial;
-    std::unique_ptr<NimbusRotaryDial> preDelayDial;
+    std::unique_ptr<PluginDial> roomSizeDial;
+    std::unique_ptr<PluginDial> widthDial;
+    std::unique_ptr<PluginDial> preDelayDial;
     
-    std::unique_ptr<NimbusRotaryDial> dampDial;
-    std::unique_ptr<NimbusRotaryDial> reverbDial;
-    std::unique_ptr<NimbusRotaryDial> lowToneDial;
-    std::unique_ptr<NimbusRotaryDial> highToneDial;
-    std::unique_ptr<NimbusRotaryDial> wetGainDial;
-    std::unique_ptr<NimbusRotaryDial> dryGainDial;
+    std::unique_ptr<PluginDial> dampDial;
+    std::unique_ptr<PluginDial> reverbDial;
+    std::unique_ptr<PluginDial> lowToneDial;
+    std::unique_ptr<PluginDial> highToneDial;
+    std::unique_ptr<PluginDial> wetGainDial;
+    std::unique_ptr<PluginDial> dryGainDial;
     
     juce::ToggleButton wetOnlyButton;
 };

@@ -28,6 +28,7 @@ public:
     void setNumDecimalPlaces(int places) { decimalPlaces = places; repaint(); }
     
     std::function<void(double)> onValueChanged;
+    std::function<juce::String(double)> textFormatter;
 
 private:
     void mouseDown(const juce::MouseEvent& e) override;
@@ -58,10 +59,35 @@ public:
     void addContent(juce::Component* comp);
     void clearContent();
 
+    bool isFolded() const { return folded; }
+    void setFolded(bool shouldBeFolded);
+
+    std::function<void()> onFoldStateChanged;
+
 private:
+    void mouseDown(const juce::MouseEvent& e) override;
+
     juce::String panelTitle;
+    bool folded = false;
     juce::Component contentContainer;
     juce::Array<juce::Component*> contents;
+};
+
+// A sleek vertical slider for gain, based on the meter fader but without the VU
+class AbletonVerticalGainSlider : public juce::Slider {
+public:
+    AbletonVerticalGainSlider();
+    ~AbletonVerticalGainSlider() override;
+
+private:
+    class GainSliderLookAndFeel : public juce::LookAndFeel_V4 {
+    public:
+        void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
+                              float sliderPos, float minSliderPos, float maxSliderPos,
+                              const juce::Slider::SliderStyle style, juce::Slider& slider) override;
+    } customLaf;
+    
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AbletonVerticalGainSlider)
 };
 
 } // namespace Nimbus::UI

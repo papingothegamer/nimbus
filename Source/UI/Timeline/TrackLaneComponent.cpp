@@ -121,7 +121,7 @@ void TrackLaneComponent::trackNameChanged(int changedTrackIndex, const juce::Str
     if (changedTrackIndex == trackIndex) {
         auto clips = engine.getTimelineProject().getClipsOnTrack(trackIndex);
         for (auto clip : clips) {
-            std::visit([&](auto&& c) { c->setName(newName); }, clip);
+            if (clip) clip->name = newName;
         }
         repaint();
         engine.getTimelineProject().notifyClipModified();
@@ -138,20 +138,8 @@ void TrackLaneComponent::resized() {
     for (auto* clipComp : clipComponents) {
         auto clip = clipComp->getClip();
         
-        double startSamples = 0.0;
-        double lengthSamples = 0.0;
-        
-        if (std::holds_alternative<std::shared_ptr<MidiClip>>(clip)) {
-            if (auto mc = std::get<std::shared_ptr<MidiClip>>(clip)) {
-                startSamples = mc->getStartSample();
-                lengthSamples = mc->getLengthSamples();
-            }
-        } else if (std::holds_alternative<std::shared_ptr<AudioClip>>(clip)) {
-            if (auto ac = std::get<std::shared_ptr<AudioClip>>(clip)) {
-                startSamples = ac->getStartSample();
-                lengthSamples = ac->getLengthSamples();
-            }
-        }
+        double startSamples = clip->startSample.get();
+        double lengthSamples = clip->lengthSamples.get();
         
         double startSeconds = startSamples / sampleRate;
         double lengthSeconds = lengthSamples / sampleRate;
@@ -236,7 +224,7 @@ void TrackLaneComponent::filesDropped(const juce::StringArray& files, int x, int
                 
                 auto audioClip = std::make_shared<AudioClip>(file, static_cast<int>(startSamples), numSamples);
                 audioClip->setNumChannels(numChannels);
-                audioClip->setName(file.getFileNameWithoutExtension());
+                audioClip->name = file.getFileNameWithoutExtension();
                 engine.getTimelineProject().setTrackName(trackIndex, file.getFileNameWithoutExtension());
                 engine.getTimelineProject().addClipToTrack(trackIndex, audioClip);
                 return; // Only process the first valid file
@@ -259,7 +247,7 @@ void TrackLaneComponent::filesDropped(const juce::StringArray& files, int x, int
                 if (numSamples <= 0) numSamples = static_cast<int>(sampleRate);
                 
                 auto midiClip = std::make_shared<MidiClip>(static_cast<int>(startSamples), numSamples);
-                midiClip->setName(file.getFileNameWithoutExtension());
+                midiClip->name = file.getFileNameWithoutExtension();
                 engine.getTimelineProject().setTrackName(trackIndex, file.getFileNameWithoutExtension());
                 
                 for (int i = 0; i < midiFile.getNumTracks(); ++i) {
@@ -398,8 +386,7 @@ void TrackLaneComponent::showContextMenuForClip(const juce::MouseEvent& event, A
                 // Currently just copy + paste right after clip end
                 engine.getTimelineProject().setSelectedClip(clip);
                 engine.getTimelineProject().copySelectedClips();
-                double endSample = 0;
-                std::visit([&](auto&& c) { endSample = c->getStartSample() + c->getLengthSamples(); }, clip);
+                double endSample = clip->getEndSample();
                 engine.getTimelineProject().pasteClips(trackIndex, endSample);
             } else if (result == 4) { // Delete
                 engine.getTimelineProject().removeClip(clip);
@@ -430,25 +417,22 @@ void TrackLaneComponent::showContextMenuForTimeSelection(const juce::MouseEvent&
                     double maxSamples = std::max(selStart, selEnd);
                     auto clips = project.getClipsOnTrack(trackIndex);
                     for (auto clip : clips) {
-                        double clipStart = 0;
-                        double clipLength = 0;
-                        std::visit([&](auto&& c) { clipStart = c->getStartSample(); clipLength = c->getLengthSamples(); }, clip);
+                        double clipStart = clip->startSample.get();
+                        double clipLength = clip->lengthSamples.get();
                         double clipEnd = clipStart + clipLength;
                         
                         if (clipStart < maxSamples && clipEnd > minSamples) {
                             if (clipStart >= minSamples && clipEnd <= maxSamples) {
                                 project.removeClip(clip);
                             } else if (clipStart < minSamples && clipEnd > maxSamples) {
-                                std::visit([&](auto&& c) { c->setLengthSamples(minSamples - clipStart); }, clip);
+                                clip->lengthSamples = minSamples - clipStart;
                             } else if (clipStart < minSamples) {
-                                std::visit([&](auto&& c) { c->setLengthSamples(minSamples - clipStart); }, clip);
+                                clip->lengthSamples = minSamples - clipStart;
                             } else if (clipEnd > maxSamples) {
-                                std::visit([&](auto&& c) {
-                                    double cutAmount = maxSamples - clipStart;
-                                    c->setStartSample(maxSamples);
-                                    c->setLengthSamples(clipLength - cutAmount);
-                                    c->setSourceOffsetSamples(c->getSourceOffsetSamples() + cutAmount);
-                                }, clip);
+                                double cutAmount = maxSamples - clipStart;
+                                clip->startSample = maxSamples;
+                                clip->lengthSamples = clipLength - cutAmount;
+                                clip->sourceOffsetSamples = clip->sourceOffsetSamples.get() + cutAmount;
                             }
                         }
                     }

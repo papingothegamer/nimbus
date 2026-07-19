@@ -1,54 +1,28 @@
 #pragma once
 
+#include "Clip.h"
 #include <juce_audio_basics/juce_audio_basics.h>
 
 namespace Nimbus {
 
-/**
- * A clip containing MIDI data to be played back or edited.
- */
-class MidiClip {
+class MidiClip : public Clip {
 public:
-    MidiClip(double startSample, double clipLengthSamples);
-    ~MidiClip() = default;
+    MidiClip(double startSample, double lengthSamples);
+    ~MidiClip() override = default;
 
-    // Time info
-    double getStartSample() const { return startSample; }
-    void setStartSample(double newStart) { startSample = newStart; }
-    
-    double getLengthSamples() const { return lengthSamples; }
-    void setLengthSamples(double newLength) { lengthSamples = newLength; }
+    std::shared_ptr<Clip> clone() const override;
 
-    double getSourceOffsetSamples() const { return sourceOffsetSamples; }
-    void setSourceOffsetSamples(double offset) { sourceOffsetSamples = offset; }
-
-    // MIDI Data
+    // MIDI Data (Kept outside ValueTree for performance, but could be serialized)
     juce::MidiMessageSequence& getSequence() { return sequence; }
     const juce::MidiMessageSequence& getSequence() const { return sequence; }
 
-    void addNote(int channel, int noteNumber, float velocity, double startSample, double lengthSamples);
-    
-    // Extended properties
-    const juce::String& getName() const { return name; }
-    void setName(const juce::String& n) { name = n; }
-    
-    bool getIsLooped() const { return isLooped; }
-    void setIsLooped(bool l) { isLooped = l; }
-    
-    int getColorIndex() const { return colorIndex; }
-    void setColorIndex(int c) { colorIndex = c; }
-    
-private:
-    double startSample{0.0};
-    double lengthSamples{0.0};
-    double sourceOffsetSamples{0.0};
+    void addNote(int channel, int noteNumber, float velocity, double noteStartSample, double noteLengthSamples);
 
-    // We store the raw MIDI events here.
-    // Time is in samples relative to the start of the clip.
+    // Thread-safe CachedValues mapped directly to the base class ValueTree
+    juce::CachedValue<bool> isLooped;
+
+private:
     juce::MidiMessageSequence sequence;
-    juce::String name{"MIDI Clip"};
-    bool isLooped = false;
-    int colorIndex = -1;     // -1 = inherit from track
 };
 
 } // namespace Nimbus

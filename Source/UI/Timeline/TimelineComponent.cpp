@@ -566,15 +566,15 @@ void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int 
                    
             juce::AlertWindow::showAsync(options, [this, file, droppedSample, sampleRate, targetTrackIndex](int result) {
                 auto clip = std::make_shared<AudioClip>(file, static_cast<int>(droppedSample), static_cast<int>(sampleRate * 4.0));
-                clip->setName(file.getFileNameWithoutExtension());
+                clip->name = file.getFileNameWithoutExtension();
                 
                 if (result == 1 || result == 2) { 
-                    clip->setPreservePitch(true);
-                    clip->setMatchDawTempo(true);
-                    clip->setOriginalBpm(120.0);
+                    clip->preservePitch = true;
+                    clip->matchDawTempo = true;
+                    clip->originalBpm = 120.0;
                 } else {
-                    clip->setPreservePitch(false);
-                    clip->setMatchDawTempo(false);
+                    clip->preservePitch = false;
+                    clip->matchDawTempo = false;
                 }
                 
                 engine.getTimelineProject().addClipToTrack(targetTrackIndex, clip);
@@ -586,7 +586,7 @@ void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int 
             });
         } else if (isMidi) {
             auto clip = std::make_shared<MidiClip>(static_cast<int>(droppedSample), static_cast<int>(sampleRate * 4.0));
-            clip->setName(file.getFileNameWithoutExtension());
+            clip->name = file.getFileNameWithoutExtension();
             engine.getTimelineProject().addClipToTrack(targetTrackIndex, clip);
         }
         

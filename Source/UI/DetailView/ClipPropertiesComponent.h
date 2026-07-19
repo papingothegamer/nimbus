@@ -4,6 +4,8 @@
 #include "Core/NimbusEngine.h"
 #include "AbletonWidgets.h"
 #include "Core/Plugins/Stock/StockPluginUI.h"
+#include "DataModel/AudioClip.h"
+#include "DataModel/MidiClip.h"
 
 namespace Nimbus::DetailView {
 
@@ -29,20 +31,56 @@ private:
     std::shared_ptr<MidiClip> currentMidiClip;
     std::shared_ptr<AudioClip> currentAudioClip;
 
-    // === Clip Panel ===
-    UI::AbletonPanel clipPanel{"Clip"};
-    juce::Label clipNameLabel;
+    // Scrolling
+    juce::Viewport viewport;
+    juce::Component contentContainer;
+
+    // --- Clip Panel ---
+    UI::AbletonPanel clipPanel{"CLIP"};
+    
+    juce::Label startLabel{"", "Start"};
+    UI::AbletonNumberBox startBox;
+    juce::Label endLabel{"", "End"};
+    UI::AbletonNumberBox endBox;
+    
     UI::AbletonToggleButton loopButton{"Loop"};
-    juce::Label signatureLabel{"sig", "4/4"};
+    
+    juce::Label positionLabel{"", "Position"};
+    UI::AbletonNumberBox positionBox;
+    juce::Label lengthLabel{"", "Length"};
+    UI::AbletonNumberBox lengthBox;
+    
+    juce::Label signatureLabel{"", "Signature"};
+    juce::Label signatureBox{"", "4 / 4"};
+    juce::Label grooveLabel{"", "Groove"};
+    juce::ComboBox grooveBox;
     
     // === Audio Panel ===
     UI::AbletonPanel audioPanel{"Audio"};
-    UI::AbletonToggleButton matchTempoButton{"Match Project Tempo"};
-    UI::AbletonToggleButton preservePitchButton{"Preserve Pitch"};
+    UI::AbletonToggleButton matchTempoButton{"Match Tempo"}; // Shortened to fit panel
+    UI::AbletonToggleButton followButton{"Follow"};
     juce::ComboBox algorithmBox;
-    std::unique_ptr<NimbusRotaryDial> pitchDial;
-    std::unique_ptr<NimbusHorizontalFader> speedFader;
-    UI::AbletonNumberBox gainBox;
+    UI::AbletonToggleButton preservePitchButton{"Preserve Pitch"};
+    
+    // Time sub-column placeholders
+    juce::ComboBox transientBox;
+    juce::Label bpmLabel{"", "BPM"};
+    juce::Label bpmBox;
+    juce::TextButton halfSpeedBtn{"/2"};
+    juce::TextButton doubleSpeedBtn{"*2"};
+    
+    // Gain & Pitch sub-column
+    UI::AbletonVerticalGainSlider gainSlider;
+    juce::Label gainLabel{"", "0.00 dB"};
+    
+    Nimbus::PluginDial pitchSlider{"Pitch", -24.0, 24.0, 0.0, " st", nullptr};
+    juce::Label pitchLabel{"", "st"};
+    juce::Label pitchBox{"", "0"};
+    
+    Nimbus::PluginDial panSlider{"Pan", -1.0, 1.0, 0.0, "", nullptr};
+    
+    UI::AbletonToggleButton reverseButton{"Rev"};
+    juce::TextButton editButton{"Edit"};
     
     // === Notes Panel ===
     UI::AbletonPanel notesPanel{"Notes"};

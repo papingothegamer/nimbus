@@ -20,8 +20,8 @@ void PianoRollTimelineComponent::paint(juce::Graphics& g) {
     
     if (!currentClip) return;
     
-    double clipSamples = currentClip->getLengthSamples();
-    double clipStartSamples = currentClip->getStartSample();
+    double clipSamples = currentClip->lengthSamples.get();
+    double clipStartSamples = currentClip->startSample.get();
     double sampleRate = engine.getTransport().getSampleRate();
     if (sampleRate <= 0) sampleRate = 48000.0;
     
@@ -67,8 +67,8 @@ void PianoRollTimelineComponent::paint(juce::Graphics& g) {
     if (engine.getTransport().isPlaying()) {
         double positionSamples = engine.getTransport().getCurrentPosition();
         
-        double clipGlobalStart = currentClip->getStartSample();
-        double clipGlobalEnd = clipGlobalStart + currentClip->getLengthSamples();
+        double clipGlobalStart = currentClip->startSample.get();
+        double clipGlobalEnd = clipGlobalStart + currentClip->lengthSamples.get();
         
         if (positionSamples >= clipGlobalStart && positionSamples <= clipGlobalEnd) {
             double timeIntoClip = (positionSamples - clipGlobalStart) / sampleRate;

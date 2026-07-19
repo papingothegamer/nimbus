@@ -291,11 +291,9 @@ void TimelineProject::addClipToTrack(int trackIndex, AnyClipPtr clip) {
         tracks.resize(trackIndex + 1);
     }
     
-    std::visit([](auto&& c) {
-        if (c->getColorIndex() == -1) {
-            c->setColorIndex(juce::Random::getSystemRandom().nextInt(70));
-        }
-    }, clip);
+    if (clip->colorIndex.get() == -1) {
+        clip->colorIndex = juce::Random::getSystemRandom().nextInt(70);
+    }
     
     trackClips[trackIndex].push_back(std::move(clip));
     listeners.call(&Listener::trackClipsChanged, trackIndex);
@@ -343,13 +341,10 @@ double TimelineProject::getTotalDurationSamples() const {
     double maxDuration = 0.0;
     for (const auto& trackClipList : trackClips) {
         for (const auto& clip : trackClipList) {
-            std::visit([&](auto&& c) {
-                // c can be shared_ptr<AudioClip> or shared_ptr<MidiClip>
-                double clipEnd = static_cast<double>(c->getStartSample()) + static_cast<double>(c->getLengthSamples());
-                if (clipEnd > maxDuration) {
-                    maxDuration = clipEnd;
-                }
-            }, clip);
+            double clipEnd = clip->getEndSample();
+            if (clipEnd > maxDuration) {
+                maxDuration = clipEnd;
+            }
         }
     }
     // Return at least some minimal duration so UI doesn't break, e.g. 5 seconds (5 * 44100 = 220500) if project is empty
@@ -359,12 +354,8 @@ double TimelineProject::getTotalDurationSamples() const {
 void TimelineProject::copySelectedClips() {
     clipboardClips.clear();
     
-    if (currentSelectedClip != AnyClipPtr{}) {
-        auto clonedClip = std::visit([](auto&& c) -> AnyClipPtr {
-            using T = std::decay_t<decltype(c)>;
-            return std::make_shared<typename T::element_type>(*c);
-        }, currentSelectedClip);
-        clipboardClips.push_back(clonedClip);
+    if (currentSelectedClip != nullptr) {
+        clipboardClips.push_back(currentSelectedClip->clone());
     } else if (timeSelectionStartSamples >= 0 && timeSelectionEndSamples >= 0 && timeSelectionStartSamples != timeSelectionEndSamples) {
         // Copy all clips within the time selection for selected tracks
         double minSamples = std::min(timeSelectionStartSamples, timeSelectionEndSamples);
@@ -373,20 +364,12 @@ void TimelineProject::copySelectedClips() {
         for (int trackIndex = 0; trackIndex < getNumTracks(); ++trackIndex) {
             if (timeSelectedTracks.contains(trackIndex) || selectedTracks.contains(trackIndex)) {
                 for (const auto& clip : trackClips[trackIndex]) {
-                    double clipStart = 0;
-                    double clipLength = 0;
-                    std::visit([&](auto&& c) { clipStart = c->getStartSample(); clipLength = c->getLengthSamples(); }, clip);
+                    double clipStart = clip->startSample.get();
+                    double clipLength = clip->lengthSamples.get();
                     double clipEnd = clipStart + clipLength;
                     
                     if (clipStart < maxSamples && clipEnd > minSamples) {
-                        auto clonedClip = std::visit([](auto&& c) -> AnyClipPtr {
-                            using T = std::decay_t<decltype(c)>;
-                            return std::make_shared<typename T::element_type>(*c);
-                        }, clip);
-                        
-                        // Adjust the cloned clip to start relative to the selection if we wanted complex pasting,
-                        // but for now just copy the exact clip properties
-                        clipboardClips.push_back(clonedClip);
+                        clipboardClips.push_back(clip->clone());
                     }
                 }
             }
@@ -401,20 +384,14 @@ void TimelineProject::pasteClips(int trackIndex, double startSample) {
     // If there were multiple clips, we would need to calculate relative offsets.
     double offset = startSample;
     if (clipboardClips.size() > 0) {
-        double originalFirstStart = 0;
-        std::visit([&](auto&& c) { originalFirstStart = c->getStartSample(); }, clipboardClips[0]);
+        double originalFirstStart = clipboardClips[0]->startSample.get();
         
         for (const auto& clip : clipboardClips) {
-            auto clonedClip = std::visit([](auto&& c) -> AnyClipPtr {
-                using T = std::decay_t<decltype(c)>;
-                return std::make_shared<typename T::element_type>(*c);
-            }, clip);
+            auto clonedClip = clip->clone();
             
-            double originalStart = 0;
-            std::visit([&](auto&& c) { originalStart = c->getStartSample(); }, clonedClip);
-            
+            double originalStart = clonedClip->startSample.get();
             double relativeStart = originalStart - originalFirstStart;
-            std::visit([&](auto&& c) { c->setStartSample(startSample + relativeStart); }, clonedClip);
+            clonedClip->startSample = startSample + relativeStart;
             
             addClipToTrack(trackIndex, clonedClip);
         }
@@ -432,11 +409,7 @@ void TimelineProject::duplicateTrack(int trackIndex) {
         // Copy all clips from the original track to the new track
         auto originalClips = getClipsOnTrack(trackIndex);
         for (const auto& clip : originalClips) {
-            auto clonedClip = std::visit([](auto&& c) -> AnyClipPtr {
-                using T = std::decay_t<decltype(c)>;
-                return std::make_shared<typename T::element_type>(*c);
-            }, clip);
-            addClipToTrack(trackIndex + 1, clonedClip);
+            addClipToTrack(trackIndex + 1, clip->clone());
         }
     }
 }

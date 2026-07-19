@@ -29,8 +29,8 @@ private:
 class MultibandCompressorPluginEditor : public juce::Component, private juce::Timer {
 public:
     MultibandCompressorPluginEditor(MultibandCompressorPlugin& p) : plugin(p) {
-        lowMidSlider = std::make_unique<NimbusRotaryDial>("Low/Mid", 20.0, 1000.0, plugin.getLowMidFreq(), " Hz", [this](float v) { plugin.setLowMidFreq(v); });
-        midHighSlider = std::make_unique<NimbusRotaryDial>("Mid/High", 500.0, 15000.0, plugin.getMidHighFreq(), " Hz", [this](float v) { plugin.setMidHighFreq(v); });
+        lowMidSlider = std::make_unique<PluginDial>("Low/Mid", 20.0, 1000.0, plugin.getLowMidFreq(), " Hz", [this](float v) { plugin.setLowMidFreq(v); });
+        midHighSlider = std::make_unique<PluginDial>("Mid/High", 500.0, 15000.0, plugin.getMidHighFreq(), " Hz", [this](float v) { plugin.setMidHighFreq(v); });
         lowMidSlider->setDefaultValue(150.0);
         midHighSlider->setDefaultValue(2500.0);
         lowMidSlider->getSlider().setSkewFactorFromMidPoint(200.0);
@@ -43,9 +43,9 @@ public:
         
         for (int i = 0; i < 3; ++i) {
             auto& band = plugin.getBand(i);
-            threshSliders[i] = std::make_unique<NimbusRotaryDial>("Thresh", -60.0, 0.0, band.threshold.load(), " dB", [this, i](float v) { plugin.getBand(i).threshold.store(v); plugin.updateDSP(); });
-            ratioSliders[i] = std::make_unique<NimbusRotaryDial>("Ratio", 1.0, 20.0, band.ratio.load(), ":1", [this, i](float v) { plugin.getBand(i).ratio.store(v); plugin.updateDSP(); });
-            gainSliders[i] = std::make_unique<NimbusRotaryDial>("Gain", -24.0, 24.0, band.gainDb.load(), " dB", [this, i](float v) { plugin.getBand(i).gainDb.store(v); plugin.updateDSP(); });
+            threshSliders[i] = std::make_unique<PluginDial>("Thresh", -60.0, 0.0, band.threshold.load(), " dB", [this, i](float v) { plugin.getBand(i).threshold.store(v); plugin.updateDSP(); });
+            ratioSliders[i] = std::make_unique<PluginDial>("Ratio", 1.0, 20.0, band.ratio.load(), ":1", [this, i](float v) { plugin.getBand(i).ratio.store(v); plugin.updateDSP(); });
+            gainSliders[i] = std::make_unique<PluginDial>("Gain", -24.0, 24.0, band.gainDb.load(), " dB", [this, i](float v) { plugin.getBand(i).gainDb.store(v); plugin.updateDSP(); });
             
             threshSliders[i]->setDefaultValue(-40.0);
             ratioSliders[i]->setDefaultValue(4.0);
@@ -134,10 +134,10 @@ public:
 
 private:
     MultibandCompressorPlugin& plugin;
-    std::unique_ptr<NimbusRotaryDial> lowMidSlider, midHighSlider;
-    std::array<std::unique_ptr<NimbusRotaryDial>, 3> threshSliders;
-    std::array<std::unique_ptr<NimbusRotaryDial>, 3> ratioSliders;
-    std::array<std::unique_ptr<NimbusRotaryDial>, 3> gainSliders;
+    std::unique_ptr<PluginDial> lowMidSlider, midHighSlider;
+    std::array<std::unique_ptr<PluginDial>, 3> threshSliders;
+    std::array<std::unique_ptr<PluginDial>, 3> ratioSliders;
+    std::array<std::unique_ptr<PluginDial>, 3> gainSliders;
     std::array<std::unique_ptr<GRMeter>, 3> grMeters;
     std::unique_ptr<PluginHeader> header;
 };

@@ -7,10 +7,10 @@ namespace Nimbus {
 class CompressorPluginEditor : public juce::Component, private juce::Timer {
 public:
     CompressorPluginEditor(CompressorPlugin& p) : plugin(p) {
-        threshSlider = std::make_unique<NimbusRotaryDial>("Thresh", -60.0, 0.0, plugin.getThreshold(), " dB", [this](float v) { plugin.setThreshold(v); });
-        ratioSlider = std::make_unique<NimbusRotaryDial>("Ratio", 1.0, 20.0, plugin.getRatio(), ":1", [this](float v) { plugin.setRatio(v); });
-        attackSlider = std::make_unique<NimbusRotaryDial>("Attack", 0.1, 500.0, plugin.getAttack(), " ms", [this](float v) { plugin.setAttack(v); });
-        releaseSlider = std::make_unique<NimbusRotaryDial>("Release", 10.0, 2000.0, plugin.getRelease(), " ms", [this](float v) { plugin.setRelease(v); });
+        threshSlider = std::make_unique<PluginDial>("Thresh", -60.0, 0.0, plugin.getThreshold(), " dB", [this](float v) { plugin.setThreshold(v); });
+        ratioSlider = std::make_unique<PluginDial>("Ratio", 1.0, 20.0, plugin.getRatio(), ":1", [this](float v) { plugin.setRatio(v); });
+        attackSlider = std::make_unique<PluginDial>("Attack", 0.1, 500.0, plugin.getAttack(), " ms", [this](float v) { plugin.setAttack(v); });
+        releaseSlider = std::make_unique<PluginDial>("Release", 10.0, 2000.0, plugin.getRelease(), " ms", [this](float v) { plugin.setRelease(v); });
         
         threshSlider->setDefaultValue(-20.0);
         ratioSlider->setDefaultValue(2.0);
@@ -64,10 +64,10 @@ public:
 
 private:
     CompressorPlugin& plugin;
-    std::unique_ptr<NimbusRotaryDial> threshSlider;
-    std::unique_ptr<NimbusRotaryDial> ratioSlider;
-    std::unique_ptr<NimbusRotaryDial> attackSlider;
-    std::unique_ptr<NimbusRotaryDial> releaseSlider;
+    std::unique_ptr<PluginDial> threshSlider;
+    std::unique_ptr<PluginDial> ratioSlider;
+    std::unique_ptr<PluginDial> attackSlider;
+    std::unique_ptr<PluginDial> releaseSlider;
     std::unique_ptr<PluginHeader> header;
 };
 

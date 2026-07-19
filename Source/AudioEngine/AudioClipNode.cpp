@@ -31,14 +31,14 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
     // Did the transport jump or just start?
     if (lastProcessedTransportPos == -1 || currentTransportPos != lastProcessedTransportPos) {
         // Transport seeked!
-        int relativeFilePos = currentTransportPos - clipModel->getStartSample() + clipModel->getSourceOffsetSamples();
+        int relativeFilePos = currentTransportPos - clipModel->startSample.get() + clipModel->sourceOffsetSamples.get();
         if (relativeFilePos >= 0) {
             diskStreamer->requestSeek(relativeFilePos);
         }
     }
 
-    int clipStart = clipModel->getStartSample();
-    int clipEnd = clipModel->getEndSample();
+    int clipStart = clipModel->startSample.get();
+    int clipEnd = clipStart + clipModel->lengthSamples.get();
 
     // Check if the current block overlaps with the clip
     if (currentTransportPos + numSamples <= clipStart || currentTransportPos >= clipEnd) {
@@ -58,20 +58,20 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
             renderLength -= (currentTransportPos + numSamples - clipEnd);
         }
 
-        double speedRatio = clipModel->getSpeedMultiplier();
-        if (clipModel->getMatchDawTempo()) {
+        double speedRatio = clipModel->speedMultiplier.get();
+        if (clipModel->matchDawTempo.get()) {
             double dawTempo = globalTransport.getTempo();
-            double originalTempo = clipModel->getOriginalBpm();
+            double originalTempo = clipModel->originalBpm.get();
             if (originalTempo > 0.0 && dawTempo > 0.0) {
                 speedRatio = dawTempo / originalTempo;
             }
         }
         
-        double pitchRatio = std::pow(2.0, clipModel->getPitchShiftSemitones() / 12.0);
+        double pitchRatio = std::pow(2.0, clipModel->pitchShiftSemitones.get() / 12.0);
         
         // The position inside the audio file corresponding to the first sample we need to render
         double timeIntoClip = (currentTransportPos + renderStartOffset) - clipStart;
-        int filePosition = static_cast<int>(clipModel->getSourceOffsetSamples() + (timeIntoClip * speedRatio));
+        int filePosition = static_cast<int>(clipModel->sourceOffsetSamples.get() + (timeIntoClip * speedRatio));
 
         // Clear regions before and after
         if (renderStartOffset > 0) {
@@ -91,7 +91,7 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
             // For now, we fall back to standard resampling, which will shift pitch when speed changes.
             // The architecture is now ready to swap this interpolator block for a Granular Stretcher class.
             double playbackRatio = speedRatio;
-            if (!clipModel->getPreservePitch()) {
+            if (!clipModel->preservePitch.get()) {
                 // If not preserving pitch, speed is dictated strictly by the ratio.
                 playbackRatio = speedRatio * pitchRatio;
             } else {

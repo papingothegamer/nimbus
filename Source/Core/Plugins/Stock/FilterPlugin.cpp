@@ -17,10 +17,10 @@ public:
         };
         addAndMakeVisible(typeCombo);
         
-        cutoffSlider = std::make_unique<NimbusRotaryDial>("Freq", 20.0, 20000.0, plugin.getCutoffFrequency(), " Hz", [this](float v) { plugin.setCutoffFrequency(v); });
+        cutoffSlider = std::make_unique<PluginDial>("Freq", 20.0, 20000.0, plugin.getCutoffFrequency(), " Hz", [this](float v) { plugin.setCutoffFrequency(v); });
         addAndMakeVisible(cutoffSlider.get());
         
-        resSlider = std::make_unique<NimbusRotaryDial>("Res", 0.1, 10.0, plugin.getResonance(), "", [this](float v) { plugin.setResonance(v); });
+        resSlider = std::make_unique<PluginDial>("Res", 0.1, 10.0, plugin.getResonance(), "", [this](float v) { plugin.setResonance(v); });
         addAndMakeVisible(resSlider.get());
         
         header = std::make_unique<PluginHeader>("Filter");
@@ -69,8 +69,8 @@ public:
 private:
     FilterPlugin& plugin;
     juce::ComboBox typeCombo;
-    std::unique_ptr<NimbusRotaryDial> cutoffSlider;
-    std::unique_ptr<NimbusRotaryDial> resSlider;
+    std::unique_ptr<PluginDial> cutoffSlider;
+    std::unique_ptr<PluginDial> resSlider;
     std::unique_ptr<PluginHeader> header;
 };
 

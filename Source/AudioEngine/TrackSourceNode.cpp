@@ -62,14 +62,14 @@ void TrackSourceNode::updateClips(const std::vector<AnyClipPtr>& newClips) {
     std::vector<std::unique_ptr<IAudioNode>> newNodes;
     
     for (const auto& clipPtr : newClips) {
-        if (std::holds_alternative<std::shared_ptr<AudioClip>>(clipPtr)) {
-            auto audioClip = std::get<std::shared_ptr<AudioClip>>(clipPtr);
+        if (clipPtr->getType() == Clip::Type::Audio) {
+            auto audioClip = std::static_pointer_cast<AudioClip>(clipPtr);
             if (audioClip) {
                 auto streamer = std::make_shared<DiskStreamer>(audioClip->getSourceFile(), formatManager);
                 newNodes.push_back(std::make_unique<AudioClipNode>(audioClip, streamer, transport));
             }
-        } else if (std::holds_alternative<std::shared_ptr<MidiClip>>(clipPtr)) {
-            auto midiClip = std::get<std::shared_ptr<MidiClip>>(clipPtr);
+        } else if (clipPtr->getType() == Clip::Type::Midi) {
+            auto midiClip = std::static_pointer_cast<MidiClip>(clipPtr);
             if (midiClip) {
                 newNodes.push_back(std::make_unique<MidiClipNode>(midiClip, transport));
             }

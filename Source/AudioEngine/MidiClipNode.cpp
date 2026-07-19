@@ -19,8 +19,8 @@ void MidiClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuff
         return;
 
     double currentPos = transport.getCurrentPosition();
-    double clipStart = midiClip->getStartSample();
-    double clipEnd = clipStart + midiClip->getLengthSamples();
+    double clipStart = midiClip->startSample.get();
+    double clipEnd = clipStart + midiClip->lengthSamples.get();
     int numSamples = buffer.getNumSamples();
 
     if (currentPos + numSamples <= clipStart || currentPos >= clipEnd)

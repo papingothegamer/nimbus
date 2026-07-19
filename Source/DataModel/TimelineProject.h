@@ -11,7 +11,9 @@
 
 namespace Nimbus {
 
-using AnyClipPtr = std::variant<std::shared_ptr<AudioClip>, std::shared_ptr<MidiClip>>;
+#include "Clip.h"
+
+using AnyClipPtr = std::shared_ptr<Clip>;
 
 struct TrackModel {
     TrackID id;

@@ -58,8 +58,9 @@ public:
                        bool isScrollbarVertical, int thumbStartPosition, int thumbSize,
                        bool isMouseOver, bool isMouseDown) override;
 
-private:
     juce::Drawable* getOrCacheSvg(const juce::String& resourceName);
+
+private:
     std::map<juce::String, std::unique_ptr<juce::Drawable>> svgCache;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NimbusLookAndFeel)

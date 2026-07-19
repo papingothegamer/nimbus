@@ -15,14 +15,14 @@ void PianoRollContent::setMidiClip(std::shared_ptr<MidiClip> clip) {
 }
 
 void PianoRollContent::paint(juce::Graphics& g) {
-    g.fillAll(DesignSystem::Colors::PanelBackground.brighter(0.05f));
+    g.fillAll(juce::Colour(0xff111111));
     
     if (auto* vp = findParentComponentOfClass<juce::Viewport>()) {
         int vx = vp->getViewPositionX();
         
         // Draw vertical grid and notes first
         if (currentClip) {
-            double clipSamples = currentClip->getLengthSamples();
+            double clipSamples = currentClip->lengthSamples.get();
             double sampleRate = engine.getTransport().getSampleRate();
             if (sampleRate <= 0) sampleRate = 48000.0;
             double clipSeconds = clipSamples / sampleRate;
@@ -61,11 +61,20 @@ void PianoRollContent::paint(juce::Graphics& g) {
                         int row = 127 - noteNumber;
                         int y = row * keyHeight;
                         
-                        g.setColour(DesignSystem::Colors::PrimaryAction);
-                        g.fillRect(x, static_cast<float>(y), w, static_cast<float>(keyHeight));
+                        float vel = event->message.getVelocity() / 127.0f;
+                        juce::Colour noteColor = juce::Colour(0xff2d4c2d).interpolatedWith(juce::Colour(0xff39ff14), vel); // Dark green to neon green
                         
-                        g.setColour(juce::Colours::black.withAlpha(0.8f));
-                        g.drawRect(x, static_cast<float>(y), w, static_cast<float>(keyHeight), 1.0f);
+                        if (selectedEventIndices.contains(i)) {
+                            noteColor = noteColor.brighter(0.4f);
+                            g.setColour(noteColor.withAlpha(0.3f));
+                            g.fillRoundedRectangle(x - 2, static_cast<float>(y) - 1, w + 4, static_cast<float>(keyHeight) + 2, 4.0f);
+                        }
+                        
+                        g.setColour(noteColor);
+                        g.fillRoundedRectangle(x, static_cast<float>(y) + 1.0f, w, static_cast<float>(keyHeight) - 2.0f, 2.0f);
+                        
+                        g.setColour(juce::Colours::black.withAlpha(0.6f));
+                        g.drawRoundedRectangle(x, static_cast<float>(y) + 1.0f, w, static_cast<float>(keyHeight) - 2.0f, 2.0f, 1.0f);
                         
                         // Wait, velocity is handled differently now.
                     }
@@ -154,8 +163,8 @@ void PianoRollContent::paint(juce::Graphics& g) {
             double sampleRate = engine.getTransport().getSampleRate();
             if (sampleRate <= 0.0) sampleRate = 48000.0;
             
-            double clipGlobalStart = currentClip->getStartSample();
-            double clipGlobalEnd = clipGlobalStart + currentClip->getLengthSamples();
+            double clipGlobalStart = currentClip->startSample.get();
+            double clipGlobalEnd = clipGlobalStart + currentClip->lengthSamples.get();
             
             if (positionSamples >= clipGlobalStart && positionSamples <= clipGlobalEnd) {
                 double timeIntoClip = (positionSamples - clipGlobalStart) / sampleRate;
@@ -229,7 +238,7 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
             if (row < 0 || row > 127) return;
             int noteNumber = 127 - row;
             
-            double clipSamples = currentClip->getLengthSamples();
+            double clipSamples = currentClip->lengthSamples.get();
             double sampleRate = engine.getTransport().getSampleRate();
             if (sampleRate <= 0) sampleRate = 48000.0;
             
