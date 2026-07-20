@@ -30,6 +30,7 @@ public:
     void trackPanChanged(int trackIndex, float pan) override;
     void trackInputChannelChanged(int trackIndex, int inputChannel) override;
     void trackClipsChanged(int trackIndex) override;
+    void tracksGrouped() override;
 
     Track* getAudioTrack(const TrackID& trackId);
     

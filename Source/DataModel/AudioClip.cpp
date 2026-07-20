@@ -25,7 +25,9 @@ AudioClip::AudioClip(const juce::File& file, double startSampleValue, double len
 
 std::shared_ptr<Clip> AudioClip::clone() const {
     auto c = std::make_shared<AudioClip>(sourceFile, startSample.get(), lengthSamples.get(), sourceOffsetSamples.get());
-    c->state.copyPropertiesFrom(this->state, nullptr);
+    c->name = name.get();
+    c->colorIndex = colorIndex.get();
+    c->muted = muted.get();
     return c;
 }
 

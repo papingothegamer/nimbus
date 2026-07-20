@@ -54,15 +54,29 @@ private:
     std::function<void(int)> onColorSelected;
 };
 
+class UniqueFileInputSource : public juce::FileInputSource {
+public:
+    UniqueFileInputSource(const juce::File& file, juce::int64 uniqueId)
+        : juce::FileInputSource(file), hash(file.hashCode64() ^ uniqueId) {}
+
+    juce::int64 hashCode() const override { return hash; }
+
+private:
+    juce::int64 hash;
+};
+
 ClipComponent::ClipComponent(AnyClipPtr clip, NimbusEngine& e)
-    : engine(e), clipData(clip), thumbnail(512, engine.getFormatManager(), thumbnailCache) {
+    : engine(e), clipData(clip), thumbnail(512, engine.getFormatManager(), engine.getThumbnailCache()) {
     
     if (clipData->getType() == Clip::Type::Audio) {
         auto audioClip = std::static_pointer_cast<AudioClip>(clipData);
         if (audioClip) {
-            thumbnail.setSource(new juce::FileInputSource(audioClip->getSourceFile()));
+            juce::int64 uniqueId = reinterpret_cast<juce::int64>(audioClip.get());
+            thumbnail.setSource(new UniqueFileInputSource(audioClip->getSourceFile(), uniqueId));
         }
     }
+    
+    thumbnail.addChangeListener(this);
     
     // No label needed, we draw the text in paint
 }
@@ -99,7 +113,15 @@ void ClipComponent::showPropertiesMenu() {
     });
 }
 
-ClipComponent::~ClipComponent() = default;
+ClipComponent::~ClipComponent() {
+    thumbnail.removeChangeListener(this);
+}
+
+void ClipComponent::changeListenerCallback(juce::ChangeBroadcaster* source) {
+    if (source == &thumbnail) {
+        repaint();
+    }
+}
 
 void ClipComponent::paint(juce::Graphics& g) {
     bool isAudio = clipData->getType() == Clip::Type::Audio;
@@ -112,6 +134,10 @@ void ClipComponent::paint(juce::Graphics& g) {
     juce::Colour textColour = isDark ? juce::Colours::white : juce::Colours::black;
     
     auto bounds = getLocalBounds();
+    
+    g.setColour(juce::Colours::red);
+    g.drawRect(bounds, 5);
+    
     auto headerBounds = bounds.removeFromTop(18);
 
     // Draw header

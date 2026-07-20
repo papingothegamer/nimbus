@@ -119,11 +119,12 @@ void BottomMixerComponent::resized() {
         auto* strip = trackStrips[i];
         
         bool isHidden = false;
+        bool isChild = false;
         if (i < engine.getTimelineProject().getNumTracks()) {
             const auto& track = engine.getTimelineProject().getTrack(i);
             
-            // Hide if parent group is folded
             if (!track.parentGroupId.isNull()) {
+                isChild = true;
                 for (int j = 0; j < engine.getTimelineProject().getNumTracks(); ++j) {
                     const auto& parentTrack = engine.getTimelineProject().getTrack(j);
                     if (parentTrack.id == track.parentGroupId) {
@@ -141,7 +142,8 @@ void BottomMixerComponent::resized() {
             strip->setBounds(0, 0, 0, 0);
         } else {
             strip->setVisible(true);
-            strip->setBounds(currentX, 0, stripWidth, bounds.getHeight() - viewport.getScrollBarThickness());
+            int yOffset = isChild ? 12 : 0;
+            strip->setBounds(currentX, yOffset, stripWidth, bounds.getHeight() - viewport.getScrollBarThickness() - yOffset);
             currentX += stripWidth;
         }
     }

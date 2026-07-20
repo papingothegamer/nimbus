@@ -70,23 +70,21 @@ GroupTrackHeaderComponent::GroupTrackHeaderComponent(NimbusEngine& e, int tIndex
     powerToggle.setClickingTogglesState(true);
     powerToggle.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
     powerToggle.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::PrimaryAction);
+    powerToggle.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    powerToggle.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
     powerToggle.setToggleState(!isMuted, juce::dontSendNotification);
     powerToggle.onClick = [this] {
         engine.getTimelineProject().setTrackMuted(trackIndex, !powerToggle.getToggleState());
     };
 
-    addAndMakeVisible(nameLabel);
-    nameLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(13.0f));
-    nameLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
-    nameLabel.setEditable(true, false, false);
-    nameLabel.onTextChange = [this] {
-        auto newText = nameLabel.getText();
-        if (newText.trim().isEmpty()) {
-            nameLabel.setText("Group Track", juce::dontSendNotification);
-            engine.getTimelineProject().setTrackName(trackIndex, "Group Track");
-        } else {
-            engine.getTimelineProject().setTrackName(trackIndex, newText);
-        }
+    // Track Name
+    addAndMakeVisible(trackNameLabel);
+    trackNameLabel.setFont(juce::Font(14.0f, juce::Font::bold));
+    trackNameLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
+    trackNameLabel.setJustificationType(juce::Justification::centredLeft);
+    trackNameLabel.setEditable(false, true, false);
+    trackNameLabel.onTextChange = [this] {
+        engine.getTimelineProject().setTrackName(trackIndex, trackNameLabel.getText());
     };
 
     addAndMakeVisible(muteButton);
@@ -117,7 +115,7 @@ void GroupTrackHeaderComponent::setTrackIndex(int newIndex) {
     if (trackIndex >= 0 && trackIndex < engine.getTimelineProject().getNumTracks()) {
         const auto& trackModel = engine.getTimelineProject().getTrack(trackIndex);
         powerToggle.setButtonText(juce::String(trackIndex + 1));
-        nameLabel.setText(trackModel.name.isNotEmpty() ? trackModel.name : "Group Track", juce::dontSendNotification);
+        trackNameLabel.setText(trackModel.name.isNotEmpty() ? trackModel.name : "Group Track", juce::dontSendNotification);
 
         foldButton.setToggleState(trackModel.isFolded, juce::dontSendNotification);
         
@@ -149,36 +147,58 @@ void GroupTrackHeaderComponent::trackSoloChanged(int track, bool isSoloed) {
 }
 
 void GroupTrackHeaderComponent::paint(juce::Graphics& g) {
-    if (engine.getTimelineProject().isTrackSelected(trackIndex)) {
-        g.fillAll(DesignSystem::Colors::ComponentBackground.brighter(0.1f));
+    bool isSelected = engine.getTimelineProject().isTrackSelected(trackIndex);
+    
+    // Background with a slightly distinct tint for groups
+    if (isSelected) {
+        g.fillAll(DesignSystem::Colors::ComponentBackground.brighter(0.1f).interpolatedWith(DesignSystem::Colors::PrimaryAction, 0.1f));
     } else {
-        g.fillAll(juce::Colour(0xff2d2d2d)); 
+        g.fillAll(DesignSystem::Colors::ModuleBackground.darker(0.2f).interpolatedWith(juce::Colours::black, 0.2f));
     }
     
     g.setColour(DesignSystem::Colors::Divider);
     g.fillRect(0, getHeight() - 1, getWidth(), 1);
-    g.drawRect(getLocalBounds(), 1);
+    g.fillRect(getWidth() - 1, 0, 1, getHeight());
+    
+    // Blue line at top
+    g.setColour(DesignSystem::Colors::PrimaryAction);
+    g.fillRect(0, 0, getWidth(), 4);
+    
+    // Blue line down the left side
+    g.fillRect(0, 0, 4, getHeight());
 }
 
 void GroupTrackHeaderComponent::resized() {
-    auto bounds = getLocalBounds().reduced(2);
-    bounds.removeFromRight(6); // VU meter alignment padding
+    auto bounds = getLocalBounds();
+    bounds.removeFromBottom(1); // divider
+    bounds.removeFromTop(4); // top border
+    bounds.removeFromLeft(4); // left border
+    bounds.removeFromLeft(12); // Indent for the new left border
 
-    soloButton.setBounds(bounds.removeFromRight(20).reduced(1));
-    bounds.removeFromRight(4);
-    muteButton.setBounds(bounds.removeFromRight(20).reduced(1));
+    int yCenter = bounds.getCentreY();
     
-    bounds.removeFromLeft(4);
-    foldButton.setBounds(bounds.removeFromLeft(16).reduced(2).withTrimmedTop(1));
+    // Add 8px baseline padding
+    bounds.removeFromLeft(8);
     
-    bounds.removeFromLeft(4);
-    powerToggle.setBounds(bounds.removeFromLeft(22).reduced(2));
+    // Fold Button
+    foldButton.setBounds(bounds.removeFromLeft(20).withSizeKeepingCentre(16, 16));
     
-    bounds.removeFromLeft(4);
-    bounds.removeFromRight(2);
+    bounds.removeFromLeft(4); // space
     
-    // Keep height small enough to prevent JUCE from auto-wrapping text onto two lines
-    nameLabel.setBounds(bounds.withSizeKeepingCentre(bounds.getWidth(), 18));
+    // Power Toggle (Number Box)
+    powerToggle.setBounds(bounds.removeFromLeft(24).withSizeKeepingCentre(24, 20));
+    
+    bounds.removeFromLeft(4); // space
+    
+    // Right edge controls
+    int rightEdge = getLocalBounds().getWidth() - 30; // padding from right edge
+    soloButton.setBounds(rightEdge - 20, bounds.getY() + (bounds.getHeight() - 16) / 2, 16, 16);
+    muteButton.setBounds(rightEdge - 42, bounds.getY() + (bounds.getHeight() - 16) / 2, 16, 16);
+    
+    bounds.setWidth(rightEdge - 46 - bounds.getX());
+    
+    // Track Name takes remaining space
+    trackNameLabel.setBounds(bounds);
 }
 
 } // namespace Nimbus::Timeline

@@ -22,7 +22,7 @@ private:
     int trackIndex;
 
     juce::TextButton powerToggle;
-    juce::Label nameLabel;
+    juce::Label trackNameLabel;
     
     juce::DrawableButton foldButton{"Fold", juce::DrawableButton::ImageRaw};
     juce::DrawableButton muteButton{"Mute", juce::DrawableButton::ImageOnButtonBackground};

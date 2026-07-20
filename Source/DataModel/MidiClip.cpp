@@ -22,7 +22,10 @@ void MidiClip::addNote(int channel, int noteNumber, float velocity, double noteS
 
 std::shared_ptr<Clip> MidiClip::clone() const {
     auto c = std::make_shared<MidiClip>(startSample.get(), lengthSamples.get());
-    c->state.copyPropertiesFrom(this->state, nullptr);
+    c->name = name.get();
+    c->colorIndex = colorIndex.get();
+    c->muted = muted.get();
+    c->isLooped = isLooped.get();
     c->sequence = this->sequence;
     return c;
 }

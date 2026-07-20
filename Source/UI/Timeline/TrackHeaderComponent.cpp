@@ -126,6 +126,8 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     powerToggle.setButtonText(juce::String(trackIndex + 1));
     powerToggle.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
     powerToggle.setColour(juce::TextButton::buttonOnColourId, DesignSystem::Colors::PrimaryAction);
+    powerToggle.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+    powerToggle.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
     powerToggle.setToggleState(true, juce::dontSendNotification);
     powerToggle.onClick = [this] {
         engine.getTimelineProject().setTrackSelected(trackIndex, true);
@@ -218,12 +220,17 @@ void TrackHeaderComponent::mouseDown(const juce::MouseEvent& event) {
         m.addItem(5, "Delete", true, false);
         m.addSeparator();
         m.addItem(6, "Group Tracks", true, false);
-        m.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
-            if (result == 2) { engine.addTrack(false); }
-            else if (result == 3) { engine.addTrack(true); }
-            else if (result == 4) { engine.duplicateTrack(trackIndex); }
-            else if (result == 5) { engine.getTimelineProject().removeTrack(trackIndex); }
-            else if (result == 6) { engine.getTimelineProject().groupTracks(engine.getTimelineProject().getSelectedTracks()); }
+        juce::Component::SafePointer<TrackHeaderComponent> safeThis(this);
+        auto tIndex = trackIndex;
+        auto* eng = &engine;
+
+        m.showMenuAsync(juce::PopupMenu::Options(), [safeThis, tIndex, eng](int result) {
+            if (!safeThis) return;
+            if (result == 2) { eng->addTrack(false); }
+            else if (result == 3) { eng->addTrack(true); }
+            else if (result == 4) { eng->duplicateTrack(tIndex); }
+            else if (result == 5) { eng->getTimelineProject().removeTrack(tIndex); }
+            else if (result == 6) { eng->getTimelineProject().groupTracks(eng->getTimelineProject().getSelectedTracks()); }
         });
     }
 }
@@ -285,29 +292,61 @@ void TrackHeaderComponent::setTrackIndex(int newIndex) {
 }
 
 void TrackHeaderComponent::paint(juce::Graphics& g) {
-    if (engine.getTimelineProject().isTrackSelected(trackIndex)) {
-        g.fillAll(DesignSystem::Colors::ComponentBackground.brighter(0.1f));
-    } else {
-        g.fillAll(juce::Colour(0xff2d2d2d)); 
+    bool isSelected = engine.getTimelineProject().isTrackSelected(trackIndex);
+    
+    // Check if this is a child track
+    bool isChild = false;
+    if (trackIndex < engine.getTimelineProject().getNumTracks()) {
+        const auto& trackModel = engine.getTimelineProject().getTrack(trackIndex);
+        isChild = !trackModel.parentGroupId.isNull();
     }
     
+    // Background
+    g.fillAll(isSelected ? DesignSystem::Colors::ComponentBackground.brighter(0.1f).interpolatedWith(DesignSystem::Colors::PrimaryAction, 0.1f) : DesignSystem::Colors::ComponentBackground);
+    
+    // Bottom border
     g.setColour(DesignSystem::Colors::Divider);
     g.fillRect(0, getHeight() - 1, getWidth(), 1);
-    g.drawRect(getLocalBounds(), 1);
-
-    // VERTICAL VU METER AT THE RIGHT EDGE
-    auto meterBounds = getLocalBounds().removeFromRight(6).reduced(1, 2);
-    g.setColour(DesignSystem::Colors::AppBackground.darker(0.2f));
-    g.fillRect(meterBounds);
-
-    if (currentLevel > 0.0f) {
-        juce::ColourGradient cg(juce::Colours::lime, meterBounds.getBottomLeft().toFloat(), juce::Colours::red, meterBounds.getTopLeft().toFloat(), false);
-        cg.addColour(0.7f, juce::Colours::yellow);
+    
+    // Right border
+    g.fillRect(getWidth() - 1, 0, 1, getHeight());
+    
+    // Folder bracket for child tracks
+    if (isChild) {
+        g.setColour(DesignSystem::Colors::PrimaryAction);
+        g.fillRect(0, 0, 4, getHeight());
         
-        int fillHeight = juce::roundToInt(meterBounds.getHeight() * currentLevel);
-        auto fillBounds = meterBounds.withTrimmedTop(meterBounds.getHeight() - fillHeight);
-        g.setGradientFill(cg);
-        g.fillRect(fillBounds);
+        bool isLastChild = false;
+        auto parentId = engine.getTimelineProject().getTrack(trackIndex).parentGroupId;
+        if (trackIndex == engine.getTimelineProject().getNumTracks() - 1) {
+            isLastChild = true;
+        } else {
+            const auto& nextTrack = engine.getTimelineProject().getTrack(trackIndex + 1);
+            if (nextTrack.parentGroupId != parentId) {
+                isLastChild = true;
+            }
+        }
+        
+        if (isLastChild) {
+            g.fillRect(0, getHeight() - 4, 12, 4);
+        }
+    }
+
+    if (trackIndex < engine.getTimelineProject().getNumTracks()) {
+        // VERTICAL VU METER AT THE RIGHT EDGE
+        auto meterBounds = getLocalBounds().removeFromRight(6).reduced(1, 2);
+        g.setColour(DesignSystem::Colors::AppBackground.darker(0.2f));
+        g.fillRect(meterBounds);
+
+        if (currentLevel > 0.0f) {
+            juce::ColourGradient cg(juce::Colours::lime, meterBounds.getBottomLeft().toFloat(), juce::Colours::red, meterBounds.getTopLeft().toFloat(), false);
+            cg.addColour(0.7f, juce::Colours::yellow);
+            
+            int fillHeight = juce::roundToInt(meterBounds.getHeight() * currentLevel);
+            auto fillBounds = meterBounds.withTrimmedTop(meterBounds.getHeight() - fillHeight);
+            g.setGradientFill(cg);
+            g.fillRect(fillBounds);
+        }
     }
 }
 
@@ -320,48 +359,58 @@ void TrackHeaderComponent::updateMeters() {
 }
 
 void TrackHeaderComponent::resized() {
-    auto bounds = getLocalBounds().reduced(2).withTrimmedRight(6); // make room for vertical meter
+    auto bounds = getLocalBounds();
+    
+    // Add 16px baseline padding
+    bounds.removeFromLeft(16);
+    
+    // Apply internal indent for child tracks
+    bool isChild = false;
+    if (trackIndex < engine.getTimelineProject().getNumTracks()) {
+        isChild = !engine.getTimelineProject().getTrack(trackIndex).parentGroupId.isNull();
+    }
+    if (isChild) {
+        bounds.removeFromLeft(16);
+    }
+    
+    // make room for vertical meter and add padding between meter and controls
+    bounds.removeFromRight(6);
+    bounds.removeFromRight(24); // Internal padding from the meter
 
     const auto& track = engine.getTimelineProject().getTrack(trackIndex);
-    if (!track.parentGroupId.isNull()) {
-        groupIndicator.setVisible(true);
-        groupIndicator.setBounds(bounds.removeFromLeft(10));
-        bounds.removeFromLeft(8); 
-    } else {
-        groupIndicator.setVisible(false);
-    }
-
-    auto topRow = bounds.removeFromTop(20);
-    if (track.isGroup) {
-        foldButton.setVisible(true);
-        foldButton.setBounds(topRow.removeFromLeft(20).reduced(2));
-    } else {
-        foldButton.setVisible(false);
-    }
-    powerToggle.setBounds(topRow.removeFromLeft(30).reduced(2));
     
-    if (getHeight() < 40) { // Collapsed Layout
+    auto topRow = bounds.removeFromTop(30);
+    
+    // foldButton is unused in standard TrackHeaderComponent since we have GroupTrackHeaderComponent
+    foldButton.setVisible(false);
+    
+    // Power Toggle (Number Box)
+    powerToggle.setBounds(topRow.removeFromLeft(24).withSizeKeepingCentre(24, 20));
+    topRow.removeFromLeft(4); // space
+    nameLabel.setBounds(topRow);
+    
+    if (getHeight() < 40) { // Collapsed Layout (rare for standard tracks unless zoomed out heavily)
         armButton.setVisible(false);
         muteButton.setVisible(true);
         soloButton.setVisible(true);
 
-        auto btnArea = topRow.removeFromRight(48);
+        auto btnArea = bounds.removeFromTop(24);
         soloButton.setBounds(btnArea.removeFromLeft(24).reduced(2));
         muteButton.setBounds(btnArea.removeFromLeft(24).reduced(2));
-
-        nameLabel.setBounds(topRow.reduced(2, 0));
     } else { // Expanded Layout
         muteButton.setVisible(true);
         soloButton.setVisible(true);
         armButton.setVisible(true);
 
-        nameLabel.setBounds(topRow.reduced(2, 0));
-
         if (bounds.getHeight() >= 24) {
             auto bottomRow = bounds.removeFromTop(24);
-            armButton.setBounds(bottomRow.removeFromLeft(24).reduced(2));
-            soloButton.setBounds(bottomRow.removeFromLeft(24).reduced(2));
-            muteButton.setBounds(bottomRow.removeFromLeft(24).reduced(2));
+            int startX = bottomRow.getX() + 28; // Indent to match text
+            
+            armButton.setBounds(startX + 2, bottomRow.getY() + 2, 16, 20);
+            startX += 24;
+            soloButton.setBounds(startX + 2, bottomRow.getY() + 2, 16, 20);
+            startX += 24;
+            muteButton.setBounds(startX + 2, bottomRow.getY() + 2, 16, 20);
         } else {
             armButton.setBounds(0,0,0,0);
             soloButton.setBounds(0,0,0,0);

@@ -68,7 +68,16 @@ public:
     // Mute / Solo / Arm
     void setMuted(bool muted);
     void setSoloed(bool soloed);
-    void setArmed(bool armed);
+    void setArmed(bool shouldBeArmed);
+    
+    // Grouping
+    void setIsGroup(bool isGroup) { isGroup_ = isGroup; }
+    bool isGroup() const { return isGroup_; }
+    void setParentGroupId(const TrackID& parentId) { parentGroupId_ = parentId; }
+    const TrackID& getParentGroupId() const { return parentGroupId_; }
+    void clearGroupBuffer();
+    juce::AudioBuffer<float>& getGroupBuffer() { return groupBuffer_; }
+
     void setInputChannelIndex(int index) { inputChannelIndex_ = index; }
     
     bool isMuted() const { return muted_.load(); }
@@ -94,6 +103,8 @@ private:
     DelayLine outputDelayLine;
     
     // Intermediate buffer to hold this track's isolated audio
+    juce::AudioBuffer<float> tempBuffer;
+    juce::AudioBuffer<float> groupBuffer_;
     juce::AudioBuffer<float> trackBuffer;
     juce::AudioBuffer<float> stereoPanBuffer;
     juce::MidiBuffer trackMidiBuffer;
@@ -103,6 +114,11 @@ private:
     Transport* transport = nullptr;
     double currentSampleRate = 44100.0;
     int currentBlockSize = 512;
+    TrackID id;
+    bool isStereo;
+    bool isGroup_ = false;
+    TrackID parentGroupId_;
+    
     std::atomic<bool> muted_{false};
     std::atomic<bool> soloed_{false};
     std::atomic<bool> silencedBySolo_{false};

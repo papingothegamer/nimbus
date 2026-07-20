@@ -29,7 +29,7 @@ public:
     /**
      * Add a track to the mixer. Thread-safe (called from UI).
      */
-    void addTrack(std::unique_ptr<Track> track);
+    void addTrack(std::unique_ptr<Track> track, int insertIndex = -1);
 
     /**
      * Remove a track from the mixer by index. Thread-safe (called from UI).
@@ -60,6 +60,17 @@ public:
 private:
     std::vector<std::unique_ptr<Track>> tracks;
     mutable juce::SpinLock processLock;
+
+    Track* getTrackById(const TrackID& id) const {
+        const juce::SpinLock::ScopedLockType sl(processLock);
+        for (const auto& t : tracks) {
+            if (t->getId() == id) return t.get();
+        }
+        return nullptr;
+    }
+
+    bool isTrackOrAncestorSoloed(Track* track) const;
+    bool isAnyDescendantSoloed(Track* track) const;
 
     GainNode masterFader;
     LevelMeter meter;

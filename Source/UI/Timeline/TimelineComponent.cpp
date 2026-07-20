@@ -337,12 +337,15 @@ void TimelineComponent::resized() {
     for (int i = 0; i < trackHeaders.size(); ++i) {
         int currentTrackHeight = standardTrackHeight; 
         bool isHidden = false;
+        bool isChild = false;
         
         if (i < engine.getTimelineProject().getNumTracks()) {
             const auto& track = engine.getTimelineProject().getTrack(i);
             
-            // Hide children if parent group is folded
+            // Check if track is a child
             if (!track.parentGroupId.isNull()) {
+                isChild = true;
+                // Hide children if parent group is folded
                 for (int j = 0; j < engine.getTimelineProject().getNumTracks(); ++j) {
                     const auto& parentTrack = engine.getTimelineProject().getTrack(j);
                     if (parentTrack.id == track.parentGroupId) {

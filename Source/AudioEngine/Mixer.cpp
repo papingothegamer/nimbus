@@ -45,14 +45,39 @@ void Mixer::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
         track->setCompensationDelay(maxLatency - trackLatency);
     }
 
-    // 5. Process and sum all tracks
+    // 5. Clear Group Buffers
+    for (auto& track : tracks) {
+        if (track->isGroup()) track->clearGroupBuffer();
+    }
+
+    // 6. Process and sum all tracks (bottom-up traversal for folder routing)
     bool anySoloed = false;
     for (auto& t : tracks) if (t->isSoloed()) { anySoloed = true; break; }
 
-    for (auto& track : tracks) {
+    for (int i = (int)tracks.size() - 1; i >= 0; --i) {
+        auto& track = tracks[i];
+        
+        bool shouldSilence = anySoloed;
+        if (anySoloed) {
+            if (isTrackOrAncestorSoloed(track.get()) || isAnyDescendantSoloed(track.get())) {
+                shouldSilence = false;
+            }
+        }
+        
+        juce::AudioBuffer<float>* destBuffer = &buffer;
+        if (!track->getParentGroupId().isNull()) {
+            // Find parent group directly (we don't use getTrackById because we already hold the lock)
+            for (auto& p : tracks) {
+                if (p->getId() == track->getParentGroupId()) {
+                    destBuffer = &p->getGroupBuffer();
+                    break;
+                }
+            }
+        }
+        
         track->setInputBuffer(&inputBufferCopy);
-        track->setSilencedBySolo(anySoloed && !track->isSoloed());
-        track->processBlock(buffer, midiMessages);
+        track->setSilencedBySolo(shouldSilence);
+        track->processBlock(*destBuffer, midiMessages);
     }
 
     // 4. Apply master fader and panning
@@ -75,13 +100,17 @@ int Mixer::getLatencySamples() const {
     return maxLatency;
 }
 
-void Mixer::addTrack(std::unique_ptr<Track> track) {
+void Mixer::addTrack(std::unique_ptr<Track> track, int insertIndex) {
     if (track) {
         if (currentSampleRate > 0) {
             track->prepareToPlay(currentSampleRate, currentBlockSize);
         }
         const juce::SpinLock::ScopedLockType sl(processLock);
-        tracks.push_back(std::move(track));
+        if (insertIndex >= 0 && insertIndex <= (int)tracks.size()) {
+            tracks.insert(tracks.begin() + insertIndex, std::move(track));
+        } else {
+            tracks.push_back(std::move(track));
+        }
     }
 }
 
@@ -99,6 +128,34 @@ void Mixer::setMasterVolume(float gainLinear) {
 
 void Mixer::setMasterPan(float panValue) {
     masterFader.setPan(panValue);
+}
+
+bool Mixer::isTrackOrAncestorSoloed(Track* track) const {
+    if (!track) return false;
+    if (track->isSoloed()) return true;
+    
+    if (!track->getParentGroupId().isNull()) {
+        for (const auto& p : tracks) {
+            if (p->getId() == track->getParentGroupId()) {
+                return isTrackOrAncestorSoloed(p.get());
+            }
+        }
+    }
+    return false;
+}
+
+bool Mixer::isAnyDescendantSoloed(Track* track) const {
+    if (!track) return false;
+    
+    // Check immediate children
+    for (const auto& child : tracks) {
+        if (child->getParentGroupId() == track->getId()) {
+            if (child->isSoloed() || isAnyDescendantSoloed(child.get())) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 } // namespace Nimbus

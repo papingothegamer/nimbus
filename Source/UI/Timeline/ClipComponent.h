@@ -6,13 +6,14 @@
 
 namespace Nimbus::Timeline {
 
-class ClipComponent : public juce::Component {
+class ClipComponent : public juce::Component, public juce::ChangeListener {
 public:
     ClipComponent(AnyClipPtr clip, NimbusEngine& engine);
     ~ClipComponent() override;
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    void changeListenerCallback(juce::ChangeBroadcaster* source) override;
     void mouseDown(const juce::MouseEvent& event) override;
     void mouseDrag(const juce::MouseEvent& event) override;
     void mouseUp(const juce::MouseEvent& event) override;
@@ -26,7 +27,6 @@ public:
 private:
     NimbusEngine& engine;
     AnyClipPtr clipData;
-    juce::AudioThumbnailCache thumbnailCache{5};
     juce::AudioThumbnail thumbnail;
     
     bool isResizingLeft = false;

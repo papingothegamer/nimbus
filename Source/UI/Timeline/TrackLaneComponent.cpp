@@ -43,10 +43,27 @@ void TrackLaneComponent::paint(juce::Graphics& g) {
         g.fillRect(getLocalBounds());
     }
     
-    
     // Bottom separator
     g.setColour(DesignSystem::Colors::Divider);
     g.fillRect(0, getHeight() - 1, getWidth(), 1);
+    
+    // Dim the background if it's a child track
+    if (trackIndex < engine.getTimelineProject().getNumTracks()) {
+        const auto& track = engine.getTimelineProject().getTrack(trackIndex);
+        if (track.isGroup) {
+            // Group track lane background
+            g.setColour(juce::Colours::black.withAlpha(0.2f));
+            g.fillRect(getLocalBounds());
+        } else if (!track.parentGroupId.isNull()) {
+            // Child track lane background
+            g.setColour(DesignSystem::Colors::ModuleBackground.withAlpha(0.05f));
+            g.fillRect(getLocalBounds());
+            
+            // Draw a grouping line at the top
+            g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.3f));
+            g.fillRect(0, 0, getWidth(), 1);
+        }
+    }
 }
 
 void TrackLaneComponent::paintOverChildren(juce::Graphics& g) {
@@ -146,34 +163,31 @@ void TrackLaneComponent::resized() {
         
         int x = static_cast<int>(startSeconds * pixelsPerSecond - scrollX);
         int w = static_cast<int>(lengthSeconds * pixelsPerSecond);
+        w = juce::jmax(1, w);
         
         clipComp->setBounds(x, 0, w, getHeight());
     }
 }
 
 void TrackLaneComponent::updateClips() {
-    auto clips = engine.getTimelineProject().getClipsOnTrack(trackIndex);
+    if (trackIndex >= engine.getTimelineProject().getNumTracks()) return;
     
-    for (int i = clipComponents.size(); --i >= 0;) {
-        auto clipData = clipComponents[i]->getClip();
-        if (std::find(clips.begin(), clips.end(), clipData) == clips.end()) {
-            clipComponents.remove(i);
-        }
+    const auto& track = engine.getTimelineProject().getTrack(trackIndex);
+    if (track.isGroup) {
+        // Group tracks do not display individual clips
+        clipComponents.clear();
+        resized();
+        return;
     }
     
+    auto clips = engine.getTimelineProject().getClipsOnTrack(trackIndex);
+    
+    clipComponents.clear();
+    
     for (auto clip : clips) {
-        bool found = false;
-        for (auto* comp : clipComponents) {
-            if (comp->getClip() == clip) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            auto* clipComp = new ClipComponent(clip, engine);
-            clipComponents.add(clipComp);
-            addAndMakeVisible(clipComp);
-        }
+        auto* clipComp = new ClipComponent(clip, engine);
+        clipComponents.add(clipComp);
+        addAndMakeVisible(clipComp);
     }
     
     resized();
