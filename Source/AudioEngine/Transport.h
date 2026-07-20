@@ -2,13 +2,25 @@
 
 #include "ITransport.h"
 #include <atomic>
+#include <juce_events/juce_events.h>
 
 namespace Nimbus {
 
 class Transport : public ITransport {
 public:
+    class Listener {
+    public:
+        virtual ~Listener() = default;
+        virtual void transportStateChanged() {}
+        virtual void transportTempoChanged(double newTempo) {}
+        virtual void transportLoopingChanged(bool isLooping) {}
+    };
+
     Transport();
     ~Transport() override = default;
+
+    void addListener(Listener* listener) { listeners.add(listener); }
+    void removeListener(Listener* listener) { listeners.remove(listener); }
 
     // ITransport
     void play() override;
@@ -56,6 +68,8 @@ private:
     std::atomic<bool> looping{false};
     std::atomic<double> loopStartSamples{0.0};
     std::atomic<double> loopEndSamples{0.0};
+
+    juce::ListenerList<Listener> listeners;
 };
 
 } // namespace Nimbus

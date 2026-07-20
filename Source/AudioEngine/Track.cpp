@@ -20,6 +20,7 @@ void Track::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock)
     if (instrument) instrument->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
     insertGraph.prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
     fader.prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
+    outputDelayLine.prepare(sampleRate, maximumExpectedSamplesPerBlock);
 }
 
 void Track::releaseResources() {
@@ -120,6 +121,11 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
         
         fader.processBlock(stereoBlock, trackMidiBuffer);
         
+        // 4. Apply Plugin Delay Compensation (PDC)
+        if (!armed_.load(std::memory_order_relaxed)) {
+            outputDelayLine.process(stereoBlock);
+        }
+        
         if (!muted_.load(std::memory_order_relaxed)) {
             for (int ch = 0; ch < 2; ++ch) {
                 buffer.addFrom(ch, 0, stereoBlock, ch, 0, numSamples);
@@ -127,6 +133,11 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
         }
     } else {
         fader.processBlock(trackBlock, trackMidiBuffer);
+        
+        // 4. Apply Plugin Delay Compensation (PDC)
+        if (!armed_.load(std::memory_order_relaxed)) {
+            outputDelayLine.process(trackBlock);
+        }
         
         if (!muted_.load(std::memory_order_relaxed)) {
             for (int ch = 0; ch < std::min(buffer.getNumChannels(), trackBlock.getNumChannels()); ++ch) {
@@ -141,7 +152,7 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
 
 int Track::getLatencySamples() const {
     int totalLatency = 0;
-    if (source) totalLatency += source->getLatencySamples();
+    if (instrument) totalLatency += instrument->getLatencySamples();
     totalLatency += insertGraph.getLatencySamples();
     return totalLatency;
 }
@@ -183,5 +194,9 @@ void Track::setPan(float panValue) {
 void Track::setMuted(bool muted) { muted_.store(muted); }
 void Track::setSoloed(bool soloed) { soloed_.store(soloed); }
 void Track::setArmed(bool armed) { armed_.store(armed); }
+
+void Track::setCompensationDelay(int samples) {
+    outputDelayLine.setDelaySamples(samples);
+}
 
 } // namespace Nimbus

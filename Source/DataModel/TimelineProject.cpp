@@ -16,7 +16,11 @@ void TimelineProject::insertTrack(int index, const TrackModel& track) {
 }
 
 const TrackModel& TimelineProject::getTrack(int index) const {
-    return tracks[index];
+    if (index >= 0 && index < tracks.size()) {
+        return tracks[index];
+    }
+    static const TrackModel dummyTrack;
+    return dummyTrack;
 }
 
 int TimelineProject::getNumTracks() const {
@@ -41,6 +45,7 @@ void TimelineProject::removeTrack(int index)
 
         // 1. Remove the target track (the group folder itself, or a standard track)
         tracks.erase(tracks.begin() + index);
+        if (index < trackClips.size()) trackClips.erase(trackClips.begin() + index);
         
         // Broadcast removal so the UI components shift their indices down
         listeners.call([index](Listener& l) { l.trackRemoved(index); });
@@ -53,6 +58,7 @@ void TimelineProject::removeTrack(int index)
             while (index < tracks.size() && tracks[index].parentGroupId == groupId)
             {
                 tracks.erase(tracks.begin() + index);
+                if (index < trackClips.size()) trackClips.erase(trackClips.begin() + index);
                 listeners.call([index](Listener& l) { l.trackRemoved(index); });
             }
         }
@@ -323,7 +329,7 @@ std::vector<AnyClipPtr> TimelineProject::getClipsOnTrack(int trackIndex) const {
 }
 
 void TimelineProject::notifyClipModified() {
-    for (size_t trackIndex = 0; trackIndex < trackClips.size(); ++trackIndex) {
+    for (size_t trackIndex = 0; trackIndex < std::min(tracks.size(), trackClips.size()); ++trackIndex) {
         listeners.call(&Listener::trackClipsChanged, static_cast<int>(trackIndex));
     }
 }

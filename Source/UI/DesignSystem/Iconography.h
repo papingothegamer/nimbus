@@ -29,7 +29,7 @@ namespace Nimbus::DesignSystem {
         static const inline juce::String Eraser = "eraser_svg";
         static const inline juce::String Envelope = "arrowupdown_svg";
         static const inline juce::String Cut = "contentcut_svg";
-        static const inline juce::String Trim = "trim_svg";
+        static const inline juce::String Trim = "contentcut_svg";
         static const inline juce::String Copy = "copy_svg";
         static const inline juce::String Paste = "paste_svg";
 

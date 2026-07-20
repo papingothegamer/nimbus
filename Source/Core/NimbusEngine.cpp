@@ -8,6 +8,8 @@
 #include "AudioEngine/AudioClipNode.h"
 #include "AudioEngine/MidiClipNode.h"
 #include "AudioEngine/PluginNode.h"
+#include "Plugins/StockPluginFactory.h"
+#include "Plugins/IStockPlugin.h"
 
 #include "AudioEngine/PlaybackEngine.h"
 
@@ -48,6 +50,74 @@ void NimbusEngine::addTrack(bool isMidi, bool isStereo) {
     
     timelineProject.addTrack(model);
     // Track node is now created by PlaybackEngine observing timelineProject
+}
+
+void NimbusEngine::duplicateTrack(int trackIndex) {
+    auto originalTrack = mixer->getTrack(trackIndex);
+    
+    // Get plugin state
+    juce::MemoryBlock instrumentState;
+    juce::String instrumentId;
+    if (originalTrack && originalTrack->getInstrumentPlugin()) {
+        if (auto* vst = dynamic_cast<PluginNode*>(originalTrack->getInstrumentPlugin())) {
+            if (vst->getPluginInstance()) {
+                instrumentId = vst->getPluginInstance()->getPluginDescription().fileOrIdentifier;
+                vst->getPluginInstance()->getStateInformation(instrumentState);
+            }
+        }
+    }
+    
+    struct PluginInfo {
+        juce::String id;
+        juce::MemoryBlock state;
+    };
+    std::vector<PluginInfo> insertPlugins;
+    if (originalTrack) {
+        for (auto& node : originalTrack->getInsertGraph().getNodes()) {
+            if (auto* vst = dynamic_cast<PluginNode*>(node.get())) {
+                if (vst->getPluginInstance()) {
+                    juce::MemoryBlock state;
+                    vst->getPluginInstance()->getStateInformation(state);
+                    insertPlugins.push_back({vst->getPluginInstance()->getPluginDescription().fileOrIdentifier, state});
+                }
+            } else if (auto* stock = dynamic_cast<IStockPlugin*>(node.get())) {
+                // Stock plugins don't have persistence yet, but we'll try to recreate them
+                insertPlugins.push_back({stock->getName(), juce::MemoryBlock()}); 
+            }
+        }
+    }
+    
+    // Duplicate the timeline data
+    timelineProject.duplicateTrack(trackIndex);
+    
+    // Now apply plugins to the new track
+    auto newTrack = mixer->getTrack(trackIndex + 1); // inserted right after
+    if (newTrack) {
+        if (instrumentId.isNotEmpty()) {
+            juce::String err;
+            auto newInstance = pluginManager.loadPlugin(instrumentId, err);
+            if (newInstance) {
+                newInstance->setStateInformation(instrumentState.getData(), (int)instrumentState.getSize());
+                newTrack->setInstrumentPlugin(std::make_unique<PluginNode>(std::move(newInstance)));
+            }
+        }
+        
+        for (auto& plug : insertPlugins) {
+            juce::String err;
+            auto newInstance = pluginManager.loadPlugin(plug.id, err);
+            if (newInstance) {
+                if (plug.state.getSize() > 0) {
+                    newInstance->setStateInformation(plug.state.getData(), (int)plug.state.getSize());
+                }
+                newTrack->addInsertPlugin(std::make_unique<PluginNode>(std::move(newInstance)));
+            } else {
+                auto stockPlug = StockPluginFactory::createPlugin(plug.id);
+                if (stockPlug) {
+                    newTrack->addInsertPlugin(std::move(stockPlug));
+                }
+            }
+        }
+    }
 }
 
 float NimbusEngine::getMasterPeakLevel() const {

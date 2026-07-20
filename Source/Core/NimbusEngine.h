@@ -39,6 +39,7 @@ public:
     TimelineProject& getTimelineProject() { return timelineProject; }
     PluginManager& getPluginManager() { return pluginManager; }
     PluginNode* getTestPluginNode() const { return testPluginNode.get(); }
+    juce::UndoManager& getUndoManager() { return undoManager; }
 
     bool isFollowPlayheadEnabled() const { return followPlayhead; }
     void setFollowPlayheadEnabled(bool enabled) { followPlayhead = enabled; }
@@ -52,8 +53,7 @@ public:
     std::function<void()> onSidebarLocationChanged;
 
     void addTrack(bool isMidi, bool isStereo = true);
-
-    // Removed TimelineProject::Listener overrides, now handled by PlaybackEngine
+    void duplicateTrack(int trackIndex);
     
     float getMasterPeakLevel() const;
     float getTrackPeakLevel(int trackIndex) const;
@@ -79,6 +79,7 @@ private:
     juce::AudioThumbnailCache thumbnailCache;
     PluginManager pluginManager;
     TimelineProject timelineProject;
+    juce::UndoManager undoManager;
 
     juce::TimeSliceThread recorderThread { "RecorderThread" };
     std::map<int, std::unique_ptr<AudioRecorder>> trackRecorders;

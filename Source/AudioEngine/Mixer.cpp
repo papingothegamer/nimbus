@@ -38,7 +38,14 @@ void Mixer::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
 
     const juce::SpinLock::ScopedLockType sl(processLock);
 
-    // 4. Process and sum all tracks
+    // 4. Update Plugin Delay Compensation (PDC)
+    int maxLatency = getLatencySamples();
+    for (auto& track : tracks) {
+        int trackLatency = track->getLatencySamples();
+        track->setCompensationDelay(maxLatency - trackLatency);
+    }
+
+    // 5. Process and sum all tracks
     bool anySoloed = false;
     for (auto& t : tracks) if (t->isSoloed()) { anySoloed = true; break; }
 

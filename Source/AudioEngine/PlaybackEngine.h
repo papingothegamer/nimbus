@@ -32,6 +32,8 @@ public:
     void trackClipsChanged(int trackIndex) override;
 
     Track* getAudioTrack(const TrackID& trackId);
+    
+    int getProjectLatencySamples() const { return mixer.getLatencySamples(); }
 
 private:
     NimbusEngine& engine;

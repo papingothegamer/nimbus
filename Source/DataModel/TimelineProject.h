@@ -62,6 +62,8 @@ public:
         virtual void timeSelectionChanged() {}
         virtual void trackFoldStateChanged(int trackIndex, bool isFolded) {}
         virtual void tracksGrouped() {}
+        virtual void projectNameChanged(const juce::String& newName) {}
+        virtual void timeSignatureChanged(int num, int den) {}
         virtual void trackClipsChanged(int trackIndex) {}
         virtual void selectedClipChanged() {}
         virtual void trackSoloChanged(int trackIndex, bool isSoloed) {}
@@ -130,16 +132,25 @@ public:
     
     // Project Metadata
     const juce::String& getProjectName() const { return projectName; }
-    void setProjectName(const juce::String& name) { projectName = name; }
+    void setProjectName(const juce::String& name) { 
+        projectName = name; 
+        listeners.call(&Listener::projectNameChanged, name);
+    }
     
     const juce::String& getKeySignature() const { return keySignature; }
     void setKeySignature(const juce::String& key) { keySignature = key; }
     
     int getTimeSigNumerator() const { return timeSigNumerator; }
-    void setTimeSigNumerator(int num) { timeSigNumerator = num; }
+    void setTimeSigNumerator(int num) { 
+        timeSigNumerator = num; 
+        listeners.call(&Listener::timeSignatureChanged, num, timeSigDenominator);
+    }
     
     int getTimeSigDenominator() const { return timeSigDenominator; }
-    void setTimeSigDenominator(int den) { timeSigDenominator = den; }
+    void setTimeSigDenominator(int den) { 
+        timeSigDenominator = den; 
+        listeners.call(&Listener::timeSignatureChanged, timeSigNumerator, den);
+    }
     
     int getLastSelectedTrack() const { return lastSelectedTrack; }
 

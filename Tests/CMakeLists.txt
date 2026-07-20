@@ -23,6 +23,7 @@ add_executable(NimbusTests
     ../Source/AudioEngine/DiskStreaming/DiskStreamer.cpp
     ../Source/AudioEngine/Transport.cpp
     ../Source/DSP/GainNode.cpp
+    ../Source/DSP/DelayLine.cpp
     ../Source/DataModel/AudioClip.cpp
     ../Source/DataModel/MidiClip.cpp
     ../Source/DataModel/TimelineProject.cpp

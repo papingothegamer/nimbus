@@ -7,20 +7,24 @@ Transport::Transport() = default;
 
 void Transport::play() {
     playing.store(true, std::memory_order_relaxed);
+    juce::MessageManager::callAsync([this]() { listeners.call(&Listener::transportStateChanged); });
 }
 
 void Transport::stop() {
     playing.store(false, std::memory_order_relaxed);
     recording.store(false, std::memory_order_relaxed);
+    juce::MessageManager::callAsync([this]() { listeners.call(&Listener::transportStateChanged); });
 }
 
 void Transport::record() {
     recording.store(true, std::memory_order_relaxed);
     playing.store(true, std::memory_order_relaxed);
+    juce::MessageManager::callAsync([this]() { listeners.call(&Listener::transportStateChanged); });
 }
 
 void Transport::stopRecording() {
     recording.store(false, std::memory_order_relaxed);
+    juce::MessageManager::callAsync([this]() { listeners.call(&Listener::transportStateChanged); });
 }
 
 void Transport::setPosition(double samplePosition) {
@@ -49,6 +53,7 @@ bool Transport::isLooping() const {
 
 void Transport::setLooping(bool shouldLoop) {
     looping.store(shouldLoop, std::memory_order_relaxed);
+    juce::MessageManager::callAsync([this, shouldLoop]() { listeners.call(&Listener::transportLoopingChanged, shouldLoop); });
 }
 
 void Transport::setLoopRegion(double startSamples, double endSamples) {
@@ -74,6 +79,7 @@ double Transport::getTempo() const {
 
 void Transport::setTempo(double newTempo) {
     tempo.store(newTempo, std::memory_order_relaxed);
+    juce::MessageManager::callAsync([this, newTempo]() { listeners.call(&Listener::transportTempoChanged, newTempo); });
 }
 
 int Transport::getTimeSignatureNumerator() const {

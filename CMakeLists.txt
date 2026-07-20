@@ -180,6 +180,7 @@ target_sources(Nimbus PRIVATE
     Source/AudioEngine/AudioClipNode.cpp
     Source/AudioEngine/DiskStreaming/DiskStreamer.cpp
     Source/DSP/GainNode.cpp
+    Source/DSP/DelayLine.cpp
     Source/DataModel/AudioClip.cpp
     Source/DataModel/MidiClip.cpp
     Source/AudioEngine/MidiClipNode.cpp

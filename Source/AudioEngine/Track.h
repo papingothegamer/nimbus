@@ -4,6 +4,7 @@
 #include "AudioGraph.h"
 #include "DSP/GainNode.h"
 #include "DSP/LevelMeter.h"
+#include "DSP/DelayLine.h"
 #include <memory>
 #include <atomic>
 #include <JuceHeader.h>
@@ -78,6 +79,9 @@ public:
     float getPeakLevel() const { return meter.getPeakLevel(); }
     float getRMSLevel() const { return meter.getRMSLevel(); }
 
+    // PDC (Plugin Delay Compensation)
+    void setCompensationDelay(int samples);
+
 private:
     TrackID id_;
     std::unique_ptr<IAudioNode> source;
@@ -85,6 +89,7 @@ private:
     AudioGraph insertGraph;
     GainNode fader;
     LevelMeter meter;
+    DelayLine outputDelayLine;
     
     // Intermediate buffer to hold this track's isolated audio
     juce::AudioBuffer<float> trackBuffer;

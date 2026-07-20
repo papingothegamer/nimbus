@@ -394,7 +394,14 @@ void DeviceChainComponent::updateChain() {
     
     int trackIndex = selectedTracks.getRange(0).getStart();
     auto track = engine.getMixer()->getTrack(trackIndex);
-    if (!track) return;
+    if (!track) {
+        if (currentTrackIndex != -1) {
+            currentTrackIndex = -1;
+            pluginBoxes.clear();
+            repaint();
+        }
+        return;
+    }
     
     // Count total expected nodes
     int expectedNodes = (track->getInstrumentPlugin() != nullptr ? 1 : 0) + track->getInsertGraph().getNodes().size();

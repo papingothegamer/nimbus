@@ -30,6 +30,14 @@ void AudioGraph::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer
     }
 }
 
+int AudioGraph::getLatencySamples() const {
+    int totalLatency = 0;
+    for (const auto& node : nodes) {
+        totalLatency += node->getLatencySamples();
+    }
+    return totalLatency;
+}
+
 void AudioGraph::addNode(std::unique_ptr<IAudioNode> newNode) {
     if (newNode) {
         if (currentSampleRate > 0) {
