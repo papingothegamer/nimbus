@@ -126,7 +126,7 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
             outputDelayLine.process(stereoBlock);
         }
         
-        if (!muted_.load(std::memory_order_relaxed)) {
+        if (!muted_.load(std::memory_order_relaxed) && !silencedBySolo_.load(std::memory_order_relaxed)) {
             for (int ch = 0; ch < 2; ++ch) {
                 buffer.addFrom(ch, 0, stereoBlock, ch, 0, numSamples);
             }
@@ -139,7 +139,7 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
             outputDelayLine.process(trackBlock);
         }
         
-        if (!muted_.load(std::memory_order_relaxed)) {
+        if (!muted_.load(std::memory_order_relaxed) && !silencedBySolo_.load(std::memory_order_relaxed)) {
             for (int ch = 0; ch < std::min(buffer.getNumChannels(), trackBlock.getNumChannels()); ++ch) {
                 buffer.addFrom(ch, 0, trackBlock, ch, 0, numSamples);
             }
@@ -151,6 +151,7 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
 }
 
 int Track::getLatencySamples() const {
+    const juce::SpinLock::ScopedLockType sl(processLock);
     int totalLatency = 0;
     if (instrument) totalLatency += instrument->getLatencySamples();
     totalLatency += insertGraph.getLatencySamples();
@@ -174,6 +175,9 @@ void Track::setInstrumentPlugin(std::unique_ptr<IAudioNode> instrumentNode) {
 }
 
 void Track::addInsertPlugin(std::unique_ptr<IAudioNode> pluginNode) {
+    if (pluginNode && currentSampleRate > 0) {
+        pluginNode->prepareToPlay(currentSampleRate, currentBlockSize);
+    }
     const juce::SpinLock::ScopedLockType sl(processLock);
     insertGraph.addNode(std::move(pluginNode));
 }

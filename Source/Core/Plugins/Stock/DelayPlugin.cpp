@@ -113,4 +113,21 @@ void DelayPlugin::updateDSP() {
     dspDelay.setDelay(samples);
 }
 
+void DelayPlugin::getStateInformation(juce::MemoryBlock& destData) {
+    juce::MemoryOutputStream stream(destData, true);
+    stream.writeFloat(delayTimeMs.load());
+    stream.writeFloat(feedback.load());
+    stream.writeFloat(wetMix.load());
+    stream.writeBool(bypassed.load());
+}
+
+void DelayPlugin::setStateInformation(const void* data, int sizeInBytes) {
+    juce::MemoryInputStream stream(data, static_cast<size_t>(sizeInBytes), false);
+    if (!stream.isExhausted()) delayTimeMs.store(stream.readFloat());
+    if (!stream.isExhausted()) feedback.store(stream.readFloat());
+    if (!stream.isExhausted()) wetMix.store(stream.readFloat());
+    if (!stream.isExhausted()) bypassed.store(stream.readBool());
+    updateDSP();
+}
+
 } // namespace Nimbus

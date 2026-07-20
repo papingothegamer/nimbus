@@ -18,6 +18,10 @@ public:
     
     virtual bool isBypassed() const = 0;
     virtual void setBypassed(bool b) = 0;
+    
+    // State persistence
+    virtual void getStateInformation(juce::MemoryBlock& destData) {}
+    virtual void setStateInformation(const void* data, int sizeInBytes) {}
 };
 
 } // namespace Nimbus

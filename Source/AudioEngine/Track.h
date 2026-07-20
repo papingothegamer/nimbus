@@ -73,6 +73,8 @@ public:
     
     bool isMuted() const { return muted_.load(); }
     bool isSoloed() const { return soloed_.load(); }
+    void setSilencedBySolo(bool silenced) { silencedBySolo_.store(silenced); }
+    bool isSilencedBySolo() const { return silencedBySolo_.load(); }
     bool isArmed() const { return armed_.load(); }
 
     // Level Metering (Called by UI thread)
@@ -103,6 +105,7 @@ private:
     int currentBlockSize = 512;
     std::atomic<bool> muted_{false};
     std::atomic<bool> soloed_{false};
+    std::atomic<bool> silencedBySolo_{false};
     std::atomic<bool> armed_{false};
     bool isStereo_ = true;
     std::atomic<int> inputChannelIndex_{-1};

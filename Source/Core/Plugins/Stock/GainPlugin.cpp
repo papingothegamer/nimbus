@@ -114,4 +114,19 @@ void GainPlugin::updateDSP() {
     dspGain.setGainLinear(linearGain);
 }
 
+void GainPlugin::getStateInformation(juce::MemoryBlock& destData) {
+    juce::MemoryOutputStream stream(destData, true);
+    stream.writeFloat(gainDb.load());
+    stream.writeBool(phaseInvert.load());
+    stream.writeBool(bypassed.load());
+}
+
+void GainPlugin::setStateInformation(const void* data, int sizeInBytes) {
+    juce::MemoryInputStream stream(data, static_cast<size_t>(sizeInBytes), false);
+    if (!stream.isExhausted()) gainDb.store(stream.readFloat());
+    if (!stream.isExhausted()) phaseInvert.store(stream.readBool());
+    if (!stream.isExhausted()) bypassed.store(stream.readBool());
+    updateDSP();
+}
+
 } // namespace Nimbus

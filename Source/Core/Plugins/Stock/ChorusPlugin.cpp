@@ -101,4 +101,21 @@ void ChorusPlugin::updateDSP() {
     dspChorus.setMix(mix.load());
 }
 
+void ChorusPlugin::getStateInformation(juce::MemoryBlock& destData) {
+    juce::MemoryOutputStream stream(destData, true);
+    stream.writeFloat(rate.load());
+    stream.writeFloat(depth.load());
+    stream.writeFloat(mix.load());
+    stream.writeBool(bypassed.load());
+}
+
+void ChorusPlugin::setStateInformation(const void* data, int sizeInBytes) {
+    juce::MemoryInputStream stream(data, static_cast<size_t>(sizeInBytes), false);
+    if (!stream.isExhausted()) rate.store(stream.readFloat());
+    if (!stream.isExhausted()) depth.store(stream.readFloat());
+    if (!stream.isExhausted()) mix.store(stream.readFloat());
+    if (!stream.isExhausted()) bypassed.store(stream.readBool());
+    updateDSP();
+}
+
 } // namespace Nimbus

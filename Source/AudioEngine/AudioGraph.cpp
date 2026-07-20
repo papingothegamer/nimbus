@@ -31,6 +31,7 @@ void AudioGraph::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer
 }
 
 int AudioGraph::getLatencySamples() const {
+    const juce::SpinLock::ScopedLockType sl(processLock);
     int totalLatency = 0;
     for (const auto& node : nodes) {
         totalLatency += node->getLatencySamples();

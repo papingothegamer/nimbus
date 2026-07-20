@@ -653,4 +653,31 @@ void CloudEQPlugin::updateDSP() {
     }
 }
 
+void CloudEQPlugin::getStateInformation(juce::MemoryBlock& destData) {
+    juce::MemoryOutputStream stream(destData, true);
+    for (int i = 0; i < 8; ++i) {
+        stream.writeInt(static_cast<int>(bands[i].type.load()));
+        stream.writeFloat(bands[i].freq.load());
+        stream.writeFloat(bands[i].q.load());
+        stream.writeFloat(bands[i].gainDb.load());
+        stream.writeBool(bands[i].enabled.load());
+    }
+    stream.writeBool(bypassed.load());
+}
+
+void CloudEQPlugin::setStateInformation(const void* data, int sizeInBytes) {
+    juce::MemoryInputStream stream(data, static_cast<size_t>(sizeInBytes), false);
+    for (int i = 0; i < 8 && !stream.isExhausted(); ++i) {
+        bands[i].type.store(static_cast<FilterType>(stream.readInt()));
+        bands[i].freq.store(stream.readFloat());
+        bands[i].q.store(stream.readFloat());
+        bands[i].gainDb.store(stream.readFloat());
+        bands[i].enabled.store(stream.readBool());
+    }
+    if (!stream.isExhausted()) {
+        bypassed.store(stream.readBool());
+    }
+    updateDSP();
+}
+
 } // namespace Nimbus

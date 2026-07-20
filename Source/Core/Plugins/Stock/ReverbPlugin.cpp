@@ -331,4 +331,35 @@ void ReverbPlugin::updateDSP() {
     }
 }
 
+void ReverbPlugin::getStateInformation(juce::MemoryBlock& destData) {
+    juce::MemoryOutputStream stream(destData, true);
+    stream.writeFloat(roomSize.load());
+    stream.writeFloat(stereoWidth.load());
+    stream.writeFloat(preDelay.load());
+    stream.writeFloat(damping.load());
+    stream.writeFloat(reverberance.load());
+    stream.writeFloat(lowTone.load());
+    stream.writeFloat(highTone.load());
+    stream.writeFloat(wetGain.load());
+    stream.writeFloat(dryGain.load());
+    stream.writeBool(wetOnly.load());
+    stream.writeBool(bypassed.load());
+}
+
+void ReverbPlugin::setStateInformation(const void* data, int sizeInBytes) {
+    juce::MemoryInputStream stream(data, static_cast<size_t>(sizeInBytes), false);
+    if (!stream.isExhausted()) roomSize.store(stream.readFloat());
+    if (!stream.isExhausted()) stereoWidth.store(stream.readFloat());
+    if (!stream.isExhausted()) preDelay.store(stream.readFloat());
+    if (!stream.isExhausted()) damping.store(stream.readFloat());
+    if (!stream.isExhausted()) reverberance.store(stream.readFloat());
+    if (!stream.isExhausted()) lowTone.store(stream.readFloat());
+    if (!stream.isExhausted()) highTone.store(stream.readFloat());
+    if (!stream.isExhausted()) wetGain.store(stream.readFloat());
+    if (!stream.isExhausted()) dryGain.store(stream.readFloat());
+    if (!stream.isExhausted()) wetOnly.store(stream.readBool());
+    if (!stream.isExhausted()) bypassed.store(stream.readBool());
+    updateDSP();
+}
+
 } // namespace Nimbus

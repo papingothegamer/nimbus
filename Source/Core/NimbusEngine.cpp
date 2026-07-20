@@ -81,8 +81,9 @@ void NimbusEngine::duplicateTrack(int trackIndex) {
                     insertPlugins.push_back({vst->getPluginInstance()->getPluginDescription().fileOrIdentifier, state});
                 }
             } else if (auto* stock = dynamic_cast<IStockPlugin*>(node.get())) {
-                // Stock plugins don't have persistence yet, but we'll try to recreate them
-                insertPlugins.push_back({stock->getName(), juce::MemoryBlock()}); 
+                juce::MemoryBlock state;
+                stock->getStateInformation(state);
+                insertPlugins.push_back({stock->getName(), state}); 
             }
         }
     }
@@ -113,6 +114,9 @@ void NimbusEngine::duplicateTrack(int trackIndex) {
             } else {
                 auto stockPlug = StockPluginFactory::createPlugin(plug.id);
                 if (stockPlug) {
+                    if (plug.state.getSize() > 0) {
+                        stockPlug->setStateInformation(plug.state.getData(), (int)plug.state.getSize());
+                    }
                     newTrack->addInsertPlugin(std::move(stockPlug));
                 }
             }

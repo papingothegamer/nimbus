@@ -131,4 +131,21 @@ void FilterPlugin::updateDSP() {
     }
 }
 
+void FilterPlugin::getStateInformation(juce::MemoryBlock& destData) {
+    juce::MemoryOutputStream stream(destData, true);
+    stream.writeFloat(cutoff.load());
+    stream.writeFloat(resonance.load());
+    stream.writeInt(filterType.load());
+    stream.writeBool(bypassed.load());
+}
+
+void FilterPlugin::setStateInformation(const void* data, int sizeInBytes) {
+    juce::MemoryInputStream stream(data, static_cast<size_t>(sizeInBytes), false);
+    if (!stream.isExhausted()) cutoff.store(stream.readFloat());
+    if (!stream.isExhausted()) resonance.store(stream.readFloat());
+    if (!stream.isExhausted()) filterType.store(stream.readInt());
+    if (!stream.isExhausted()) bypassed.store(stream.readBool());
+    updateDSP();
+}
+
 } // namespace Nimbus

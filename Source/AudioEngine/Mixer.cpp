@@ -51,7 +51,7 @@ void Mixer::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
 
     for (auto& track : tracks) {
         track->setInputBuffer(&inputBufferCopy);
-        if (anySoloed && !track->isSoloed()) continue;
+        track->setSilencedBySolo(anySoloed && !track->isSoloed());
         track->processBlock(buffer, midiMessages);
     }
 

@@ -26,8 +26,9 @@ void PlaybackEngine::trackAdded(int trackIndex, const TrackModel& track) {
 }
 
 void PlaybackEngine::trackRemoved(int trackIndex) {
-    // We would need a way to map trackIndex to TrackID, or have the mixer remove by TrackID.
-    // For now, this requires tracking index to ID mappings or changing the mixer interface.
+    if (auto* mixerTrack = mixer.getTrack(trackIndex)) {
+        trackNodes.erase(mixerTrack->getId().toString());
+    }
     mixer.removeTrack(trackIndex);
 }
 

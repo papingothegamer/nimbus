@@ -112,4 +112,23 @@ void CompressorPlugin::updateDSP() {
     dspComp.setRelease(release.load());
 }
 
+void CompressorPlugin::getStateInformation(juce::MemoryBlock& destData) {
+    juce::MemoryOutputStream stream(destData, true);
+    stream.writeFloat(threshold.load());
+    stream.writeFloat(ratio.load());
+    stream.writeFloat(attack.load());
+    stream.writeFloat(release.load());
+    stream.writeBool(bypassed.load());
+}
+
+void CompressorPlugin::setStateInformation(const void* data, int sizeInBytes) {
+    juce::MemoryInputStream stream(data, static_cast<size_t>(sizeInBytes), false);
+    if (!stream.isExhausted()) threshold.store(stream.readFloat());
+    if (!stream.isExhausted()) ratio.store(stream.readFloat());
+    if (!stream.isExhausted()) attack.store(stream.readFloat());
+    if (!stream.isExhausted()) release.store(stream.readFloat());
+    if (!stream.isExhausted()) bypassed.store(stream.readBool());
+    updateDSP();
+}
+
 } // namespace Nimbus
