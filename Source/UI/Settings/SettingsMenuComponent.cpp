@@ -22,6 +22,12 @@ GeneralSettingsComponent::GeneralSettingsComponent(NimbusEngine& e) : engine(e) 
     metronomeToggle.onClick = [this] {
         // Toggle metronome logic
     };
+
+    addAndMakeVisible(multiArmingToggle);
+    multiArmingToggle.setToggleState(engine.getTimelineProject().isMultiArmingEnabled(), juce::dontSendNotification);
+    multiArmingToggle.onClick = [this] {
+        engine.getTimelineProject().setMultiArmingEnabled(multiArmingToggle.getToggleState());
+    };
     
     addAndMakeVisible(defaultTrackColorLabel);
     defaultTrackColorLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
@@ -71,6 +77,8 @@ void GeneralSettingsComponent::resized() {
     followPlayheadToggle.setBounds(bounds.removeFromTop(30));
     bounds.removeFromTop(10);
     metronomeToggle.setBounds(bounds.removeFromTop(30));
+    bounds.removeFromTop(10);
+    multiArmingToggle.setBounds(bounds.removeFromTop(30));
     bounds.removeFromTop(10);
     
     auto colorRect = bounds.removeFromTop(30);

@@ -131,6 +131,14 @@ bool TimelineProject::isTrackMuted(int trackIndex) const {
 
 void TimelineProject::setTrackArmed(int trackIndex, bool isArmed) {
     if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        if (isArmed && !multiArmingEnabled) {
+            for (int i = 0; i < tracks.size(); ++i) {
+                if (i != trackIndex && tracks[i].isArmed) {
+                    tracks[i].isArmed = false;
+                    listeners.call(&Listener::trackArmChanged, i, false);
+                }
+            }
+        }
         tracks[trackIndex].isArmed = isArmed;
         listeners.call(&Listener::trackArmChanged, trackIndex, isArmed);
     }
@@ -159,6 +167,14 @@ bool TimelineProject::isTrackStereo(int trackIndex) const {
 
 void TimelineProject::setTrackSoloed(int trackIndex, bool isSoloed) {
     if (trackIndex >= 0 && trackIndex < tracks.size()) {
+        if (isSoloed) {
+            for (int i = 0; i < tracks.size(); ++i) {
+                if (i != trackIndex && tracks[i].isSoloed) {
+                    tracks[i].isSoloed = false;
+                    listeners.call(&Listener::trackSoloChanged, i, false);
+                }
+            }
+        }
         tracks[trackIndex].isSoloed = isSoloed;
         listeners.call(&Listener::trackSoloChanged, trackIndex, isSoloed);
     }

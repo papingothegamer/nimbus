@@ -44,7 +44,8 @@ public:
     float getMasterPeakLevel() const { return meter.getPeakLevel(); }
     float getMasterRMSLevel() const { return meter.getRMSLevel(); }
     float getTrackPeakLevel(int index) const {
-        if (index >= 0 && index < tracks.size()) return tracks[index]->getPeakLevel();
+        const juce::SpinLock::ScopedLockType sl(processLock);
+        if (index >= 0 && index < (int)tracks.size()) return tracks[index]->getPeakLevel();
         return 0.0f;
     }
     

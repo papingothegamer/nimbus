@@ -112,6 +112,9 @@ public:
     void setTrackInputChannel(int trackIndex, int inputChannel);
     int getTrackInputChannel(int trackIndex) const;
 
+    bool isMultiArmingEnabled() const { return multiArmingEnabled; }
+    void setMultiArmingEnabled(bool enabled) { multiArmingEnabled = enabled; }
+
 
     void setTrackSelected(int trackIndex, bool clearExisting = true);
     void toggleTrackSelection(int trackIndex);
@@ -186,6 +189,8 @@ private:
     juce::String keySignature = "C MAJ";
     int timeSigNumerator = 4;
     int timeSigDenominator = 4;
+    
+    bool multiArmingEnabled = false;
 };
 
 } // namespace Nimbus

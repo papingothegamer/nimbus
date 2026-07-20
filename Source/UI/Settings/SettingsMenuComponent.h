@@ -17,6 +17,7 @@ private:
     NimbusEngine& engine;
     juce::ToggleButton followPlayheadToggle { "Follow Playhead" };
     juce::ToggleButton metronomeToggle { "Enable Metronome" };
+    juce::ToggleButton multiArmingToggle { "Enable Multi-Channel Arming" };
     
     juce::Label defaultTrackColorLabel { {}, "Default Track Color:" };
     juce::ComboBox defaultTrackColorCombo;
