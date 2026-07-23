@@ -169,6 +169,7 @@ target_sources(Nimbus PRIVATE
     Source/UI/PluginWindow.cpp
     Source/UI/PluginWindow.h
     Source/Core/NimbusEngine.cpp
+    Source/AudioEngine/ComputerMidiController.cpp
     Source/AudioEngine/AudioGraph.cpp
     Source/AudioEngine/AudioDeviceManagerWrapper.cpp
     Source/AudioEngine/Transport.cpp

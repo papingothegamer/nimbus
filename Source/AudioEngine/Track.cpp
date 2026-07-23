@@ -71,7 +71,11 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
 
         // Route live MIDI input only if armed
         if (armed_.load(std::memory_order_relaxed)) {
-            trackMidiBuffer.addEvents(midiMessages, 0, numSamples, 0);
+            bool shouldProcessMidi = (instrument != nullptr);
+            
+            if (shouldProcessMidi) {
+                trackMidiBuffer.addEvents(midiMessages, 0, numSamples, 0);
+            }
             
             // Route live AUDIO input if no instrument is present
             if (inputBufferPtr != nullptr && instrument == nullptr) {
@@ -92,7 +96,7 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
                 recorder_->pushSamples(trackBlock, numSamples);
             }
             
-            if (midiRecorder_ != nullptr && transport != nullptr && transport->isRecording()) {
+            if (midiRecorder_ != nullptr && transport != nullptr && transport->isRecording() && shouldProcessMidi) {
                 double startPos = transport->getCurrentPosition();
                 midiRecorder_->pushEvents(midiMessages, numSamples, startPos);
             }

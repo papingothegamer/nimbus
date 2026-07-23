@@ -175,6 +175,62 @@ void DisplaySettingsComponent::resized() {
 }
 
 // ==============================================================================
+// CustomMidiSettingsComponent
+// ==============================================================================
+
+CustomMidiSettingsComponent::CustomMidiSettingsComponent(NimbusEngine& e) : engine(e) {
+    addAndMakeVisible(headerLabel);
+    headerLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(16.0f).boldened());
+    headerLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
+
+    refreshDeviceList();
+}
+
+CustomMidiSettingsComponent::~CustomMidiSettingsComponent() {}
+
+void CustomMidiSettingsComponent::refreshDeviceList() {
+    deviceToggles.clear();
+    auto devices = juce::MidiInput::getAvailableDevices();
+
+    auto& adm = engine.getAudioDeviceManager().getJuceAudioDeviceManager();
+
+    for (int i = 0; i < devices.size(); ++i) {
+        auto dev = devices[i];
+        auto toggle = std::make_unique<juce::ToggleButton>(dev.name);
+        
+        bool isEnabled = adm.isMidiInputDeviceEnabled(dev.identifier);
+        toggle->setToggleState(isEnabled, juce::dontSendNotification);
+        
+        juce::String id = dev.identifier;
+        toggle->onClick = [this, id, i]() {
+            bool newState = deviceToggles[i]->getToggleState();
+            engine.getAudioDeviceManager().getJuceAudioDeviceManager().setMidiInputDeviceEnabled(id, newState);
+        };
+
+        addAndMakeVisible(toggle.get());
+        deviceToggles.push_back(std::move(toggle));
+    }
+    
+    resized();
+}
+
+void CustomMidiSettingsComponent::paint(juce::Graphics& g) {
+    g.fillAll(DesignSystem::Colors::PanelBackground);
+}
+
+void CustomMidiSettingsComponent::resized() {
+    auto bounds = getLocalBounds().reduced(20);
+    
+    headerLabel.setBounds(bounds.removeFromTop(30));
+    bounds.removeFromTop(10);
+    
+    for (auto& toggle : deviceToggles) {
+        toggle->setBounds(bounds.removeFromTop(30));
+        bounds.removeFromTop(5);
+    }
+}
+
+// ==============================================================================
 // SettingsMenuComponent
 // ==============================================================================
 
@@ -184,9 +240,7 @@ SettingsMenuComponent::SettingsMenuComponent(NimbusEngine& engineToUse)
       // Audio Setup: hide midi options
       audioSetupComp(engine.getAudioDeviceManager().getJuceAudioDeviceManager(),
                      0, 256, 0, 256, false, false, true, false),
-      // MIDI Setup: hide audio options, show midi
-      midiSetupComp(engine.getAudioDeviceManager().getJuceAudioDeviceManager(),
-                     0, 0, 0, 0, true, true, false, false),
+      midiSetupComp(engine),
       generalComp(engine),
       displayComp(engine)
 {

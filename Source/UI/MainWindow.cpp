@@ -1,5 +1,6 @@
 #include "UI/MainWindow.h"
 #include "UI/DesignSystem/Colors.h"
+#include "AudioEngine/ComputerMidiController.h"
 
 namespace Nimbus {
 
@@ -170,6 +171,10 @@ MainWindow::MainWindow(juce::String name, NimbusEngine& engineToUse)
     setUsingNativeTitleBar(true);
     
     setContentNonOwned(&mainContent, true);
+
+    if (auto* ctrl = engineToUse.getComputerMidiController()) {
+        addKeyListener(ctrl);
+    }
 
     setResizable(true, true);
     centreWithSize(1280, 800);

@@ -3,6 +3,7 @@
 #include "UI/DesignSystem/Typography.h"
 #include "UI/DesignSystem/Iconography.h"
 #include "UI/Settings/SettingsMenuComponent.h"
+#include "AudioEngine/ComputerMidiController.h"
 
 namespace Nimbus::MainLayout {
 
@@ -239,7 +240,9 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     pianoRollToggle.setClickingTogglesState(true);
     pianoRollToggle.onClick = [this]() {
         loadSvgIcon(pianoRollToggle, pianoRollToggle.getToggleState() ? DesignSystem::Iconography::PianoOn : DesignSystem::Iconography::PianoOff);
-        if (onDetailToggle) onDetailToggle();
+        if (auto* ctrl = engine.getComputerMidiController()) {
+            ctrl->setEnabled(pianoRollToggle.getToggleState());
+        }
     };
     mixerToggle.setClickingTogglesState(true);
     

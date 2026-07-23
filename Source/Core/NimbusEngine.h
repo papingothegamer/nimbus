@@ -19,6 +19,7 @@ class DiskStreamer;
 class PluginNode;
 class MidiRecorder;
 class PlaybackEngine;
+class ComputerMidiController;
 
 /**
  * The root service container for the Nimbus DAW.
@@ -38,6 +39,7 @@ public:
     juce::AudioThumbnailCache& getThumbnailCache() { return thumbnailCache; }
     TimelineProject& getTimelineProject() { return timelineProject; }
     PluginManager& getPluginManager() { return pluginManager; }
+    ComputerMidiController* getComputerMidiController() const { return computerMidiController.get(); }
     PluginNode* getTestPluginNode() const { return testPluginNode.get(); }
     juce::UndoManager& getUndoManager() { return undoManager; }
 
@@ -89,6 +91,8 @@ private:
 
     // Temporary storage for our single disk streamer for Phase 4
     std::shared_ptr<DiskStreamer> mainStreamer;
+
+    std::unique_ptr<ComputerMidiController> computerMidiController;
 
     // Temporary storage for our Phase 5 test plugin
     std::shared_ptr<PluginNode> testPluginNode;

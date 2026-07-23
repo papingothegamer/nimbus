@@ -10,12 +10,20 @@
 #include "AudioEngine/PluginNode.h"
 #include "Plugins/StockPluginFactory.h"
 #include "Plugins/IStockPlugin.h"
+#include "AudioEngine/ComputerMidiController.h"
 
 #include "AudioEngine/PlaybackEngine.h"
 
 namespace Nimbus {
 
-NimbusEngine::NimbusEngine() : deviceManagerWrapper(mainGraph, transport), thumbnailCache(5) {
+NimbusEngine::NimbusEngine() 
+    : deviceManagerWrapper(mainGraph, transport), thumbnailCache(5)
+{
+    formatManager.registerBasicFormats();
+    
+    // Create computer midi controller
+    computerMidiController = std::make_unique<ComputerMidiController>(*this);
+    
     juce::Logger::writeToLog("NimbusEngine constructed");
 }
 

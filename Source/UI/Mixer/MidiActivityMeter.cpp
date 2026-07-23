@@ -25,15 +25,15 @@ void MidiActivityMeter::paint(juce::Graphics& g) {
 
     if (currentLevel <= 0.0f) return;
 
-    // 2. Draw Active Meter (Midi dots)
-    g.setColour(juce::Colours::orange);
+    // 2. Draw Active Meter (Midi squares)
+    g.setColour(juce::Colours::white);
     int numDots = 15;
     float dotSpacing = bounds.getHeight() / numDots;
     int activeDots = juce::roundToInt(currentLevel * numDots);
     
     for (int i = 0; i < activeDots; ++i) {
         float yPos = bounds.getHeight() - (i * dotSpacing) - dotSpacing;
-        g.fillEllipse(meterWidth * 0.5f - 2.5f, yPos + 1.0f, 5.0f, 5.0f);
+        g.fillRect(meterWidth * 0.5f - 2.5f, yPos + 1.0f, 5.0f, 5.0f);
     }
 }
 

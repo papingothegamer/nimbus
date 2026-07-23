@@ -98,6 +98,10 @@ void AudioDeviceManagerWrapper::handleIncomingMidiMessage(juce::MidiInput* /*sou
     midiCollector.addMessageToQueue(message);
 }
 
+void AudioDeviceManagerWrapper::injectMidiMessage(const juce::MidiMessage& msg) {
+    midiCollector.addMessageToQueue(msg);
+}
+
 void AudioDeviceManagerWrapper::audioDeviceIOCallbackWithContext(const float* const* inputChannelData,
                                                                  int numInputChannels,
                                                                  float* const* outputChannelData,

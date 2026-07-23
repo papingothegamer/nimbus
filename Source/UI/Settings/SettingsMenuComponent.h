@@ -58,6 +58,23 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(DisplaySettingsComponent)
 };
 
+// A custom component for MIDI Settings
+class CustomMidiSettingsComponent : public juce::Component {
+public:
+    CustomMidiSettingsComponent(NimbusEngine& engine);
+    ~CustomMidiSettingsComponent() override;
+    void paint(juce::Graphics& g) override;
+    void resized() override;
+private:
+    NimbusEngine& engine;
+    juce::Label headerLabel { {}, "MIDI Input Devices:" };
+    std::vector<std::unique_ptr<juce::ToggleButton>> deviceToggles;
+
+    void refreshDeviceList();
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CustomMidiSettingsComponent)
+};
+
 class SettingsMenuComponent : public juce::Component, public juce::ListBoxModel {
 public:
     SettingsMenuComponent(NimbusEngine& engine);
@@ -80,7 +97,7 @@ private:
     juce::Component* currentContent { nullptr };
     
     juce::AudioDeviceSelectorComponent audioSetupComp;
-    juce::AudioDeviceSelectorComponent midiSetupComp;
+    CustomMidiSettingsComponent midiSetupComp;
     
     // Placeholder components for new Audacity-like tabs
     juce::Component playbackComp;

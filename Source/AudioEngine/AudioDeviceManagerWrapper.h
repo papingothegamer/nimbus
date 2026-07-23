@@ -31,6 +31,8 @@ public:
 
     // juce::MidiInputCallback
     void handleIncomingMidiMessage(juce::MidiInput* source, const juce::MidiMessage& message) override;
+    
+    void injectMidiMessage(const juce::MidiMessage& msg);
 
     // juce::ChangeListener
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
