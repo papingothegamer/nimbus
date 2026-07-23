@@ -175,28 +175,34 @@ void GroupTrackHeaderComponent::resized() {
     bounds.removeFromLeft(4); // left border
     bounds.removeFromLeft(12); // Indent for the new left border
 
-    int yCenter = bounds.getCentreY();
+    auto topRow = bounds.removeFromTop(30);
     
     // Add 8px baseline padding
-    bounds.removeFromLeft(8);
+    topRow.removeFromLeft(8);
     
     // Fold Button
-    foldButton.setBounds(bounds.removeFromLeft(20).withSizeKeepingCentre(16, 16));
-    
-    bounds.removeFromLeft(4); // space
+    foldButton.setBounds(topRow.removeFromLeft(20).withSizeKeepingCentre(16, 16));
+    topRow.removeFromLeft(4); // space
     
     // Power Toggle (Number Box)
-    powerToggle.setBounds(bounds.removeFromLeft(24).withSizeKeepingCentre(24, 20));
+    powerToggle.setBounds(topRow.removeFromLeft(24).withSizeKeepingCentre(24, 20));
+    topRow.removeFromLeft(4); // space
     
-    bounds.removeFromLeft(4); // space
-    
-    // Right edge controls
-    int rightEdge = getLocalBounds().getWidth() - 30; // padding from right edge
-    soloButton.setBounds(rightEdge - 20, bounds.getY() + (bounds.getHeight() - 16) / 2, 16, 16);
-    muteButton.setBounds(rightEdge - 42, bounds.getY() + (bounds.getHeight() - 16) / 2, 16, 16);
-    
-    // Track Name takes remaining space
-    trackNameLabel.setBounds(bounds.withWidth(juce::jmax(1, rightEdge - 46 - bounds.getX())));
+    // Track Name takes remaining space on top row
+    trackNameLabel.setBounds(topRow);
+
+    // Bottom Row for Mute/Solo
+    if (bounds.getHeight() >= 24) {
+        auto bottomRow = bounds.removeFromTop(24);
+        int startX = bottomRow.getX() + 52; // Indent past fold and power buttons
+        
+        soloButton.setBounds(startX + 2, bottomRow.getY() + 2, 16, 20);
+        startX += 24;
+        muteButton.setBounds(startX + 2, bottomRow.getY() + 2, 16, 20);
+    } else {
+        soloButton.setBounds(0, 0, 0, 0);
+        muteButton.setBounds(0, 0, 0, 0);
+    }
 }
 
 } // namespace Nimbus::Timeline
