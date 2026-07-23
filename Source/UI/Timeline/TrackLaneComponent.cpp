@@ -14,7 +14,11 @@ TrackLaneComponent::~TrackLaneComponent() {
 }
 
 void TrackLaneComponent::paint(juce::Graphics& g) {
-    g.fillAll(DesignSystem::Colors::PanelBackground);
+    g.fillAll(juce::Colours::transparentBlack);
+    
+    // Draw horizontal grid lines if needed
+    g.setColour(juce::Colours::darkgrey.withAlpha(0.2f));
+    g.drawLine(0, getHeight() - 1.0f, getWidth(), getHeight() - 1.0f);
 
     // The parent component is painted behind this lane, so the arrangement
     // grid must be rendered here to remain visible above the lane background.
@@ -191,6 +195,7 @@ void TrackLaneComponent::updateClips() {
     }
     
     resized();
+    repaint();
 }
 
 bool TrackLaneComponent::isInterestedInFileDrag(const juce::StringArray& files) {

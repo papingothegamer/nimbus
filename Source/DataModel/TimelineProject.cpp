@@ -11,7 +11,7 @@ void TimelineProject::addTrack(const TrackModel& track) {
 void TimelineProject::insertTrack(int index, const TrackModel& track) {
     if (index < 0 || index > tracks.size()) return;
     tracks.insert(tracks.begin() + index, track);
-    trackClips.insert(trackClips.begin() + index, {});
+    trackClips.insert(trackClips.begin() + index, std::vector<AnyClipPtr>());
     listeners.call(&Listener::trackAdded, index, track);
 }
 
@@ -79,6 +79,17 @@ void TimelineProject::removeTrack(int index)
             {
                 tracks.erase(tracks.begin() + index);
                 if (index < trackClips.size()) trackClips.erase(trackClips.begin() + index);
+                
+                juce::SparseSet<int> newSelection;
+                for (int i = 0; i < selectedTracks.getNumRanges(); ++i) {
+                    auto range = selectedTracks.getRange(i);
+                    for (int r = range.getStart(); r < range.getEnd(); ++r) {
+                        if (r < index) newSelection.addRange(juce::Range<int>(r, r + 1));
+                        else if (r > index) newSelection.addRange(juce::Range<int>(r - 1, r));
+                    }
+                }
+                selectedTracks = newSelection;
+
                 listeners.call([index](Listener& l) { l.trackRemoved(index); });
             }
         }
@@ -100,7 +111,7 @@ void TimelineProject::groupTracks(const juce::SparseSet<int>& trackIndices) {
     
     // Insert directly into data model
     tracks.insert(tracks.begin() + firstIndex, groupTrack);
-    trackClips.insert(trackClips.begin() + firstIndex, {});
+    trackClips.insert(trackClips.begin() + firstIndex, std::vector<AnyClipPtr>());
     
     // Notify all listeners that a group track was added (crucial for PlaybackEngine!)
     listeners.call(&Listener::trackAdded, firstIndex, tracks[firstIndex]);

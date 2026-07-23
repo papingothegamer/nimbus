@@ -298,6 +298,9 @@ void TimelineComponent::tracksGrouped() {
     trackLanes.clear();
     for (int i = 0; i < engine.getTimelineProject().getNumTracks(); ++i) {
         const auto& track = engine.getTimelineProject().getTrack(i);
+        auto clips = engine.getTimelineProject().getClipsOnTrack(i);
+        juce::Logger::writeToLog("Track " + juce::String(i) + " (" + track.name + ") has " + juce::String(clips.size()) + " clips.");
+        
         if (track.isGroup) {
             auto* groupHeader = new Timeline::GroupTrackHeaderComponent(engine, i);
             trackHeaders.add(groupHeader);
@@ -357,7 +360,7 @@ void TimelineComponent::resized() {
             
             // Compact heights for folded tracks and groups
             if (track.isGroup) {
-                currentTrackHeight = 35; 
+                currentTrackHeight = track.isFolded ? 35 : standardTrackHeight; 
             } else if (track.isFolded) {
                 currentTrackHeight = 35;
             }

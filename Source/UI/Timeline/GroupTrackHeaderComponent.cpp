@@ -194,7 +194,7 @@ void GroupTrackHeaderComponent::resized() {
     // Bottom Row for Mute/Solo
     if (bounds.getHeight() >= 24) {
         auto bottomRow = bounds.removeFromTop(24);
-        int startX = bottomRow.getX() + 52; // Indent past fold and power buttons
+        int startX = bottomRow.getX() + 8; // Adjust startX so they appear below the track name
         
         soloButton.setBounds(startX + 2, bottomRow.getY() + 2, 16, 20);
         startX += 24;
@@ -202,6 +202,16 @@ void GroupTrackHeaderComponent::resized() {
     } else {
         soloButton.setBounds(0, 0, 0, 0);
         muteButton.setBounds(0, 0, 0, 0);
+    }
+}
+
+void GroupTrackHeaderComponent::mouseDown(const juce::MouseEvent& e) {
+    if (e.mods.isRightButtonDown()) {
+        juce::PopupMenu m;
+        m.addItem("Ungroup Tracks", [this]() {
+            engine.getTimelineProject().ungroupTracks(trackIndex);
+        });
+        m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this));
     }
 }
 

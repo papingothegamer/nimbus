@@ -11,6 +11,7 @@ public:
 
     void paint(juce::Graphics& g) override;
     void resized() override;
+    void mouseDown(const juce::MouseEvent& e) override;
     void setTrackIndex(int newIndex);
 
     void trackFoldStateChanged(int track, bool isFolded) override;
