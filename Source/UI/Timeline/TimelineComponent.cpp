@@ -373,6 +373,12 @@ void TimelineComponent::resized() {
             trackHeaders[i]->setBounds(0, currentY, headerWidth, currentTrackHeight - 1);
             trackLanes[i]->setBounds(headerWidth, currentY, containerWidth - headerWidth, currentTrackHeight - 1);
             
+            // Safety net: ensure clips are always in sync with data model when resized
+            auto expectedClips = engine.getTimelineProject().getClipsOnTrack(i);
+            if (trackLanes[i]->getNumClipComponents() != expectedClips.size()) {
+                trackLanes[i]->updateClips();
+            }
+            
             currentY += currentTrackHeight;
         }
     }

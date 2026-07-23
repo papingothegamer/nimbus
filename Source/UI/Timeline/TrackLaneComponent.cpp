@@ -293,6 +293,7 @@ void TrackLaneComponent::filesDropped(const juce::StringArray& files, int x, int
 
 void TrackLaneComponent::setTrackIndex(int newIndex) {
     trackIndex = newIndex;
+    updateClips();
 }
 
 void TrackLaneComponent::mouseDown(const juce::MouseEvent& event) {

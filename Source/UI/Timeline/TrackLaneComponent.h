@@ -29,6 +29,7 @@ public:
     void showContextMenuForLane(const juce::MouseEvent& event);
 
     void setTrackIndex(int newIndex);
+    int getNumClipComponents() const { return clipComponents.size(); }
     
     void updateClips();
     

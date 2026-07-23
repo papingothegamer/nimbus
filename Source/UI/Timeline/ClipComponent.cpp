@@ -135,9 +135,6 @@ void ClipComponent::paint(juce::Graphics& g) {
     
     auto bounds = getLocalBounds();
     
-    g.setColour(juce::Colours::red);
-    g.drawRect(bounds, 5);
-    
     auto headerBounds = bounds.removeFromTop(18);
 
     // Draw header

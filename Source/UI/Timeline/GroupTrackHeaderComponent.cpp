@@ -195,10 +195,8 @@ void GroupTrackHeaderComponent::resized() {
     soloButton.setBounds(rightEdge - 20, bounds.getY() + (bounds.getHeight() - 16) / 2, 16, 16);
     muteButton.setBounds(rightEdge - 42, bounds.getY() + (bounds.getHeight() - 16) / 2, 16, 16);
     
-    bounds.setWidth(rightEdge - 46 - bounds.getX());
-    
     // Track Name takes remaining space
-    trackNameLabel.setBounds(bounds);
+    trackNameLabel.setBounds(bounds.withWidth(juce::jmax(1, rightEdge - 46 - bounds.getX())));
 }
 
 } // namespace Nimbus::Timeline

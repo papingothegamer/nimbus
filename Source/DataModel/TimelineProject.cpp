@@ -102,8 +102,6 @@ void TimelineProject::groupTracks(const juce::SparseSet<int>& trackIndices) {
     tracks.insert(tracks.begin() + firstIndex, groupTrack);
     trackClips.insert(trackClips.begin() + firstIndex, {});
     
-    listeners.call(&Listener::trackAdded, firstIndex, groupTrack);
-    
     // Set parent IDs after insertion (since indices shift)
     for (int i = 0; i < trackIndices.getNumRanges(); ++i) {
         auto range = trackIndices.getRange(i);
