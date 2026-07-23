@@ -3,6 +3,7 @@
 #include "Core/Plugins/IStockPlugin.h"
 #include <juce_dsp/juce_dsp.h>
 #include <atomic>
+#include <vector>
 
 namespace Nimbus {
 
@@ -40,7 +41,13 @@ public:
     void setRelease(float ms) { release.store(ms); updateDSP(); }
     float getRelease() const { return release.load(); }
 
-private:
+    void setMakeupGain(float db) { makeupGain.store(db); updateDSP(); }
+    float getMakeupGain() const { return makeupGain.load(); }
+
+    float getCurrentInputLevel() const { return currentInputLevel.load(); }
+    float getCurrentGainReduction() const { return currentGainReduction.load(); }
+
+    void loadPreset(int index);
     void updateDSP();
 
     std::atomic<bool> bypassed{false};
@@ -48,6 +55,10 @@ private:
     std::atomic<float> ratio{2.0f};
     std::atomic<float> attack{10.0f};
     std::atomic<float> release{100.0f};
+    std::atomic<float> makeupGain{0.0f};
+
+    std::atomic<float> currentInputLevel{-100.0f};
+    std::atomic<float> currentGainReduction{0.0f};
     
     juce::dsp::Compressor<float> dspComp;
     
