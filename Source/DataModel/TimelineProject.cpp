@@ -216,9 +216,10 @@ void TimelineProject::groupTracks(const juce::SparseSet<int>& trackIndices) {
 void TimelineProject::ungroupTracks(int groupTrackIndex) {
     if (groupTrackIndex >= 0 && groupTrackIndex < tracks.size() && tracks[groupTrackIndex].isGroup) {
         TrackID groupId = tracks[groupTrackIndex].id;
+        TrackID parentId = tracks[groupTrackIndex].parentGroupId;
         for (auto& track : tracks) {
             if (track.parentGroupId == groupId) {
-                track.parentGroupId = TrackID();
+                track.parentGroupId = parentId;
             }
         }
         removeTrack(groupTrackIndex);
