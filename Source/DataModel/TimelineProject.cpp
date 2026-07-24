@@ -63,6 +63,15 @@ void TimelineProject::removeTrack(int index)
         }
         selectedTracks = newSelection;
 
+        // Before removing clips from the trackClips array, check if the currentSelectedClip is inside
+        if (index < trackClips.size()) {
+            for (auto clip : trackClips[index]) {
+                if (currentSelectedClip == clip) {
+                    setSelectedClip(AnyClipPtr{});
+                }
+            }
+        }
+        
         // 1. Remove the target track (the group folder itself, or a standard track)
         tracks.erase(tracks.begin() + index);
         if (index < trackClips.size()) trackClips.erase(trackClips.begin() + index);
@@ -77,6 +86,14 @@ void TimelineProject::removeTrack(int index)
             // We keep erasing at 'index' as long as the track belongs to the deleted group.
             while (index < tracks.size() && tracks[index].parentGroupId == groupId)
             {
+                if (index < trackClips.size()) {
+                    for (auto clip : trackClips[index]) {
+                        if (currentSelectedClip == clip) {
+                            setSelectedClip(AnyClipPtr{});
+                        }
+                    }
+                }
+                
                 tracks.erase(tracks.begin() + index);
                 if (index < trackClips.size()) trackClips.erase(trackClips.begin() + index);
                 

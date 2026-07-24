@@ -31,11 +31,11 @@ public:
     void mouseDown(const juce::MouseEvent& e) override;
     void mouseDrag(const juce::MouseEvent& e) override;
     
-    int sidebarWidth = 250;
+    int sidebarWidth = 350;
     std::function<void()> onWidthChanged;
 private:
     NimbusEngine& engine;
-    int dragStartW = 250;
+    int dragStartW = 350;
 };
 
 class MainWindow : public juce::DocumentWindow {

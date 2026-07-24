@@ -21,6 +21,7 @@ void Track::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock)
 
     if (source) source->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
     if (instrument) instrument->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
+    midiInsertGraph.prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
     insertGraph.prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
     fader.prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
     outputDelayLine.prepare(sampleRate, maximumExpectedSamplesPerBlock);
@@ -29,6 +30,7 @@ void Track::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock)
 void Track::releaseResources() {
     if (source) source->releaseResources();
     if (instrument) instrument->releaseResources();
+    midiInsertGraph.releaseResources();
     insertGraph.releaseResources();
     fader.releaseResources();
 }
@@ -102,6 +104,10 @@ void Track::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& mid
             }
         }
 
+        // 1.2 Process MIDI Effects
+        juce::AudioBuffer<float> dummyAudio(0, numSamples);
+        midiInsertGraph.processBlock(dummyAudio, trackMidiBuffer);
+
         // 1.5 Process instrument plugin (synth consumes MIDI, produces audio)
         if (instrument) {
             instrument->processBlock(trackBlock, trackMidiBuffer);
@@ -167,6 +173,7 @@ int Track::getLatencySamples() const {
     const juce::SpinLock::ScopedLockType sl(processLock);
     int totalLatency = 0;
     if (instrument) totalLatency += instrument->getLatencySamples();
+    totalLatency += midiInsertGraph.getLatencySamples();
     totalLatency += insertGraph.getLatencySamples();
     return totalLatency;
 }
@@ -183,6 +190,19 @@ void Track::setSourceNode(std::unique_ptr<IAudioNode> sourceNode) {
         source = std::move(sourceNode);
     }
     // oldSource is safely deleted here, outside the spinlock
+}
+
+void Track::addMidiInsertPlugin(std::unique_ptr<IAudioNode> pluginNode) {
+    if (pluginNode && currentSampleRate > 0) {
+        pluginNode->prepareToPlay(currentSampleRate, currentBlockSize);
+    }
+    const juce::SpinLock::ScopedLockType sl(processLock);
+    midiInsertGraph.addNode(std::move(pluginNode));
+}
+
+void Track::removeMidiInsertPlugin(IAudioNode* pluginNode) {
+    const juce::SpinLock::ScopedLockType sl(processLock);
+    midiInsertGraph.removeNode(pluginNode);
 }
 
 void Track::setInstrumentPlugin(std::unique_ptr<IAudioNode> instrumentNode) {

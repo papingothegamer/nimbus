@@ -411,7 +411,7 @@ public:
         addAndMakeVisible(slQ.get());
         
         // Add Toggle Buttons for Expand and RTA
-        auto rtaDrawable = juce::Drawable::createFromImageData(BinaryData::waveform_svg, BinaryData::waveform_svgSize);
+        auto rtaDrawable = juce::Drawable::createFromImageData(BinaryData::audio_svg, BinaryData::audio_svgSize);
         if (rtaDrawable) rtaDrawable->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
         btnRTA.setImages(rtaDrawable.get());
         btnRTA.setTooltip("Toggle RTA");

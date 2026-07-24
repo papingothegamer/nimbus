@@ -43,12 +43,16 @@ public:
     void addInsertPlugin(std::unique_ptr<IAudioNode> pluginNode);
     void removeInsertPlugin(IAudioNode* pluginNode);
 
+    void addMidiInsertPlugin(std::unique_ptr<IAudioNode> pluginNode);
+    void removeMidiInsertPlugin(IAudioNode* pluginNode);
+
     void setInstrumentPlugin(std::unique_ptr<IAudioNode> instrumentNode);
     IAudioNode* getInstrumentPlugin() const { return instrument.get(); }
     
     TrackID getId() const { return id_; }
     
     const AudioGraph& getInsertGraph() const { return insertGraph; }
+    const AudioGraph& getMidiInsertGraph() const { return midiInsertGraph; }
 
     void setInputBuffer(const juce::AudioBuffer<float>* inBuf) { inputBufferPtr = inBuf; }
     void setRecorder(AudioRecorder* recorder) { recorder_ = recorder; }
@@ -97,6 +101,7 @@ private:
     TrackID id_;
     std::unique_ptr<IAudioNode> source;
     std::unique_ptr<IAudioNode> instrument;  // Synth for MIDI tracks
+    AudioGraph midiInsertGraph;
     AudioGraph insertGraph;
     GainNode fader;
     LevelMeter meter;

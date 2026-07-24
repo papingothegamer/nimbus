@@ -89,7 +89,7 @@ void TopToolbarComponent::setZoomLevel(int zoomPercentage) {
     zoomLevelLabel.setText(juce::String(zoomPercentage) + "%", juce::dontSendNotification);
 }
 
-TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
+TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e), menuBar(this) {
     engine.getTransport().addListener(this);
     engine.getTimelineProject().addListener(this);
     auto setupIconBtn = [](juce::DrawableButton& btn) {
@@ -99,6 +99,8 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
         btn.setWantsKeyboardFocus(false);
     };
 
+    menuBar.setLookAndFeel(&menuBarLnF);
+    addAndMakeVisible(menuBar);
     addAndMakeVisible(transportGroupContainer);
     addAndMakeVisible(toolsGroupContainer);
     addAndMakeVisible(actionGroupContainer);
@@ -106,13 +108,11 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     // --- Action Group: Undo, Redo, Copy, Trim, Paste ---
     setupIconBtn(undoButton);
     setupIconBtn(redoButton);
-    setupIconBtn(saveProjectButton);
     setupIconBtn(copyButton);
     setupIconBtn(trimButton);
     setupIconBtn(pasteButton);
     loadSvgIcon(undoButton, DesignSystem::Iconography::Undo);
     loadSvgIcon(redoButton, DesignSystem::Iconography::Redo);
-    loadSvgIcon(saveProjectButton, DesignSystem::Iconography::Save);
     loadSvgIcon(copyButton, DesignSystem::Iconography::Copy);
     loadSvgIcon(trimButton, DesignSystem::Iconography::Trim);
     loadSvgIcon(pasteButton, DesignSystem::Iconography::Paste);
@@ -121,17 +121,6 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     actionGroupContainer.addAndMakeVisible(copyButton);
     actionGroupContainer.addAndMakeVisible(trimButton);
     actionGroupContainer.addAndMakeVisible(pasteButton);
-    
-    addAndMakeVisible(saveProjectButton);
-    
-    projectNameLabel.setJustificationType(juce::Justification::centredLeft);
-    projectNameLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(13.0f).boldened());
-    projectNameLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
-    projectNameLabel.setEditable(true);
-    projectNameLabel.onTextChange = [this]() {
-        engine.getTimelineProject().setProjectName(projectNameLabel.getText());
-    };
-    addAndMakeVisible(projectNameLabel);
 
     // --- Zoom controls ---
     setupIconBtn(zoomOutButton);
@@ -273,13 +262,6 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
     zoomInButton.onClick = [this]() {
         if (onZoomIn) onZoomIn();
     };
-    saveProjectButton.onClick = [this]() {
-        juce::FileChooser chooser("Select directory to save project", juce::File::getSpecialLocation(juce::File::userDocumentsDirectory));
-        auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories;
-        chooser.launchAsync(flags, [this](const juce::FileChooser& fc) {
-            juce::File result = fc.getResult();
-        });
-    };
     settingsButton.onClick = [this]() {
         juce::DialogWindow::LaunchOptions options;
         options.content.setOwned(new UI::Settings::SettingsMenuComponent(engine));
@@ -323,20 +305,15 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e) {
 }
 
 TopToolbarComponent::~TopToolbarComponent() {
+    menuBar.setLookAndFeel(nullptr);
     engine.getTransport().removeListener(this);
     engine.getTimelineProject().removeListener(this);
+    menuBar.setModel(nullptr);
 }
 
 void TopToolbarComponent::paint(juce::Graphics& g) {
     g.fillAll(DesignSystem::Colors::PanelBackground);
-    g.setColour(DesignSystem::Colors::ModuleBackground);
-    g.fillRect(0, 0, getWidth(), 28);
     
-    g.setColour(DesignSystem::Colors::TextPrimary);
-    g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(12.0f));
-    g.drawText("File     Edit     Select     View     Record     Tracks     Generate     Effect     Analyze     Tools     Extra     Help",
-               12, 0, getWidth() - 300, 28, juce::Justification::centredLeft, false);
-
     g.setColour(DesignSystem::Colors::Divider.withAlpha(0.7f));
     g.fillRect(0, 28, getWidth(), 1);
     g.fillRect(0, getHeight() - 1, getWidth(), 1);
@@ -345,6 +322,9 @@ void TopToolbarComponent::paint(juce::Graphics& g) {
 void TopToolbarComponent::resized() {
     auto bounds = getLocalBounds();
     auto topStrip = bounds.removeFromTop(28);
+    
+    menuBar.setBounds(topStrip.removeFromLeft(getWidth() - 300));
+    
     workspaceLabel.setBounds(topStrip.removeFromRight(140).reduced(4, 0));
     shareButton.setBounds(topStrip.removeFromRight(70).reduced(2, 3));
     audioSetupButton.setBounds(topStrip.removeFromRight(95).reduced(2, 3));
@@ -354,7 +334,17 @@ void TopToolbarComponent::resized() {
 
     constexpr auto targetButtonSize = 30;
 
-    // Action group: Undo, Redo, Copy, Trim, Paste
+    // Left side: Zoom Group + Action Group
+    juce::FlexBox toolsLayout;
+    toolsGroupContainer.setBounds(lowerRow.removeFromLeft(100).withHeight(targetButtonSize));
+    toolsLayout.flexDirection = juce::FlexBox::Direction::row;
+    toolsLayout.items.add(juce::FlexItem(zoomOutButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
+    toolsLayout.items.add(juce::FlexItem(zoomLevelLabel).withWidth(40).withHeight(targetButtonSize));
+    toolsLayout.items.add(juce::FlexItem(zoomInButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
+    toolsLayout.performLayout(toolsGroupContainer.getLocalBounds().toFloat());
+    
+    lowerRow.removeFromLeft(8);
+
     juce::FlexBox actionLayout;
     actionGroupContainer.setBounds(lowerRow.removeFromLeft(5 * targetButtonSize).withHeight(targetButtonSize));
     actionLayout.flexDirection = juce::FlexBox::Direction::row;
@@ -365,30 +355,22 @@ void TopToolbarComponent::resized() {
     actionLayout.items.add(juce::FlexItem(pasteButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
     actionLayout.performLayout(actionGroupContainer.getLocalBounds().toFloat());
 
-    lowerRow.removeFromLeft(8);
+    // Center: Transport Group
+    int transportWidth = 6 * targetButtonSize;
+    int remainingWidth = lowerRow.getWidth();
+    int rightSideControlsWidth = 82 + 138 + 52 + 68 + (targetButtonSize * 5); // display + toggle buttons
+    int centerAvailable = getWidth() - (actionGroupContainer.getRight()) - rightSideControlsWidth;
+    int centerX = actionGroupContainer.getRight() + (centerAvailable / 2) - (transportWidth / 2);
+    
+    // Fallback if it overlaps
+    if (centerX < actionGroupContainer.getRight() + 8) centerX = actionGroupContainer.getRight() + 8;
 
-    // Transport group: SkipStart, Play, Stop, SkipEnd, Record, Loop
     juce::FlexBox transportLayout;
-    transportGroupContainer.setBounds(lowerRow.removeFromLeft(6 * targetButtonSize).withHeight(targetButtonSize));
+    transportGroupContainer.setBounds(centerX, lowerRow.getY(), transportWidth, targetButtonSize);
     transportLayout.flexDirection = juce::FlexBox::Direction::row;
     for (auto* button : { &jumpStartButton, &playButton, &stopButton, &jumpEndButton, &recordButton, &loopButton })
         transportLayout.items.add(juce::FlexItem(*button).withWidth(targetButtonSize).withHeight(targetButtonSize));
     transportLayout.performLayout(transportGroupContainer.getLocalBounds().toFloat());
-
-    lowerRow.removeFromLeft(8);
-
-    // Zoom group
-    juce::FlexBox toolsLayout;
-    toolsGroupContainer.setBounds(lowerRow.removeFromLeft(100).withHeight(targetButtonSize));
-    toolsLayout.flexDirection = juce::FlexBox::Direction::row;
-    toolsLayout.items.add(juce::FlexItem(zoomOutButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
-    toolsLayout.items.add(juce::FlexItem(zoomLevelLabel).withWidth(40).withHeight(targetButtonSize));
-    toolsLayout.items.add(juce::FlexItem(zoomInButton).withWidth(targetButtonSize).withHeight(targetButtonSize));
-    toolsLayout.performLayout(toolsGroupContainer.getLocalBounds().toFloat());
-
-    lowerRow.removeFromLeft(8);
-    projectNameLabel.setBounds(lowerRow.removeFromLeft(140).withHeight(targetButtonSize));
-    saveProjectButton.setBounds(lowerRow.removeFromLeft(targetButtonSize).withHeight(targetButtonSize));
 
     // Right-side displays
     barsDisplay.setBounds(lowerRow.removeFromRight(82).withHeight(34).withY(26));
@@ -451,9 +433,7 @@ void TopToolbarComponent::transportLoopingChanged(bool isLooping) {
 }
 
 void TopToolbarComponent::projectNameChanged(const juce::String& newName) {
-    if (!projectNameLabel.isBeingEdited()) {
-        projectNameLabel.setText(newName, juce::dontSendNotification);
-    }
+    // Project name label removed
 }
 
 void TopToolbarComponent::timeSignatureChanged(int num, int den) {
@@ -463,3 +443,103 @@ void TopToolbarComponent::timeSignatureChanged(int num, int den) {
 }
 
 } // namespace Nimbus::MainLayout
+
+juce::StringArray Nimbus::MainLayout::TopToolbarComponent::getMenuBarNames() {
+    return { "File", "Edit", "Select", "View", "Record", "Tracks", "Tools", "Help" };
+}
+
+juce::PopupMenu Nimbus::MainLayout::TopToolbarComponent::getMenuForIndex(int topLevelMenuIndex, const juce::String& menuName) {
+    juce::PopupMenu menu;
+    
+    auto addItem = [](juce::PopupMenu& m, int id, const juce::String& text, const juce::String& shortcut = "", bool ticked = false) {
+        juce::PopupMenu::Item item(text);
+        item.itemID = id;
+        item.shortcutKeyDescription = shortcut;
+        item.isTicked = ticked;
+        m.addItem(item);
+    };
+
+    if (menuName == "File") {
+        addItem(menu, 1, "New Project", "Ctrl+N");
+        menu.addSeparator();
+        addItem(menu, 2, "Save Project", "Ctrl+S");
+        addItem(menu, 3, "Save As...", "Ctrl+Shift+S");
+        menu.addSeparator();
+        addItem(menu, 4, "Export Audio...", "Ctrl+E");
+    } else if (menuName == "Edit") {
+        addItem(menu, 11, "Undo", "Ctrl+Z");
+        addItem(menu, 12, "Redo", "Ctrl+Y");
+        menu.addSeparator();
+        addItem(menu, 13, "Cut", "Ctrl+X");
+        addItem(menu, 14, "Copy", "Ctrl+C");
+        addItem(menu, 15, "Paste", "Ctrl+V");
+        addItem(menu, 16, "Delete", "Del");
+    } else if (menuName == "Select") {
+        addItem(menu, 21, "Select All", "Ctrl+A");
+        addItem(menu, 22, "Deselect All", "Ctrl+Shift+A");
+    } else if (menuName == "View") {
+        addItem(menu, 31, "Toggle Piano Roll", "", pianoRollToggle.getToggleState());
+        addItem(menu, 32, "Toggle Mixer", "", mixerToggle.getToggleState());
+        menu.addSeparator();
+        addItem(menu, 33, "Settings");
+    } else if (menuName == "Record") {
+        addItem(menu, 41, "Record", "R", engine.getTransport().isRecording());
+        addItem(menu, 42, "Metronome", "", metronomeToggle.getToggleState());
+    } else if (menuName == "Tracks") {
+        addItem(menu, 51, "Insert Audio Track (Mono)", "Ctrl+T");
+        addItem(menu, 52, "Insert Audio Track (Stereo)", "Ctrl+Shift+T");
+        addItem(menu, 53, "Insert MIDI Track", "Ctrl+Alt+T");
+        menu.addSeparator();
+        addItem(menu, 54, "Group Tracks", "Ctrl+G");
+        addItem(menu, 55, "Ungroup Tracks", "Ctrl+Shift+G");
+    } else if (menuName == "Tools") {
+        addItem(menu, 71, "Audio Setup...");
+    } else if (menuName == "Help") {
+        addItem(menu, 81, "About Nimbus");
+    }
+    
+    return menu;
+}
+
+void Nimbus::MainLayout::TopToolbarComponent::menuItemSelected(int menuItemID, int topLevelMenuIndex) {
+    switch (menuItemID) {
+        // File
+        case 2: // Save
+        case 3: { // Save As
+            juce::FileChooser chooser("Select directory to save project", juce::File::getSpecialLocation(juce::File::userDocumentsDirectory));
+            auto flags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories;
+            chooser.launchAsync(flags, [](const juce::FileChooser& fc) {
+                juce::File result = fc.getResult();
+            });
+            break;
+        }
+        // Edit
+        case 11: engine.getUndoManager().undo(); break;
+        case 12: engine.getUndoManager().redo(); break;
+        case 14: engine.getTimelineProject().copySelectedClips(); break;
+        case 15:
+            if (engine.getTimelineProject().getSelectedTracks().size() > 0) {
+                int track = engine.getTimelineProject().getSelectedTracks().operator[](0);
+                engine.getTimelineProject().pasteClips(track, engine.getTransport().getCurrentPosition());
+            }
+            break;
+        // View
+        case 31: pianoRollToggle.triggerClick(); break;
+        case 32: mixerToggle.triggerClick(); break;
+        case 33: settingsButton.triggerClick(); break;
+        // Record
+        case 41: recordButton.triggerClick(); break;
+        case 42: metronomeToggle.triggerClick(); break;
+        // Tracks
+        case 51: engine.addTrack(false, false); break;
+        case 52: engine.addTrack(false, true); break;
+        case 53: engine.addTrack(true, true); break;
+        case 54: engine.getTimelineProject().groupTracks(engine.getTimelineProject().getSelectedTracks()); break;
+        case 55: 
+            if (!engine.getTimelineProject().getSelectedTracks().isEmpty()) {
+                engine.getTimelineProject().ungroupTracks(engine.getTimelineProject().getSelectedTracks()[0]); 
+            }
+            break;
+        default: break;
+    }
+}

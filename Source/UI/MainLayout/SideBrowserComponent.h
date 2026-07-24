@@ -25,11 +25,39 @@ public:
         if (onWidthChanged) onWidthChanged(currentWidth);
     }
 
-    int currentWidth = 110;
+    int currentWidth = 150;
     int minWidth = 70;
-    int maxWidth = 200;
-    int dragStartWidth = 110;
+    int maxWidth = 250;
+    int dragStartWidth = 150;
     std::function<void(int)> onWidthChanged;
+};
+
+class PreviewPlayerComponent : public juce::Component, public juce::ChangeListener, private juce::Timer {
+public:
+    PreviewPlayerComponent(NimbusEngine& engine);
+    ~PreviewPlayerComponent() override;
+
+    void paint(juce::Graphics& g) override;
+    void resized() override;
+    
+    void loadFile(const juce::File& file);
+    void play();
+    void stop();
+
+    void changeListenerCallback(juce::ChangeBroadcaster* source) override;
+    void timerCallback() override;
+
+private:
+    NimbusEngine& engine;
+    juce::AudioSourcePlayer audioSourcePlayer;
+    juce::AudioTransportSource transportSource;
+    std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
+    juce::AudioThumbnail thumbnail;
+    
+    juce::DrawableButton playButton{"Play", juce::DrawableButton::ImageFitted};
+    std::unique_ptr<juce::Drawable> playIcon, pauseIcon;
+    
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PreviewPlayerComponent)
 };
 
 class SideBrowserComponent : public juce::Component, private juce::Timer {
@@ -44,10 +72,14 @@ public:
 private:
     NimbusEngine& engine;
     juce::ListBox categoriesList;
+    juce::ListBox foldersList;
     juce::ListBox itemsList;
     juce::TextEditor searchBox;
+    juce::TextButton addFolderButton;
+    std::unique_ptr<juce::FileChooser> fileChooser;
     ColumnResizerBar columnResizer;
-    int leftColumnWidth = 110;
+    PreviewPlayerComponent previewPlayer;
+    int leftColumnWidth = 150;
     
     std::unique_ptr<juce::Drawable> searchIcon;
 
@@ -59,6 +91,12 @@ private:
 
     class StockEffectsModel;
     std::unique_ptr<StockEffectsModel> stockEffectsModel;
+
+    class FoldersModel;
+    std::unique_ptr<FoldersModel> foldersModel;
+
+    class FileItemsModel;
+    std::unique_ptr<FileItemsModel> fileModel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SideBrowserComponent)
 };

@@ -685,4 +685,23 @@ void TimelineComponent::mouseUp(const juce::MouseEvent& event) {
     isDraggingSelection = false;
 }
 
+bool TimelineComponent::isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails& dragSourceDetails) {
+    auto desc = dragSourceDetails.description.toString();
+    if (desc.startsWith("AUDIO_FILE:")) {
+        return true;
+    }
+    return false;
+}
+
+void TimelineComponent::itemDropped(const juce::DragAndDropTarget::SourceDetails& dragSourceDetails) {
+    auto desc = dragSourceDetails.description.toString();
+    if (desc.startsWith("AUDIO_FILE:")) {
+        auto filePath = desc.substring(11); // "AUDIO_FILE:".length()
+        juce::StringArray arr;
+        arr.add(filePath);
+        // Call filesDropped which does the track creation logic
+        filesDropped(arr, dragSourceDetails.localPosition.x, dragSourceDetails.localPosition.y);
+    }
+}
+
 } // namespace Nimbus

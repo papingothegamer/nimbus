@@ -215,13 +215,13 @@ void ClipComponent::paint(juce::Graphics& g) {
             for (int i = 0; i < midiClip->getSequence().getNumEvents(); ++i) {
                 auto* event = midiClip->getSequence().getEventPointer(i);
                 if (event->message.isNoteOn()) {
-                    double noteStart = event->message.getTimeStamp() * 48000.0;
+                    double noteStart = event->message.getTimeStamp();
                     double noteLength = 48000.0 * 0.25;
                     
                     for (int j = i + 1; j < midiClip->getSequence().getNumEvents(); ++j) {
                         auto* offEvent = midiClip->getSequence().getEventPointer(j);
                         if (offEvent->message.isNoteOff() && offEvent->message.getNoteNumber() == event->message.getNoteNumber()) {
-                            noteLength = offEvent->message.getTimeStamp() * 48000.0 - noteStart;
+                            noteLength = offEvent->message.getTimeStamp() - noteStart;
                             break;
                         }
                     }

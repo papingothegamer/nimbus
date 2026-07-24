@@ -17,17 +17,20 @@ public:
     void mouseDown(const juce::MouseEvent& event) override;
     void mouseDrag(const juce::MouseEvent& event) override;
     void mouseUp(const juce::MouseEvent& event) override;
+    void mouseMove(const juce::MouseEvent& event) override;
+    void mouseDoubleClick(const juce::MouseEvent& event) override;
+    void mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) override;
+    void mouseMagnify(const juce::MouseEvent& event, float scaleFactor) override;
+    bool keyPressed(const juce::KeyPress& key) override;
     
     void setMidiClip(std::shared_ptr<MidiClip> clip);
-    
-    enum class Tool { Pointer, Pencil, Eraser };
-    void setTool(Tool t) { currentTool = t; }
     
     enum class Snap { Off, Bar, Beat, Eighth, Sixteenth, ThirtySecond };
     void setSnap(Snap s) { currentSnap = s; }
     
     void setVelocityVisible(bool v) { velocityVisible = v; repaint(); }
     int getDesiredHeight() const { return (128 * keyHeight); }
+    int getDesiredWidth() const;
 
 private:
     NimbusEngine& engine;
@@ -37,7 +40,8 @@ private:
     int totalKeys = 128;
     int velocityLaneHeight = 80;
     
-    Tool currentTool = Tool::Pointer;
+    double timeZoom = 1.0;
+    
     Snap currentSnap = Snap::Sixteenth;
     bool velocityVisible = false;
     
@@ -73,15 +77,10 @@ private:
     
     // Toolbar
     juce::Component toolbar;
-    juce::DrawableButton pointerButton{"Pointer", juce::DrawableButton::ImageFitted};
-    juce::DrawableButton pencilButton{"Pencil", juce::DrawableButton::ImageFitted};
-    juce::DrawableButton eraserButton{"Eraser", juce::DrawableButton::ImageFitted};
     juce::ComboBox snapBox;
     juce::ToggleButton velocityToggle{"Velocity"};
     
-    std::unique_ptr<juce::Drawable> pointerIcon;
-    std::unique_ptr<juce::Drawable> pencilIcon;
-    std::unique_ptr<juce::Drawable> eraserIcon;
+
     
     juce::Viewport viewport;
     PianoRollContent content;

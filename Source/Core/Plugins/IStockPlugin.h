@@ -11,6 +11,7 @@ public:
 
     virtual juce::String getName() const = 0;
     virtual juce::String getCategory() const = 0;
+    virtual bool isMidiEffect() const { return false; }
     
     // Creates the embedded UI editor for this plugin. 
     // The caller takes ownership of the returned component.

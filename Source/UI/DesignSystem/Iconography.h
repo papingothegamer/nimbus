@@ -55,7 +55,10 @@ namespace Nimbus::DesignSystem {
         static const inline juce::String Settings = "settings_svg";
         static const inline juce::String Save = "pluginsave_svg";
         
-        // Folders: Folded = points right, Unfolded = points down
+        // Folders & Files
+        static const inline juce::String Folder = "folder_svg";
+        static const inline juce::String FolderOpen = "folderopen_svg";
+        static const inline juce::String Audio = "audio_svg";
         static const inline juce::String Fold = "chevrondown_svg";
         static const inline juce::String Unfold = "chevronright_svg";
     };

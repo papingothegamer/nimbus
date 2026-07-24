@@ -245,8 +245,11 @@ private:
             
             if (track->getInstrumentPlugin() == nodeToDelete) {
                 track->setInstrumentPlugin(nullptr);
+            } else if (auto* stock = dynamic_cast<IStockPlugin*>(nodeToDelete)) {
+                if (stock->isMidiEffect()) track->removeMidiInsertPlugin(nodeToDelete);
+                else track->removeInsertPlugin(nodeToDelete);
             } else {
-                track->removeInsertPlugin(nodeToDelete);
+                track->removeInsertPlugin(nodeToDelete); // fallback for VST audio effects
             }
             if (window != nullptr) {
                 window->closeButtonPressed();
@@ -358,7 +361,11 @@ void DeviceChainComponent::mouseDown(const juce::MouseEvent& e) {
                     if (track) {
                         auto stockPlug = StockPluginFactory::createPlugin(selectedPlugin);
                         if (stockPlug) {
-                            track->addInsertPlugin(std::move(stockPlug));
+                            if (stockPlug->isMidiEffect()) {
+                                track->addMidiInsertPlugin(std::move(stockPlug));
+                            } else {
+                                track->addInsertPlugin(std::move(stockPlug));
+                            }
                         }
                     }
                 }
@@ -404,7 +411,9 @@ void DeviceChainComponent::updateChain() {
     }
     
     // Count total expected nodes
-    int expectedNodes = (track->getInstrumentPlugin() != nullptr ? 1 : 0) + track->getInsertGraph().getNodes().size();
+    int expectedNodes = track->getMidiInsertGraph().getNodes().size() + 
+                        (track->getInstrumentPlugin() != nullptr ? 1 : 0) + 
+                        track->getInsertGraph().getNodes().size();
     
     // Quick check if it's the same
     if (currentTrackIndex == trackIndex && pluginBoxes.size() == expectedNodes) {
@@ -414,13 +423,21 @@ void DeviceChainComponent::updateChain() {
     currentTrackIndex = trackIndex;
     pluginBoxes.clear();
     
-    // Add instrument first
+    // 1. Add MIDI Effects
+    for (auto& n : track->getMidiInsertGraph().getNodes()) {
+        auto box = std::make_unique<PluginBox>(n.get(), track, engine);
+        content.addAndMakeVisible(box.get());
+        pluginBoxes.push_back(std::move(box));
+    }
+    
+    // 2. Add instrument
     if (auto* instr = dynamic_cast<PluginNode*>(track->getInstrumentPlugin())) {
         auto box = std::make_unique<PluginBox>(instr, track, engine);
         content.addAndMakeVisible(box.get());
         pluginBoxes.push_back(std::move(box));
     }
     
+    // 3. Add Audio Effects
     const auto& nodes = track->getInsertGraph().getNodes();
     for (auto& n : nodes) {
         auto box = std::make_unique<PluginBox>(n.get(), track, engine);

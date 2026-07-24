@@ -11,7 +11,8 @@ namespace Nimbus::MainLayout {
 class TopToolbarComponent : public juce::Component, 
                             public juce::Timer, 
                             public Transport::Listener, 
-                            public TimelineProject::Listener {
+                            public TimelineProject::Listener,
+                            public juce::MenuBarModel {
 public:
     TopToolbarComponent(NimbusEngine& engine);
     ~TopToolbarComponent() override;
@@ -37,9 +38,50 @@ public:
     // TimelineProject::Listener
     void projectNameChanged(const juce::String& newName) override;
     void timeSignatureChanged(int num, int den) override;
+    
+    // juce::MenuBarModel
+    juce::StringArray getMenuBarNames() override;
+    juce::PopupMenu getMenuForIndex(int topLevelMenuIndex, const juce::String& menuName) override;
+    void menuItemSelected(int menuItemID, int topLevelMenuIndex) override;
 
 private:
+    class MenuBarLookAndFeel : public juce::LookAndFeel_V4 {
+    public:
+        int getMenuBarItemWidth(juce::MenuBarComponent&, int, const juce::String& text) override {
+            return text.length() * 7 + 16; // Simple approximation for size 12 font
+        }
+
+        juce::Font getMenuBarFont(juce::MenuBarComponent&, int, const juce::String&) override {
+            return DesignSystem::Typography::getPrimaryFont().withHeight(12.0f);
+        }
+
+        void drawMenuBarItem(juce::Graphics& g, int width, int height,
+                             int itemIndex, const juce::String& itemText,
+                             bool isMouseOverItem, bool isMenuOpen,
+                             bool isMouseOverBar, juce::MenuBarComponent& menuBar) override {
+            if (isMouseOverItem || isMenuOpen) {
+                g.fillAll(DesignSystem::Colors::PrimaryAction.withAlpha(0.2f));
+            }
+            g.setColour(DesignSystem::Colors::TextPrimary);
+            g.setFont(getMenuBarFont(menuBar, itemIndex, itemText));
+            g.drawText(itemText, 0, 0, width, height, juce::Justification::centred, true);
+        }
+        
+        void drawPopupMenuBackground(juce::Graphics& g, int width, int height) override {
+            g.fillAll(DesignSystem::Colors::PanelBackground);
+            g.setColour(DesignSystem::Colors::Divider);
+            g.drawRect(0, 0, width, height, 1);
+        }
+        
+        juce::Font getPopupMenuFont() override {
+            return DesignSystem::Typography::getPrimaryFont().withHeight(12.0f);
+        }
+    };
+
+    MenuBarLookAndFeel menuBarLnF;
+    
     NimbusEngine& engine;
+    juce::MenuBarComponent menuBar;
     int currentZoom = 100;
     float cpuLoad = 0.0f;
 
@@ -57,8 +99,6 @@ private:
     juce::DrawableButton copyButton{"Copy", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton trimButton{"Trim", juce::DrawableButton::ImageOnButtonBackground};
     juce::DrawableButton pasteButton{"Paste", juce::DrawableButton::ImageOnButtonBackground};
-    juce::DrawableButton saveProjectButton{"Save", juce::DrawableButton::ImageOnButtonBackground};
-    juce::Label projectNameLabel;
 
     // Zoom controls
     juce::DrawableButton zoomOutButton{"ZoomOut", juce::DrawableButton::ImageOnButtonBackground};

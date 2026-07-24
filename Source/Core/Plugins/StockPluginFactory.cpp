@@ -6,6 +6,11 @@
 #include "Stock/ReverbPlugin.h"
 #include "Stock/GainPlugin.h"
 #include "Stock/CloudEQPlugin.h"
+#include "Stock/MidiArpeggiatorPlugin.h"
+#include "Stock/MidiMonitorPlugin.h"
+#include "Stock/MidiPitchPlugin.h"
+#include "Stock/MidiScalePlugin.h"
+#include "Stock/MidiChordPlugin.h"
 
 namespace Nimbus {
 
@@ -16,7 +21,8 @@ juce::StringArray StockPluginFactory::getCategories() {
         "Modulation",
         "Delay & Loop",
         "Reverb",
-        "Utility"
+        "Utility",
+        "MIDI Effects"
     };
 }
 
@@ -27,6 +33,7 @@ juce::StringArray StockPluginFactory::getPluginsInCategory(const juce::String& c
     if (category == "Delay & Loop") return { "Delay" };
     if (category == "Reverb") return { "Reverb" };
     if (category == "Utility") return { "Gain" };
+    if (category == "MIDI Effects") return { "Arpeggiator", "MIDI Monitor", "Pitch", "Scale", "Chord" };
     return {};
 }
 
@@ -38,6 +45,13 @@ std::unique_ptr<IStockPlugin> StockPluginFactory::createPlugin(const juce::Strin
     if (name == "Reverb") return std::make_unique<ReverbPlugin>();
     if (name == "Gain") return std::make_unique<GainPlugin>();
     if (name == "Cloud EQ") return std::make_unique<CloudEQPlugin>();
+    
+    // MIDI Effects
+    if (name == "Arpeggiator") return std::make_unique<MidiArpeggiatorPlugin>();
+    if (name == "MIDI Monitor") return std::make_unique<MidiMonitorPlugin>();
+    if (name == "Pitch") return std::make_unique<MidiPitchPlugin>();
+    if (name == "Scale") return std::make_unique<MidiScalePlugin>();
+    if (name == "Chord") return std::make_unique<MidiChordPlugin>();
     
     return nullptr;
 }

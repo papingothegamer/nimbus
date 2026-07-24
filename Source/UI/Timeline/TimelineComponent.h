@@ -30,6 +30,7 @@ private:
 
 class TimelineComponent : public juce::Component, 
                         public juce::FileDragAndDropTarget,
+                        public juce::DragAndDropTarget,
                         private juce::Timer,
                         public TimelineProject::Listener {
 public:
@@ -58,6 +59,10 @@ public:
     // juce::FileDragAndDropTarget
     bool isInterestedInFileDrag(const juce::StringArray& files) override;
     void filesDropped(const juce::StringArray& files, int x, int y) override;
+
+    // juce::DragAndDropTarget
+    bool isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails& dragSourceDetails) override;
+    void itemDropped(const juce::DragAndDropTarget::SourceDetails& dragSourceDetails) override;
     
     double getPixelsPerSecond() const { return pixelsPerSecond; }
     double getScrollOffsetX() const { return scrollOffsetX; }

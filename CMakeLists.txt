@@ -103,7 +103,9 @@ juce_add_binary_data(Nimbus_Assets
         Assets/Icons/Nimbus/volume-off.svg
         Assets/Icons/Nimbus/volume-plus.svg
         Assets/Icons/Nimbus/volume-source.svg
-        Assets/Icons/Nimbus/waveform.svg
+        Assets/Icons/Nimbus/audio.svg
+        Assets/Icons/Nimbus/folder.svg
+        Assets/Icons/Nimbus/folder-open.svg
         Assets/Icons/Nimbus/zoom-minus.svg
         Assets/Icons/Nimbus/zoom-plus.svg
         Assets/Icons/Audacity/audacity.svg
@@ -197,8 +199,13 @@ target_sources(Nimbus PRIVATE
     Source/Core/Plugins/Stock/ChorusPlugin.cpp
     Source/Core/Plugins/Stock/DelayPlugin.cpp
     Source/Core/Plugins/Stock/ReverbPlugin.cpp
-    Source/Core/Plugins/Stock/StockPluginUI.h
     Source/Core/Plugins/Stock/CloudEQPlugin.cpp
+    Source/Core/Plugins/Stock/MidiArpeggiatorPlugin.cpp
+    Source/Core/Plugins/Stock/MidiMonitorPlugin.cpp
+    Source/Core/Plugins/Stock/MidiPitchPlugin.cpp
+    Source/Core/Plugins/Stock/MidiScalePlugin.cpp
+    Source/Core/Plugins/Stock/MidiChordPlugin.cpp
+    Source/Core/Plugins/Stock/StockPluginUI.h
 )
 
 # Link JUCE modules

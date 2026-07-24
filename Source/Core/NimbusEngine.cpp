@@ -215,7 +215,56 @@ void NimbusEngine::stopRecording() {
         
         auto clip = recorder->stopRecordingAndGetClip(endPosition);
         if (clip) {
-            timelineProject.addClipToTrack(trackIdx, clip);
+            bool merged = false;
+            auto trackClips = timelineProject.getClipsOnTrack(trackIdx);
+            
+            for (auto& existingClip : trackClips) {
+                if (existingClip->getType() == Clip::Type::Midi) {
+                    auto midiClip = std::static_pointer_cast<MidiClip>(clip);
+                    auto existingMidiClip = std::static_pointer_cast<MidiClip>(existingClip);
+                    
+                    double existStart = existingMidiClip->startSample.get();
+                    double existEnd = existStart + existingMidiClip->lengthSamples.get();
+                    double newStart = midiClip->startSample.get();
+                    double newEnd = newStart + midiClip->lengthSamples.get();
+                    
+                    if (newStart < existEnd && newEnd > existStart) {
+                        // Merge sequences
+                        double mergedStart = std::min(existStart, newStart);
+                        double mergedEnd = std::max(existEnd, newEnd);
+                        
+                        // Shift existing events if the new start is earlier
+                        if (mergedStart < existStart) {
+                            double shift = existStart - mergedStart;
+                            auto& seq = existingMidiClip->getSequence();
+                            for (int i = 0; i < seq.getNumEvents(); ++i) {
+                                auto* evt = seq.getEventPointer(i);
+                                evt->message.setTimeStamp(evt->message.getTimeStamp() + shift);
+                            }
+                            existingMidiClip->startSample = mergedStart;
+                        }
+                        
+                        // Add new events
+                        auto& seq = existingMidiClip->getSequence();
+                        for (int i = 0; i < midiClip->getSequence().getNumEvents(); ++i) {
+                            auto* evt = midiClip->getSequence().getEventPointer(i);
+                            auto newMsg = evt->message;
+                            double absTime = newStart + newMsg.getTimeStamp();
+                            newMsg.setTimeStamp(absTime - mergedStart);
+                            seq.addEvent(newMsg);
+                        }
+                        
+                        existingMidiClip->lengthSamples = mergedEnd - mergedStart;
+                        seq.updateMatchedPairs();
+                        merged = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (!merged) {
+                timelineProject.addClipToTrack(trackIdx, clip);
+            }
         }
     }
 
