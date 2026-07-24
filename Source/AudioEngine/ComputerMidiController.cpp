@@ -4,7 +4,7 @@
 namespace Nimbus {
 
 ComputerMidiController::ComputerMidiController(NimbusEngine& e) : engine(e) {
-    // Run a high-frequency timer for smooth modulation
+    // Run a high-frequency timer for smooth modulation and key polling
     startTimerHz(60);
 }
 
@@ -34,7 +34,6 @@ void ComputerMidiController::setEnabled(bool shouldBeEnabled) {
 
 int ComputerMidiController::getNoteFromKeyCode(int keyCode) {
     // Ableton standard mapping
-    // Lower row: A=C, W=C#, S=D, E=D#, D=E, F=F, T=F#, G=G, Y=G#, H=A, U=A#, J=B, K=C
     switch (keyCode) {
         case 'A': return 0;
         case 'W': return 1;
@@ -57,63 +56,65 @@ int ComputerMidiController::getNoteFromKeyCode(int keyCode) {
     }
 }
 
-bool ComputerMidiController::keyPressed(const juce::KeyPress& key, juce::Component* /*originatingComponent*/) {
-    if (!enabled) return false;
-
-    int keyCode = std::toupper(key.getKeyCode());
-
-    // Octave controls
-    if (keyCode == 'Z') {
-        currentOctave = juce::jmax(0, currentOctave - 1);
-        return true;
-    }
-    if (keyCode == 'X') {
-        currentOctave = juce::jmin(8, currentOctave + 1);
-        return true;
-    }
-
-    // Velocity controls
-    if (keyCode == 'C') {
-        currentVelocity = juce::jmax(1, currentVelocity - 20);
-        return true;
-    }
-    if (keyCode == 'V') {
-        currentVelocity = juce::jmin(127, currentVelocity + 20);
-        return true;
-    }
-
-    // Note input
-    int noteOffset = getNoteFromKeyCode(keyCode);
-    if (noteOffset != -1) {
-        int midiNote = (currentOctave * 12) + noteOffset;
-        midiNote = juce::jlimit(0, 127, midiNote);
-        
-        if (activeKeyCodesToNotes.find(keyCode) == activeKeyCodesToNotes.end()) {
-            activeKeyCodesToNotes[keyCode] = midiNote;
-            auto msg = juce::MidiMessage::noteOn(1, midiNote, (juce::uint8)currentVelocity);
-            msg.setTimeStamp(juce::Time::getMillisecondCounterHiRes() * 0.001);
-            engine.getAudioDeviceManager().injectMidiMessage(msg);
-        }
-        return true;
-    }
-
-    // Arrow keys are handled by keyStateChanged to support holding down
-    if (key.isKeyCode(juce::KeyPress::upKey) || 
-        key.isKeyCode(juce::KeyPress::downKey) || 
-        key.isKeyCode(juce::KeyPress::leftKey) || 
-        key.isKeyCode(juce::KeyPress::rightKey)) {
-        return true;
-    }
-
-    return false;
+bool ComputerMidiController::isKeyCurrentlyDown(int keyCode) {
+    return juce::KeyPress::isKeyCurrentlyDown(keyCode) || 
+           juce::KeyPress::isKeyCurrentlyDown(std::tolower(keyCode));
 }
 
-bool ComputerMidiController::keyStateChanged(bool isKeyDown, juce::Component* /*originatingComponent*/) {
-    if (!enabled) return false;
+void ComputerMidiController::timerCallback() {
+    if (!enabled) return;
 
-    bool handled = false;
+    // Do not capture keypresses if the app is not in the foreground
+    if (!juce::Process::isForegroundProcess()) return;
+    
+    // Do not capture keypresses if the user is typing in a text editor
+    if (juce::Component::getCurrentlyFocusedComponent() != nullptr &&
+        dynamic_cast<juce::TextEditor*>(juce::Component::getCurrentlyFocusedComponent()) != nullptr) {
+        return;
+    }
 
-    // Pitch Bend keys
+    // --- Octave / Velocity Controls (Edge Detection) ---
+    bool zDown = isKeyCurrentlyDown('Z');
+    if (zDown && !zWasDown) currentOctave = juce::jmax(0, currentOctave - 1);
+    zWasDown = zDown;
+
+    bool xDown = isKeyCurrentlyDown('X');
+    if (xDown && !xWasDown) currentOctave = juce::jmin(8, currentOctave + 1);
+    xWasDown = xDown;
+
+    bool cDown = isKeyCurrentlyDown('C');
+    if (cDown && !cWasDown) currentVelocity = juce::jmax(1, currentVelocity - 20);
+    cWasDown = cDown;
+
+    bool vDown = isKeyCurrentlyDown('V');
+    if (vDown && !vWasDown) currentVelocity = juce::jmin(127, currentVelocity + 20);
+    vWasDown = vDown;
+
+    // --- Note Input ---
+    for (int kc : mappedKeys) {
+        bool isDown = isKeyCurrentlyDown(kc);
+        bool wasDown = (activeKeyCodesToNotes.find(kc) != activeKeyCodesToNotes.end());
+
+        if (isDown && !wasDown) {
+            int noteOffset = getNoteFromKeyCode(kc);
+            if (noteOffset != -1) {
+                int midiNote = (currentOctave * 12) + noteOffset;
+                midiNote = juce::jlimit(0, 127, midiNote);
+                
+                activeKeyCodesToNotes[kc] = midiNote;
+                auto msg = juce::MidiMessage::noteOn(1, midiNote, (juce::uint8)currentVelocity);
+                msg.setTimeStamp(juce::Time::getMillisecondCounterHiRes() * 0.001);
+                engine.getAudioDeviceManager().injectMidiMessage(msg);
+            }
+        } else if (!isDown && wasDown) {
+            auto msg = juce::MidiMessage::noteOff(1, activeKeyCodesToNotes[kc], (juce::uint8)0);
+            msg.setTimeStamp(juce::Time::getMillisecondCounterHiRes() * 0.001);
+            engine.getAudioDeviceManager().injectMidiMessage(msg);
+            activeKeyCodesToNotes.erase(kc);
+        }
+    }
+
+    // --- Pitch Bend ---
     bool newUp = juce::KeyPress::isKeyCurrentlyDown(juce::KeyPress::upKey);
     bool newDown = juce::KeyPress::isKeyCurrentlyDown(juce::KeyPress::downKey);
     
@@ -126,38 +127,12 @@ bool ComputerMidiController::keyStateChanged(bool isKeyDown, juce::Component* /*
         else if (downArrowDown && !upArrowDown) pitchBendVal = 0; // Min
         
         sendPitchBend(pitchBendVal);
-        handled = true;
     }
 
-    // Modulation keys
+    // --- Modulation ---
     leftArrowDown = juce::KeyPress::isKeyCurrentlyDown(juce::KeyPress::leftKey);
     rightArrowDown = juce::KeyPress::isKeyCurrentlyDown(juce::KeyPress::rightKey);
     
-    if (leftArrowDown || rightArrowDown) handled = true;
-
-    // Handle Note Offs
-    for (auto it = activeKeyCodesToNotes.begin(); it != activeKeyCodesToNotes.end(); ) {
-        int kc = it->first;
-        // isKeyCurrentlyDown expects lower case for letters? No, it expects the exact keycode.
-        // For letters, it might be safer to just check both lower and upper.
-        bool isDown = juce::KeyPress::isKeyCurrentlyDown(kc) || juce::KeyPress::isKeyCurrentlyDown(std::tolower(kc));
-        if (!isDown) {
-            auto msg = juce::MidiMessage::noteOff(1, it->second, (juce::uint8)0);
-            msg.setTimeStamp(juce::Time::getMillisecondCounterHiRes() * 0.001);
-            engine.getAudioDeviceManager().injectMidiMessage(msg);
-            it = activeKeyCodesToNotes.erase(it);
-            handled = true;
-        } else {
-            ++it;
-        }
-    }
-
-    return handled;
-}
-
-void ComputerMidiController::timerCallback() {
-    if (!enabled) return;
-
     bool modChanged = false;
     if (rightArrowDown) {
         currentModulation = juce::jmin(127.0f, currentModulation + 2.5f);

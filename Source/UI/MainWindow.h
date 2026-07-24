@@ -40,7 +40,7 @@ private:
 
 class MainWindow : public juce::DocumentWindow {
 public:
-    class MainContentComponent : public juce::Component {
+    class MainContentComponent : public juce::Component, public juce::DragAndDropContainer {
     public:
         MainContentComponent(NimbusEngine& engine);
         void resized() override;

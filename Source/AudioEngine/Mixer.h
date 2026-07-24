@@ -36,6 +36,11 @@ public:
      */
     void removeTrack(int index);
 
+    /**
+     * Move a track from source index to target index. Thread-safe.
+     */
+    void moveTrack(int sourceIndex, int targetIndex);
+
     // Master Fader Controls
     void setMasterVolume(float gainLinear);
     void setMasterPan(float panValue);

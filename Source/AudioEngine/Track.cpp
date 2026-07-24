@@ -172,19 +172,31 @@ int Track::getLatencySamples() const {
 }
 
 void Track::setSourceNode(std::unique_ptr<IAudioNode> sourceNode) {
-    const juce::SpinLock::ScopedLockType sl(processLock);
-    source = std::move(sourceNode);
-    if (source && currentSampleRate > 0) {
-        source->prepareToPlay(currentSampleRate, currentBlockSize);
+    if (sourceNode && currentSampleRate > 0) {
+        sourceNode->prepareToPlay(currentSampleRate, currentBlockSize);
     }
+    
+    std::unique_ptr<IAudioNode> oldSource;
+    {
+        const juce::SpinLock::ScopedLockType sl(processLock);
+        oldSource = std::move(source);
+        source = std::move(sourceNode);
+    }
+    // oldSource is safely deleted here, outside the spinlock
 }
 
 void Track::setInstrumentPlugin(std::unique_ptr<IAudioNode> instrumentNode) {
-    const juce::SpinLock::ScopedLockType sl(processLock);
-    instrument = std::move(instrumentNode);
-    if (instrument && currentSampleRate > 0) {
-        instrument->prepareToPlay(currentSampleRate, currentBlockSize);
+    if (instrumentNode && currentSampleRate > 0) {
+        instrumentNode->prepareToPlay(currentSampleRate, currentBlockSize);
     }
+    
+    std::unique_ptr<IAudioNode> oldInstrument;
+    {
+        const juce::SpinLock::ScopedLockType sl(processLock);
+        oldInstrument = std::move(instrument);
+        instrument = std::move(instrumentNode);
+    }
+    // oldInstrument is safely deleted here, outside the spinlock
 }
 
 void Track::addInsertPlugin(std::unique_ptr<IAudioNode> pluginNode) {

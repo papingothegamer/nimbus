@@ -7,13 +7,10 @@ namespace Nimbus {
 
 class NimbusEngine;
 
-class ComputerMidiController : public juce::KeyListener, public juce::Timer {
+class ComputerMidiController : public juce::Timer {
 public:
     ComputerMidiController(NimbusEngine& engine);
     ~ComputerMidiController() override;
-
-    bool keyPressed(const juce::KeyPress& key, juce::Component* originatingComponent) override;
-    bool keyStateChanged(bool isKeyDown, juce::Component* originatingComponent) override;
 
     void setEnabled(bool shouldBeEnabled);
     bool isEnabled() const { return enabled; }
@@ -39,9 +36,19 @@ private:
     // Map of currently pressed characters to MIDI notes
     std::map<int, int> activeKeyCodesToNotes;
 
+    bool zWasDown = false;
+    bool xWasDown = false;
+    bool cWasDown = false;
+    bool vWasDown = false;
+
     int getNoteFromKeyCode(int keyCode);
     void sendPitchBend(int value);
     void sendModulation(int value);
+    bool isKeyCurrentlyDown(int keyCode);
+    
+    const std::vector<int> mappedKeys = {
+        'A', 'W', 'S', 'E', 'D', 'F', 'T', 'G', 'Y', 'H', 'U', 'J', 'K', 'L', 'P', ';', '\''
+    };
 };
 
 } // namespace Nimbus

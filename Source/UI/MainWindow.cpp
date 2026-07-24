@@ -172,10 +172,6 @@ MainWindow::MainWindow(juce::String name, NimbusEngine& engineToUse)
     
     setContentNonOwned(&mainContent, true);
 
-    if (auto* ctrl = engineToUse.getComputerMidiController()) {
-        addKeyListener(ctrl);
-    }
-
     setResizable(true, true);
     centreWithSize(1280, 800);
     setVisible(true);

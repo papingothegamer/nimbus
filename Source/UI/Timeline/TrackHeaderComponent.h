@@ -10,7 +10,8 @@ class TrackHeaderComponent : public juce::Component,
                            public juce::Label::Listener,
                            public juce::ComboBox::Listener,
                            public TimelineProject::Listener,
-                           public juce::ChangeListener {
+                           public juce::ChangeListener,
+                           public juce::DragAndDropTarget {
 public:
     TrackHeaderComponent(NimbusEngine& engine, int trackIndex);
     ~TrackHeaderComponent() override;
@@ -20,10 +21,19 @@ public:
     void updateMeters();
     
     void setTrackIndex(int newIndex);
+    int getTrackIndex() const { return trackIndex; }
     
     void labelTextChanged(juce::Label* labelThatHasChanged) override;
     void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override;
     void mouseDown(const juce::MouseEvent& event) override;
+    void mouseDrag(const juce::MouseEvent& event) override;
+
+    // Drag and Drop Target
+    bool isInterestedInDragSource(const SourceDetails& dragSourceDetails) override;
+    void itemDragEnter(const SourceDetails& dragSourceDetails) override;
+    void itemDragMove(const SourceDetails& dragSourceDetails) override;
+    void itemDragExit(const SourceDetails& dragSourceDetails) override;
+    void itemDropped(const SourceDetails& dragSourceDetails) override;
 
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
 
@@ -47,6 +57,9 @@ private:
     NimbusEngine& engine;
     int trackIndex;
     float currentLevel = 0.0f;
+    
+    bool isBeingDraggedOver = false;
+    float dragInsertionY = -1.0f;
 
     juce::TextButton powerToggle; 
     juce::Label nameLabel;

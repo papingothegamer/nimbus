@@ -122,6 +122,70 @@ void Mixer::removeTrack(int index) {
     }
 }
 
+void Mixer::moveTrack(int sourceIndex, int targetIndex) {
+    if (sourceIndex == targetIndex) return;
+
+    const juce::SpinLock::ScopedLockType sl(processLock);
+    if (sourceIndex < 0 || sourceIndex >= (int)tracks.size()) return;
+    if (targetIndex < 0 || targetIndex > (int)tracks.size()) return;
+
+    // Collect all tracks to move (handle group dragging)
+    std::vector<int> tracksToMove;
+    tracksToMove.push_back(sourceIndex);
+
+    bool isGroup = tracks[sourceIndex]->isGroup();
+    if (isGroup) {
+        TrackID groupId = tracks[sourceIndex]->getId();
+        for (int i = sourceIndex + 1; i < (int)tracks.size(); ++i) {
+            if (tracks[i]->getParentGroupId() == groupId) {
+                tracksToMove.push_back(i);
+            } else {
+                break;
+            }
+        }
+    }
+
+    // Determine the actual destination group
+    TrackID newParentGroupId;
+    bool droppingIntoGroup = false;
+
+    if (!isGroup && targetIndex > 0) {
+        int trackAbove = (sourceIndex < targetIndex) ? targetIndex : targetIndex - 1;
+        if (trackAbove < (int)tracks.size()) {
+            if (tracks[trackAbove]->isGroup() || !tracks[trackAbove]->getParentGroupId().isNull()) {
+                newParentGroupId = tracks[trackAbove]->isGroup() ? tracks[trackAbove]->getId() : tracks[trackAbove]->getParentGroupId();
+                droppingIntoGroup = true;
+            }
+        }
+    }
+
+    std::vector<std::unique_ptr<Track>> extractedTracks;
+
+    for (int i = tracksToMove.back(); i >= tracksToMove.front(); --i) {
+        extractedTracks.insert(extractedTracks.begin(), std::move(tracks[i]));
+        tracks.erase(tracks.begin() + i);
+    }
+
+    int adjustedTargetIndex = targetIndex;
+    if (sourceIndex < targetIndex) {
+        adjustedTargetIndex -= tracksToMove.size();
+    }
+
+    if (droppingIntoGroup) {
+        for (auto& t : extractedTracks) {
+            t->setParentGroupId(newParentGroupId);
+        }
+    } else if (!isGroup) {
+        for (auto& t : extractedTracks) {
+            t->setParentGroupId(TrackID());
+        }
+    }
+
+    tracks.insert(tracks.begin() + adjustedTargetIndex,
+                  std::make_move_iterator(extractedTracks.begin()),
+                  std::make_move_iterator(extractedTracks.end()));
+}
+
 void Mixer::setMasterVolume(float gainLinear) {
     masterFader.setGainLinear(gainLinear);
 }

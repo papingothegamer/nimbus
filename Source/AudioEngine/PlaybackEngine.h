@@ -23,6 +23,7 @@ public:
     // TimelineProject::Listener
     void trackAdded(int trackIndex, const TrackModel& track) override;
     void trackRemoved(int trackIndex) override;
+    void trackMoved(int sourceIndex, int targetIndex) override;
     void trackMuteChanged(int trackIndex, bool isMuted) override;
     void trackSoloChanged(int trackIndex, bool isSoloed) override;
     void trackArmChanged(int trackIndex, bool isArmed) override;

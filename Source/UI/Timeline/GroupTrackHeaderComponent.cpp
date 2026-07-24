@@ -1,4 +1,5 @@
 #include "GroupTrackHeaderComponent.h"
+#include "TrackHeaderComponent.h"
 #include "UI/DesignSystem/Colors.h"
 #include "UI/DesignSystem/Typography.h"
 #include "UI/DesignSystem/Iconography.h"
@@ -166,6 +167,11 @@ void GroupTrackHeaderComponent::paint(juce::Graphics& g) {
     
     // Blue line down the left side
     g.fillRect(0, 0, 4, getHeight());
+
+    if (isBeingDraggedOver) {
+        g.setColour(juce::Colours::cyan);
+        g.drawLine(0.0f, dragInsertionY, (float)getWidth(), dragInsertionY, 3.0f);
+    }
 }
 
 void GroupTrackHeaderComponent::resized() {
@@ -212,6 +218,63 @@ void GroupTrackHeaderComponent::mouseDown(const juce::MouseEvent& e) {
             engine.getTimelineProject().ungroupTracks(trackIndex);
         });
         m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this));
+    } else {
+        engine.getTimelineProject().setTrackSelected(trackIndex, true);
+    }
+}
+
+void GroupTrackHeaderComponent::mouseDrag(const juce::MouseEvent& event) {
+    if (auto* container = juce::DragAndDropContainer::findParentDragContainerFor(this)) {
+        if (!container->isDragAndDropActive()) {
+            container->startDragging("TrackReorder", this, juce::ScaledImage());
+        }
+    }
+}
+
+bool GroupTrackHeaderComponent::isInterestedInDragSource(const SourceDetails& dragSourceDetails) {
+    return dragSourceDetails.description == "TrackReorder" && dragSourceDetails.sourceComponent != this;
+}
+
+void GroupTrackHeaderComponent::itemDragEnter(const SourceDetails& /*dragSourceDetails*/) {
+    isBeingDraggedOver = true;
+    repaint();
+}
+
+void GroupTrackHeaderComponent::itemDragMove(const SourceDetails& dragSourceDetails) {
+    float localY = dragSourceDetails.localPosition.y;
+    if (localY < getHeight() / 2.0f) {
+        dragInsertionY = 0.0f;
+    } else {
+        dragInsertionY = (float)getHeight();
+    }
+    repaint();
+}
+
+void GroupTrackHeaderComponent::itemDragExit(const SourceDetails& /*dragSourceDetails*/) {
+    isBeingDraggedOver = false;
+    repaint();
+}
+
+void GroupTrackHeaderComponent::itemDropped(const SourceDetails& dragSourceDetails) {
+    isBeingDraggedOver = false;
+    repaint();
+    
+    int sourceIndex = -1;
+    if (auto* sourceHeader = dynamic_cast<TrackHeaderComponent*>(dragSourceDetails.sourceComponent.get())) {
+        sourceIndex = sourceHeader->getTrackIndex();
+    } else if (auto* groupHeader = dynamic_cast<GroupTrackHeaderComponent*>(dragSourceDetails.sourceComponent.get())) {
+        sourceIndex = groupHeader->getTrackIndex();
+    }
+
+    if (sourceIndex != -1) {
+        int targetIndex = trackIndex;
+        if (dragSourceDetails.localPosition.y >= getHeight() / 2.0f) {
+            targetIndex++;
+        }
+        
+        if (sourceIndex != targetIndex && sourceIndex != targetIndex - 1) {
+            engine.getTimelineProject().moveTrack(sourceIndex, targetIndex);
+        }
     }
 }
 

@@ -34,6 +34,10 @@ void PlaybackEngine::trackRemoved(int trackIndex) {
     mixer.removeTrack(trackIndex);
 }
 
+void PlaybackEngine::trackMoved(int sourceIndex, int targetIndex) {
+    mixer.moveTrack(sourceIndex, targetIndex);
+}
+
 void PlaybackEngine::trackMuteChanged(int trackIndex, bool isMuted) {
     if (auto* t = mixer.getTrack(trackIndex)) t->setMuted(isMuted);
 }

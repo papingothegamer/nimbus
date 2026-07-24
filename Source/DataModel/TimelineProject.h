@@ -58,6 +58,7 @@ public:
         virtual void trackArmChanged(int trackIndex, bool isArmed) {}
         virtual void trackStereoChanged(int trackIndex, bool isStereo) {}
         virtual void trackNameChanged(int trackIndex, const juce::String& newName) {}
+        virtual void trackMoved(int sourceIndex, int targetIndex) {}
         virtual void trackSelectionChanged() {}
         virtual void timeSelectionChanged() {}
         virtual void trackFoldStateChanged(int trackIndex, bool isFolded) {}
@@ -84,6 +85,7 @@ public:
     int getNumTracks() const;
     
     void removeTrack(int index);
+    void moveTrack(int sourceIndex, int targetIndex);
     
     void setTrackName(int trackIndex, const juce::String& newName);
 

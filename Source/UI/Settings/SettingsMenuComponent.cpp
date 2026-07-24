@@ -192,6 +192,12 @@ void CustomMidiSettingsComponent::refreshDeviceList() {
     deviceToggles.clear();
     auto devices = juce::MidiInput::getAvailableDevices();
 
+    if (devices.isEmpty()) {
+        headerLabel.setText("No MIDI Input Devices Found.", juce::dontSendNotification);
+    } else {
+        headerLabel.setText("MIDI Input Devices:", juce::dontSendNotification);
+    }
+
     auto& adm = engine.getAudioDeviceManager().getJuceAudioDeviceManager();
 
     for (int i = 0; i < devices.size(); ++i) {

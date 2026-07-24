@@ -98,6 +98,85 @@ void TimelineProject::removeTrack(int index)
         listeners.call([](Listener& l) { l.trackSelectionChanged(); });
     }
 }
+
+void TimelineProject::moveTrack(int sourceIndex, int targetIndex) {
+    if (sourceIndex == targetIndex) return;
+    if (sourceIndex < 0 || sourceIndex >= tracks.size()) return;
+    if (targetIndex < 0 || targetIndex > tracks.size()) return;
+
+    // Collect all tracks to move
+    std::vector<int> tracksToMove;
+    tracksToMove.push_back(sourceIndex);
+
+    bool isGroup = tracks[sourceIndex].isGroup;
+    if (isGroup) {
+        TrackID groupId = tracks[sourceIndex].id;
+        for (int i = sourceIndex + 1; i < tracks.size(); ++i) {
+            if (tracks[i].parentGroupId == groupId) {
+                tracksToMove.push_back(i);
+            } else {
+                break;
+            }
+        }
+    }
+
+    // Determine the actual destination group
+    TrackID newParentGroupId;
+    bool droppingIntoGroup = false;
+    
+    // We only attach to a group if we are NOT a group ourselves (no nested groups)
+    if (!isGroup && targetIndex > 0) {
+        // If we drop at targetIndex, the track visually above it is targetIndex - 1 (or targetIndex if source < target)
+        int trackAbove = (sourceIndex < targetIndex) ? targetIndex : targetIndex - 1;
+        if (trackAbove < tracks.size()) {
+            if (tracks[trackAbove].isGroup || !tracks[trackAbove].parentGroupId.isNull()) {
+                newParentGroupId = tracks[trackAbove].isGroup ? tracks[trackAbove].id : tracks[trackAbove].parentGroupId;
+                droppingIntoGroup = true;
+            }
+        }
+    }
+
+    std::vector<TrackModel> extractedTracks;
+    std::vector<std::vector<AnyClipPtr>> extractedClips;
+
+    // Extract backwards to avoid shifting indices
+    for (int i = tracksToMove.back(); i >= tracksToMove.front(); --i) {
+        extractedTracks.insert(extractedTracks.begin(), std::move(tracks[i]));
+        extractedClips.insert(extractedClips.begin(), std::move(trackClips[i]));
+        tracks.erase(tracks.begin() + i);
+        trackClips.erase(trackClips.begin() + i);
+    }
+
+    int adjustedTargetIndex = targetIndex;
+    if (sourceIndex < targetIndex) {
+        // If we moved downwards, the target index shifts up because we removed elements before it
+        adjustedTargetIndex -= tracksToMove.size();
+        // Since we insert BEFORE the target index, if we wanted to place it exactly where targetIndex WAS,
+        // we might need to adjust by 1 depending on the exact drag logic, but this matches standard std::vector insert logic.
+    }
+
+    if (droppingIntoGroup) {
+        for (auto& t : extractedTracks) {
+            t.parentGroupId = newParentGroupId;
+        }
+    } else if (!isGroup) {
+        for (auto& t : extractedTracks) {
+            t.parentGroupId = TrackID();
+        }
+    }
+
+    tracks.insert(tracks.begin() + adjustedTargetIndex,
+                  std::make_move_iterator(extractedTracks.begin()),
+                  std::make_move_iterator(extractedTracks.end()));
+
+    trackClips.insert(trackClips.begin() + adjustedTargetIndex,
+                      std::make_move_iterator(extractedClips.begin()),
+                      std::make_move_iterator(extractedClips.end()));
+
+    // Instead of a dedicated trackMoved, we can trigger tracksGrouped which does a full structural UI refresh
+    listeners.call(&Listener::tracksGrouped);
+}
+
 void TimelineProject::groupTracks(const juce::SparseSet<int>& trackIndices) {
     if (trackIndices.isEmpty()) return;
     

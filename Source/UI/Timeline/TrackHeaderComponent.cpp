@@ -1,4 +1,5 @@
 #include "TrackHeaderComponent.h"
+#include "GroupTrackHeaderComponent.h"
 #include "UI/DesignSystem/Colors.h"
 #include "UI/DesignSystem/Typography.h"
 #include "UI/DesignSystem/Iconography.h"
@@ -254,6 +255,64 @@ void TrackHeaderComponent::trackArmChanged(int track, bool isArmed) {
     }
 }
 
+void TrackHeaderComponent::mouseDrag(const juce::MouseEvent& event) {
+    if (auto* container = juce::DragAndDropContainer::findParentDragContainerFor(this)) {
+        if (!container->isDragAndDropActive()) {
+            container->startDragging("TrackReorder", this, juce::ScaledImage());
+        }
+    }
+}
+
+bool TrackHeaderComponent::isInterestedInDragSource(const SourceDetails& dragSourceDetails) {
+    return dragSourceDetails.description == "TrackReorder" && dragSourceDetails.sourceComponent != this;
+}
+
+void TrackHeaderComponent::itemDragEnter(const SourceDetails& /*dragSourceDetails*/) {
+    isBeingDraggedOver = true;
+    repaint();
+}
+
+void TrackHeaderComponent::itemDragMove(const SourceDetails& dragSourceDetails) {
+    float localY = dragSourceDetails.localPosition.y;
+    // Snap insertion line to top or bottom depending on whether we are in the top half or bottom half
+    if (localY < getHeight() / 2.0f) {
+        dragInsertionY = 0.0f;
+    } else {
+        dragInsertionY = (float)getHeight();
+    }
+    repaint();
+}
+
+void TrackHeaderComponent::itemDragExit(const SourceDetails& /*dragSourceDetails*/) {
+    isBeingDraggedOver = false;
+    repaint();
+}
+
+void TrackHeaderComponent::itemDropped(const SourceDetails& dragSourceDetails) {
+    isBeingDraggedOver = false;
+    repaint();
+    
+    int sourceIndex = -1;
+    if (auto* sourceHeader = dynamic_cast<TrackHeaderComponent*>(dragSourceDetails.sourceComponent.get())) {
+        sourceIndex = sourceHeader->getTrackIndex();
+    } else if (auto* groupHeader = dynamic_cast<GroupTrackHeaderComponent*>(dragSourceDetails.sourceComponent.get())) {
+        sourceIndex = groupHeader->getTrackIndex();
+    }
+
+    if (sourceIndex != -1) {
+        int targetIndex = trackIndex;
+        
+        // If dropped in the bottom half, we insert AFTER this track (so targetIndex + 1)
+        if (dragSourceDetails.localPosition.y >= getHeight() / 2.0f) {
+            targetIndex++;
+        }
+        
+        if (sourceIndex != targetIndex && sourceIndex != targetIndex - 1) {
+            engine.getTimelineProject().moveTrack(sourceIndex, targetIndex);
+        }
+    }
+}
+
 void TrackHeaderComponent::trackSelectionChanged() { repaint(); }
 
 void TrackHeaderComponent::trackFoldStateChanged(int track, bool isFolded) {
@@ -347,6 +406,11 @@ void TrackHeaderComponent::paint(juce::Graphics& g) {
             g.setGradientFill(cg);
             g.fillRect(fillBounds);
         }
+    }
+
+    if (isBeingDraggedOver) {
+        g.setColour(juce::Colours::cyan);
+        g.drawLine(0.0f, dragInsertionY, (float)getWidth(), dragInsertionY, 3.0f);
     }
 }
 
