@@ -8,17 +8,34 @@ class MidiPitchPluginEditor : public juce::Component {
 public:
     MidiPitchPluginEditor(MidiPitchPlugin& p) : plugin(p) {
         setSize(250, 150);
+        
+        pitchSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+        pitchSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+        pitchSlider.setRange(-36.0, 36.0, 1.0);
+        pitchSlider.setValue(plugin.pitchShift);
+        pitchSlider.setDoubleClickReturnValue(true, 0.0);
+        pitchSlider.getProperties().set("isBipolar", true);
+        addAndMakeVisible(pitchSlider);
+        
+        pitchSlider.onValueChange = [this]() {
+            plugin.pitchShift = static_cast<int>(pitchSlider.getValue());
+        };
     }
 
     void paint(juce::Graphics& g) override {
         g.fillAll(DesignSystem::Colors::PanelBackground);
         g.setColour(DesignSystem::Colors::TextPrimary);
-        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(16.0f));
-        g.drawText("Pitch Editor (Coming Soon)", getLocalBounds(), juce::Justification::centred, false);
+        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
+        g.drawText("Pitch Shift", 0, 10, getWidth(), 20, juce::Justification::centred, false);
+    }
+    
+    void resized() override {
+        pitchSlider.setBounds(getLocalBounds().withSizeKeepingCentre(80, 100).translated(0, 10));
     }
 
 private:
     MidiPitchPlugin& plugin;
+    juce::Slider pitchSlider;
 };
 
 MidiPitchPlugin::MidiPitchPlugin() {

@@ -25,10 +25,11 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
-private:
     bool bypassed = false;
-    double currentSampleRate = 44100.0;
     int pitchShift = 12; // Default to +1 octave
+
+private:
+    double currentSampleRate = 44100.0;
 };
 
 } // namespace Nimbus

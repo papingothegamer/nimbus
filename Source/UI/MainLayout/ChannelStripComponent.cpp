@@ -3,39 +3,7 @@
 #include "UI/DesignSystem/Typography.h"
 #include "UI/DesignSystem/Iconography.h"
 
-namespace {
-    class AbletonRotaryLAF : public juce::LookAndFeel_V4 {
-    public:
-        void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height, float sliderPos,
-                              const float rotaryStartAngle, const float rotaryEndAngle, juce::Slider&) override {
-            float radius = juce::jmin(width / 2.0f, height / 2.0f) - 2.0f;
-            float centreX = x + width * 0.5f;
-            float centreY = y + height * 0.5f;
-            float rx = centreX - radius;
-            float ry = centreY - radius;
-            float rw = radius * 2.0f;
-            float angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
 
-            g.setColour(juce::Colour(0xff121212));
-            g.fillEllipse(rx, ry, rw, rw);
-            g.setColour(juce::Colour(0xff888888));
-            g.drawEllipse(rx, ry, rw, rw, 1.5f);
-
-            float centerAngle = rotaryStartAngle + (rotaryEndAngle - rotaryStartAngle) * 0.5f;
-            juce::Path arc;
-            arc.addCentredArc(centreX, centreY, radius - 1.5f, radius - 1.5f, 0.0f, centerAngle, angle, true);
-            g.setColour(juce::Colour(0xfffdb913)); // Bright Ableton-style orange/yellow
-            g.strokePath(arc, juce::PathStrokeType(2.0f));
-
-            juce::Path p;
-            p.addRectangle(-1.0f, -radius, 2.0f, radius * 0.8f);
-            p.applyTransform(juce::AffineTransform::rotation(angle).translated(centreX, centreY));
-            g.setColour(juce::Colours::white);
-            g.fillPath(p);
-        }
-    };
-    AbletonRotaryLAF rotaryLAF;
-}
 
 namespace Nimbus::MainLayout {
 
@@ -108,7 +76,7 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
     else meteredFader.setTrackType(UI::MeteredFader::TrackType::MonoAudio);
     
     addAndMakeVisible(pan);
-    pan.setLookAndFeel(&rotaryLAF);
+    pan.getProperties().set("isPan", true);
     pan.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     pan.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
     pan.setRange(-1.0, 1.0, 0.01);
@@ -183,7 +151,7 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
 
 ChannelStripComponent::~ChannelStripComponent() {
     engine.getTimelineProject().removeListener(this);
-    pan.setLookAndFeel(nullptr);
+
 }
 
 void ChannelStripComponent::setTrackIndex(int index) {

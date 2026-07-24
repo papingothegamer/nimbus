@@ -75,7 +75,7 @@ void PianoRollTimelineComponent::paint(juce::Graphics& g) {
             double pixelsPerSecond = 100.0;
             float px = keyWidth + static_cast<float>(timeIntoClip * pixelsPerSecond);
             
-            g.setColour(DesignSystem::Colors::PrimaryAction);
+            g.setColour(juce::Colours::white);
             g.drawVerticalLine(static_cast<int>(px), 0.0f, static_cast<float>(getHeight()));
             
             juce::Path p;

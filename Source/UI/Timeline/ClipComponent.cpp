@@ -274,8 +274,8 @@ void ClipComponent::mouseDown(const juce::MouseEvent& event) {
     bool isHeaderClick = event.y <= 18;
     isResizingLeft = (event.x <= 5);
     isResizingRight = (event.x >= getWidth() - 5);
-    isDragging = isHeaderClick && !isResizingLeft && !isResizingRight;
-    isSelectingTime = !isHeaderClick && !isResizingLeft && !isResizingRight;
+    isDragging = !isResizingLeft && !isResizingRight;
+    isSelectingTime = false;
     
     if (isSelectingTime) {
         if (auto* parent = getParentComponent()) {

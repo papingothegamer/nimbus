@@ -230,7 +230,7 @@ void TimelineComponent::paintOverChildren(juce::Graphics& g) {
         g.saveState();
         g.reduceClipRegion(headerWidth, 0, lanesWidth, getHeight());
 
-        g.setColour(DesignSystem::Colors::PrimaryAction);
+        g.setColour(juce::Colours::white);
         g.drawLine(playheadX, 0, playheadX, getHeight(), 2.0f);
         
         // Playhead triangle
@@ -505,12 +505,25 @@ void TimelineComponent::mouseWheelMove(const juce::MouseEvent& event, const juce
         zoom(zoomDelta);
     } else {
         if (std::abs(wheel.deltaX) > 0.0f) {
-            scrollOffsetX += wheel.deltaX * 500.0;
+            // Trackpads usually send inverted deltaX for natural scrolling, or standard deltaX. 
+            // In JUCE, subtracting wheel.deltaX moves the view in the expected direction.
+            // Scale by 200 for a reasonable trackpad speed.
+            scrollOffsetX += wheel.deltaX * 200.0;
             scrollOffsetX = juce::jmax(0.0, scrollOffsetX);
             for (auto* lane : trackLanes) {
                 lane->resized();
             }
             repaint();
+        }
+        
+        if (std::abs(wheel.deltaY) > 0.0f) {
+            // Pass vertical scroll to viewport if mouse is not over viewport, 
+            // or if the viewport didn't consume it.
+            // A simple reliable way is to manually adjust the viewport position:
+            auto pos = viewport.getViewPosition();
+            pos.y -= static_cast<int>(wheel.deltaY * 200.0);
+            pos.y = juce::jlimit(0, juce::jmax(0, trackContainer.getHeight() - viewport.getHeight()), pos.y);
+            viewport.setViewPosition(pos);
         }
     }
 }
@@ -577,7 +590,12 @@ void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int 
                    .withButton("Keep Original");
                    
             juce::AlertWindow::showAsync(options, [this, file, droppedSample, sampleRate, targetTrackIndex](int result) {
-                auto clip = std::make_shared<AudioClip>(file, static_cast<int>(droppedSample), static_cast<int>(sampleRate * 4.0));
+                int lengthSamples = static_cast<int>(sampleRate * 4.0);
+                if (auto* reader = engine.getFormatManager().createReaderFor(file)) {
+                    lengthSamples = static_cast<int>(reader->lengthInSamples);
+                    delete reader;
+                }
+                auto clip = std::make_shared<AudioClip>(file, static_cast<int>(droppedSample), lengthSamples);
                 clip->name = file.getFileNameWithoutExtension();
                 
                 if (result == 1 || result == 2) { 
@@ -609,6 +627,13 @@ void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int 
 void TimelineComponent::mouseDown(const juce::MouseEvent& event) {
     if (event.mods.isPopupMenu()) return; // Global context menu could go here
     
+    if (event.mods.isMiddleButtonDown()) {
+        isDraggingScroll = true;
+        dragScrollStartX = scrollOffsetX;
+        dragScrollStartY = viewport.getViewPositionY();
+        return;
+    }
+    
     int headerWidth = 150;
     if (event.position.x < headerWidth) return;
     
@@ -616,7 +641,13 @@ void TimelineComponent::mouseDown(const juce::MouseEvent& event) {
     if (sampleRate <= 0) sampleRate = 48000.0;
     
     double clickSeconds = (event.position.x - headerWidth + scrollOffsetX) / pixelsPerSecond;
-    double startSamples = clickSeconds * sampleRate;
+    
+    double tempo = engine.getTransport().getTempo();
+    double secondsPerBeat = 60.0 / tempo;
+    double snapSeconds = secondsPerBeat / 4.0;
+    double snappedClickSeconds = std::round(clickSeconds / snapSeconds) * snapSeconds;
+    
+    double startSamples = snappedClickSeconds * sampleRate;
     
     auto& project = engine.getTimelineProject();
     project.setSelectedClip(AnyClipPtr{});
@@ -645,13 +676,34 @@ void TimelineComponent::mouseDown(const juce::MouseEvent& event) {
 }
 
 void TimelineComponent::mouseDrag(const juce::MouseEvent& event) {
+    if (isDraggingScroll) {
+        double deltaX = event.getDistanceFromDragStartX();
+        scrollOffsetX = juce::jmax(0.0, dragScrollStartX - deltaX);
+        
+        int deltaY = event.getDistanceFromDragStartY();
+        auto pos = viewport.getViewPosition();
+        pos.y = dragScrollStartY - deltaY;
+        pos.y = juce::jlimit(0, juce::jmax(0, trackContainer.getHeight() - viewport.getHeight()), pos.y);
+        viewport.setViewPosition(pos);
+        
+        for (auto* lane : trackLanes) lane->resized();
+        repaint();
+        return;
+    }
+    
     if (isDraggingSelection) {
         int headerWidth = 150;
         double sampleRate = engine.getTransport().getSampleRate();
         if (sampleRate <= 0) sampleRate = 48000.0;
         
         double currentSeconds = (event.position.x - headerWidth + scrollOffsetX) / pixelsPerSecond;
-        double endSamples = currentSeconds * sampleRate;
+        
+        double tempo = engine.getTransport().getTempo();
+        double secondsPerBeat = 60.0 / tempo;
+        double snapSeconds = secondsPerBeat / 4.0;
+        double snappedCurrentSeconds = std::round(currentSeconds / snapSeconds) * snapSeconds;
+        
+        double endSamples = snappedCurrentSeconds * sampleRate;
         
         auto& project = engine.getTimelineProject();
         project.setTimeSelection(project.getTimeSelectionStart(), endSamples);
@@ -683,6 +735,7 @@ void TimelineComponent::mouseDrag(const juce::MouseEvent& event) {
 
 void TimelineComponent::mouseUp(const juce::MouseEvent& event) {
     isDraggingSelection = false;
+    isDraggingScroll = false;
 }
 
 bool TimelineComponent::isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails& dragSourceDetails) {

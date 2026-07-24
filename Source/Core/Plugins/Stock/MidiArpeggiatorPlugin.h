@@ -27,15 +27,16 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
-private:
     bool bypassed = false;
+    double rateInSeconds = 0.25; // Default to 16th notes at 60BPM approx
+
+private:
     double currentSampleRate = 44100.0;
     
     std::vector<int> heldNotes;
     int currentNoteIndex = 0;
     int lastPlayedNote = -1;
     double samplesSinceLastNote = 0.0;
-    double rateInSeconds = 0.25; // Default to 16th notes at 60BPM approx
 };
 
 } // namespace Nimbus

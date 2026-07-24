@@ -14,7 +14,7 @@ public:
         g.fillAll(DesignSystem::Colors::PanelBackground);
         g.setColour(DesignSystem::Colors::TextPrimary);
         g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(16.0f));
-        g.drawText("Scale Editor (Coming Soon)", getLocalBounds(), juce::Justification::centred, false);
+        g.drawText("Scale Effect (C Major)", getLocalBounds(), juce::Justification::centred, false);
     }
 
 private:

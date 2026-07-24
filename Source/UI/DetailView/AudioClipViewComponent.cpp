@@ -115,7 +115,7 @@ void AudioClipContent::paint(juce::Graphics& g) {
                 px = static_cast<float>((sourceSecs / thumbnail.getTotalLength()) * getWidth());
             }
             
-            g.setColour(DesignSystem::Colors::PrimaryAction);
+            g.setColour(juce::Colours::white);
             g.drawVerticalLine(static_cast<int>(px), 0.0f, static_cast<float>(getHeight()));
             
             juce::Path p;

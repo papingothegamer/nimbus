@@ -8,17 +8,34 @@ class MidiArpeggiatorPluginEditor : public juce::Component {
 public:
     MidiArpeggiatorPluginEditor(MidiArpeggiatorPlugin& p) : plugin(p) {
         setSize(250, 150);
+        
+        rateSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+        rateSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
+        rateSlider.setRange(0.01, 2.0, 0.01);
+        rateSlider.setValue(plugin.rateInSeconds);
+        rateSlider.setDoubleClickReturnValue(true, 0.25);
+        rateSlider.setTextValueSuffix(" s");
+        addAndMakeVisible(rateSlider);
+        
+        rateSlider.onValueChange = [this]() {
+            plugin.rateInSeconds = rateSlider.getValue();
+        };
     }
 
     void paint(juce::Graphics& g) override {
         g.fillAll(DesignSystem::Colors::PanelBackground);
         g.setColour(DesignSystem::Colors::TextPrimary);
-        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(16.0f));
-        g.drawText("Arpeggiator Editor (Coming Soon)", getLocalBounds(), juce::Justification::centred, false);
+        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
+        g.drawText("Arp Rate", 0, 10, getWidth(), 20, juce::Justification::centred, false);
+    }
+    
+    void resized() override {
+        rateSlider.setBounds(getLocalBounds().withSizeKeepingCentre(80, 100).translated(0, 10));
     }
 
 private:
     MidiArpeggiatorPlugin& plugin;
+    juce::Slider rateSlider;
 };
 
 MidiArpeggiatorPlugin::MidiArpeggiatorPlugin() {

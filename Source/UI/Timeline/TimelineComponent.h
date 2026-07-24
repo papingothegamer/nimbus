@@ -82,6 +82,9 @@ private:
     double scrollOffsetX = 0.0;
     
     bool isDraggingSelection = false;
+    bool isDraggingScroll = false;
+    double dragScrollStartX = 0.0;
+    int dragScrollStartY = 0;
     int selectionStartTrackIndex = -1;
     
     SeekingBarComponent seekingBar{engine, pixelsPerSecond, scrollOffsetX};

@@ -45,41 +45,38 @@ NimbusLookAndFeel::~NimbusLookAndFeel() = default;
 void NimbusLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height,
                                          float sliderPosProportional, float rotaryStartAngle,
                                          float rotaryEndAngle, juce::Slider& slider) {
-    auto radius = (float)juce::jmin(width / 2, height / 2) - 4.0f;
-    auto centreX = (float)x + (float)width * 0.5f;
-    auto centreY = (float)y + (float)height * 0.5f;
-    auto angle = rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
+    float radius = juce::jmin(width / 2.0f, height / 2.0f) - 2.0f;
+    float centreX = x + width * 0.5f;
+    float centreY = y + height * 0.5f;
+    float rx = centreX - radius;
+    float ry = centreY - radius;
+    float rw = radius * 2.0f;
+    float angle = rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
 
-    // Draw flat background arc
-    juce::Path backgroundArc;
-    backgroundArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, rotaryStartAngle, rotaryEndAngle, true);
-    g.setColour(Colors::ComponentBorder.withAlpha(0.3f));
-    g.strokePath(backgroundArc, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    g.setColour(juce::Colour(0xff121212));
+    g.fillEllipse(rx, ry, rw, rw);
+    g.setColour(juce::Colour(0xff888888));
+    g.drawEllipse(rx, ry, rw, rw, 1.5f);
 
-    // Draw filled arc
-    bool isPan = slider.getProperties().contains("isPan");
-    if (isPan ? std::abs(sliderPosProportional - 0.5f) > 0.001f : sliderPosProportional > 0.0f) {
-        juce::Path filledArc;
-        float startArc = isPan ? (rotaryStartAngle + rotaryEndAngle) * 0.5f : rotaryStartAngle;
-        if (isPan) {
-            if (sliderPosProportional < 0.5f) {
-                filledArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, angle, startArc, true);
-            } else {
-                filledArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, startArc, angle, true);
-            }
-        } else {
-            filledArc.addCentredArc(centreX, centreY, radius, radius, 0.0f, rotaryStartAngle, angle, true);
-        }
-        g.setColour(Colors::PrimaryAction);
-        g.strokePath(filledArc, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    float centerAngle = rotaryStartAngle + (rotaryEndAngle - rotaryStartAngle) * 0.5f;
+    bool isPan = slider.getProperties().contains("isPan") || slider.getProperties().contains("isBipolar");
+    
+    // Some basic logic to draw an arc. If it's a pan knob, draw from center.
+    juce::Path arc;
+    if (isPan) {
+        arc.addCentredArc(centreX, centreY, radius - 1.5f, radius - 1.5f, 0.0f, centerAngle, angle, true);
+    } else {
+        arc.addCentredArc(centreX, centreY, radius - 1.5f, radius - 1.5f, 0.0f, rotaryStartAngle, angle, true);
     }
+    
+    g.setColour(juce::Colour(0xfffdb913)); // Bright Ableton-style orange/yellow
+    g.strokePath(arc, juce::PathStrokeType(2.0f));
 
-    // Draw indicator dot
-    auto dotRadius = 2.5f;
-    juce::Point<float> dotCenter(centreX + (radius - 8.0f) * std::cos(angle - juce::MathConstants<float>::halfPi),
-                                 centreY + (radius - 8.0f) * std::sin(angle - juce::MathConstants<float>::halfPi));
-    g.setColour(Colors::TextPrimary);
-    g.fillEllipse(dotCenter.x - dotRadius, dotCenter.y - dotRadius, dotRadius * 2, dotRadius * 2);
+    juce::Path p;
+    p.addRectangle(-1.0f, -radius, 2.0f, radius * 0.8f);
+    p.applyTransform(juce::AffineTransform::rotation(angle).translated(centreX, centreY));
+    g.setColour(juce::Colours::white);
+    g.fillPath(p);
 }
 
 void NimbusLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
