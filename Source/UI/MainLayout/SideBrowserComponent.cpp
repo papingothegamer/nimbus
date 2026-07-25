@@ -181,7 +181,7 @@ public:
     void paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected) override {
         auto bounds = juce::Rectangle<int>(0, 0, width, height).reduced(6, 2);
         if (rowIsSelected) {
-            g.setColour(DesignSystem::Colors::ComponentBackground.brighter(0.1f));
+            g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.12f));
             g.fillRoundedRectangle(bounds.toFloat(), 6.0f);
         }
         
@@ -504,6 +504,18 @@ void PreviewPlayerComponent::changeListenerCallback(juce::ChangeBroadcaster* sou
 
 void PreviewPlayerComponent::timerCallback() {
     repaint();
+    if (transportSource.isPlaying()) {
+        double pos = transportSource.getCurrentPosition();
+        double limit = 0.0;
+        if (readerSource && readerSource->getAudioFormatReader()) {
+            limit = readerSource->getAudioFormatReader()->lengthInSamples / readerSource->getAudioFormatReader()->sampleRate;
+        }
+        
+        double maxDuration = (limit > 60.0) ? 30.0 : 60.0;
+        if (pos >= maxDuration) {
+            stop();
+        }
+    }
 }
 
 void PreviewPlayerComponent::paint(juce::Graphics& g) {

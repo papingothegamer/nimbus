@@ -449,7 +449,7 @@ void TrackHeaderComponent::resized() {
     foldButton.setVisible(false);
     
     // Power Toggle (Number Box)
-    powerToggle.setBounds(topRow.removeFromLeft(24).withSizeKeepingCentre(24, 20));
+    powerToggle.setBounds(topRow.removeFromLeft(30).withSizeKeepingCentre(30, 20));
     topRow.removeFromLeft(4); // space
     nameLabel.setBounds(topRow);
     

@@ -40,6 +40,7 @@ public:
     ~AudioClipViewComponent() override;
 
     void resized() override;
+    void paint(juce::Graphics& g) override;
     void setAudioClip(std::shared_ptr<AudioClip> clip);
     
     void lookAndFeelChanged() override;
@@ -54,7 +55,7 @@ private:
     AudioClipContent content;
     double zoomFactor = 1.0;
     
-    // Zoom and follow controls
+    juce::Component toolbar;
     juce::TextButton zoomInButton{"zoomplus_svg"};
     juce::TextButton zoomOutButton{"zoomminus_svg"};
     juce::TextButton followButton{"arrowrightthick_svg"};

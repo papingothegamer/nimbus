@@ -45,6 +45,10 @@ void MainBottomPanelWrapper::paint(juce::Graphics& g) {
     g.fillAll(DesignSystem::Colors::PanelBackground);
     g.setColour(DesignSystem::Colors::Divider);
     g.fillRect(0, 29, getWidth(), 1);
+    
+    if (deviceViewActive) {
+        g.fillRect(detail.getRight() - 1, 30, 2, getHeight() - 30);
+    }
 }
 
 void MainBottomPanelWrapper::resized() {

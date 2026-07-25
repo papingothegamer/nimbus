@@ -159,9 +159,11 @@ AudioClipViewComponent::AudioClipViewComponent(NimbusEngine& e) : engine(e), con
     addAndMakeVisible(viewport);
     viewport.setViewedComponent(&content, false);
     
-    addAndMakeVisible(zoomInButton);
-    addAndMakeVisible(zoomOutButton);
-    addAndMakeVisible(followButton);
+    addAndMakeVisible(toolbar);
+    
+    toolbar.addAndMakeVisible(zoomInButton);
+    toolbar.addAndMakeVisible(zoomOutButton);
+    toolbar.addAndMakeVisible(followButton);
     
     // Properties for icon buttons so they look correct
     zoomInButton.getProperties().set("transparentBackground", true);
@@ -198,8 +200,13 @@ void AudioClipViewComponent::setAudioClip(std::shared_ptr<AudioClip> clip) {
     content.setAudioClip(clip);
     
     if (isNewClip && clip && content.getTotalLength() > 0.0 && getWidth() > 0) {
-        zoomFactor = static_cast<double>(getWidth()) / (content.getTotalLength() * 100.0);
-        zoomFactor = juce::jlimit(0.001, 1000.0, zoomFactor);
+        // Initial zoom should not be too zoomed in.
+        // E.g., zoom such that we see the whole clip or at most 10 seconds.
+        double targetSeconds = juce::jmin(10.0, content.getTotalLength());
+        if (targetSeconds > 0) {
+            zoomFactor = static_cast<double>(getWidth()) / (targetSeconds * 100.0);
+            zoomFactor = juce::jlimit(0.001, 1000.0, zoomFactor);
+        }
     }
     
     resized();
@@ -210,26 +217,37 @@ void AudioClipViewComponent::lookAndFeelChanged() {
 }
 
 void AudioClipViewComponent::resized() {
-    viewport.setBounds(getLocalBounds());
+    auto bounds = getLocalBounds();
+    auto toolBounds = bounds.removeFromTop(30);
+    toolbar.setBounds(toolBounds);
+    
+    viewport.setBounds(bounds);
     
     int btnSize = 24;
-    int padding = 10;
+    int padding = 3;
     
-    zoomInButton.setBounds(getWidth() - btnSize - padding, padding, btnSize, btnSize);
-    zoomOutButton.setBounds(getWidth() - btnSize * 2 - padding * 2, padding, btnSize, btnSize);
-    followButton.setBounds(getWidth() - btnSize * 3 - padding * 3, padding, btnSize, btnSize);
-    
-    zoomInButton.toFront(false);
-    zoomOutButton.toFront(false);
-    followButton.toFront(false);
+    // Position buttons in the toolbar (right-aligned)
+    zoomInButton.setBounds(toolbar.getWidth() - btnSize - padding, padding, btnSize, btnSize);
+    zoomOutButton.setBounds(toolbar.getWidth() - btnSize * 2 - padding * 2, padding, btnSize, btnSize);
+    followButton.setBounds(toolbar.getWidth() - btnSize * 3 - padding * 3, padding, btnSize, btnSize);
     
     // Scale width based on length, 100 pixels per second
-    int desiredWidth = getWidth();
+    int desiredWidth = viewport.getWidth();
     if (content.getTotalLength() > 0.0) {
-        desiredWidth = juce::jmax(getWidth(), static_cast<int>(content.getTotalLength() * 100.0 * zoomFactor));
+        desiredWidth = juce::jmax(viewport.getWidth(), static_cast<int>(content.getTotalLength() * 100.0 * zoomFactor));
     }
     
-    content.setBounds(0, 0, desiredWidth, getHeight() - viewport.getScrollBarThickness());
+    content.setBounds(0, 0, desiredWidth, viewport.getHeight() - viewport.getScrollBarThickness());
+}
+
+void AudioClipViewComponent::paint(juce::Graphics& g) {
+    g.fillAll(DesignSystem::Colors::PanelBackground);
+    
+    g.setColour(DesignSystem::Colors::AppBackground);
+    g.fillRect(toolbar.getBounds());
+    
+    g.setColour(DesignSystem::Colors::Divider);
+    g.drawHorizontalLine(toolbar.getBottom() - 1, 0, static_cast<float>(getWidth()));
 }
 
 void AudioClipViewComponent::mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) {

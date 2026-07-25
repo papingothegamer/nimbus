@@ -191,7 +191,7 @@ void GroupTrackHeaderComponent::resized() {
     topRow.removeFromLeft(4); // space
     
     // Power Toggle (Number Box)
-    powerToggle.setBounds(topRow.removeFromLeft(24).withSizeKeepingCentre(24, 20));
+    powerToggle.setBounds(topRow.removeFromLeft(30).withSizeKeepingCentre(30, 20));
     topRow.removeFromLeft(4); // space
     
     // Track Name takes remaining space on top row
