@@ -162,6 +162,7 @@ public:
     void addClipToTrack(int trackIndex, AnyClipPtr clip);
     void removeClip(AnyClipPtr clip);
     std::vector<AnyClipPtr> getClipsOnTrack(int trackIndex) const;
+    void resolveCrossfades(int trackIndex);
     double getTotalDurationSamples() const;
     
     // Clipboard & Duplication

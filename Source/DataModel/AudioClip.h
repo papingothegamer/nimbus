@@ -28,8 +28,10 @@ public:
     juce::CachedValue<bool> reverse;
     juce::CachedValue<int> fadeInSamples;
     juce::CachedValue<int> fadeOutSamples;
-    juce::CachedValue<int> fadeInCurve;
-    juce::CachedValue<int> fadeOutCurve;
+    juce::CachedValue<float> fadeInCurve;
+    juce::CachedValue<float> fadeOutCurve;
+    juce::CachedValue<bool> isCrossfadingIn;
+    juce::CachedValue<bool> isCrossfadingOut;
     juce::CachedValue<float> pitchShift;
     
     juce::CachedValue<double> speedMultiplier;

@@ -8,6 +8,7 @@ AudioClipNode::AudioClipNode(std::shared_ptr<AudioClip> clip, std::shared_ptr<Di
 
 void AudioClipNode::prepareToPlay(double /*sampleRate*/, int /*maximumExpectedSamplesPerBlock*/) {
     if (diskStreamer && !diskStreamer->isThreadRunning()) {
+        diskStreamer->requestSeek(clipModel->sourceOffsetSamples.get());
         diskStreamer->startStreaming();
     }
 }
@@ -34,6 +35,9 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
         int relativeFilePos = currentTransportPos - clipModel->startSample.get() + clipModel->sourceOffsetSamples.get();
         if (relativeFilePos >= 0) {
             diskStreamer->requestSeek(relativeFilePos);
+        } else {
+            // If we seeked before the clip, prime the disk streamer to the clip's start
+            diskStreamer->requestSeek(clipModel->sourceOffsetSamples.get());
         }
     }
 
@@ -115,6 +119,43 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
                 
                 if (ch == 0) interpolatorLeft.process(playbackRatio, inPtr, outPtr, renderLength);
                 else if (ch == 1) interpolatorRight.process(playbackRatio, inPtr, outPtr, renderLength);
+            }
+        }
+
+        // Apply fades and gain
+        int fadeInSamples = clipModel->fadeInSamples.get();
+        int fadeOutSamples = clipModel->fadeOutSamples.get();
+        float inCurve = clipModel->fadeInCurve.get();
+        float outCurve = clipModel->fadeOutCurve.get();
+        bool isXFadeIn = clipModel->isCrossfadingIn.get();
+        bool isXFadeOut = clipModel->isCrossfadingOut.get();
+        float clipGain = clipModel->gain.get();
+        int clipLength = clipModel->lengthSamples.get();
+
+        for (int i = 0; i < renderLength; ++i) {
+            int timeIntoClip = (currentTransportPos + renderStartOffset + i) - clipStart;
+            float sampleGain = clipGain;
+            
+            if (timeIntoClip < fadeInSamples && fadeInSamples > 0) {
+                float t_fade = static_cast<float>(timeIntoClip) / static_cast<float>(fadeInSamples);
+                if (isXFadeIn) {
+                    sampleGain *= std::sin(juce::MathConstants<float>::halfPi * t_fade);
+                } else {
+                    sampleGain *= std::pow(t_fade, inCurve);
+                }
+            } else if (timeIntoClip > clipLength - fadeOutSamples && fadeOutSamples > 0) {
+                float t_fade = static_cast<float>(timeIntoClip - (clipLength - fadeOutSamples)) / static_cast<float>(fadeOutSamples);
+                if (isXFadeOut) {
+                    sampleGain *= std::cos(juce::MathConstants<float>::halfPi * t_fade);
+                } else {
+                    sampleGain *= std::pow(1.0f - t_fade, outCurve);
+                }
+            }
+            
+            if (sampleGain != 1.0f) {
+                for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
+                    buffer.getWritePointer(ch)[renderStartOffset + i] *= sampleGain;
+                }
             }
         }
 

@@ -8,7 +8,7 @@ namespace Nimbus::Timeline {
 juce::Colour ClipComponent::getClipColor(int index) {
     if (index < 0) return juce::Colour(0xff0a84ff);
     float hue = std::fmod(index * 0.381966f, 1.0f);
-    return juce::Colour::fromHSV(hue, 0.75f, 0.75f, 1.0f);
+    return juce::Colour::fromHSV(hue, 0.6f, 0.95f, 1.0f); // Bright enough to contrast with black, no grey/black
 }
 
 class ColorGridComponent : public juce::PopupMenu::CustomComponent {
@@ -154,6 +154,10 @@ void ClipComponent::paint(juce::Graphics& g) {
     g.fillEllipse(cx, cy - 1.5f, 3.0f, 3.0f);
     g.fillEllipse(cx + 5.0f, cy - 1.5f, 3.0f, 3.0f);
 
+    // Header bottom border
+    g.setColour(juce::Colours::black.withAlpha(0.6f));
+    g.drawHorizontalLine(headerBounds.getBottom() - 1, headerBounds.getX(), headerBounds.getRight());
+
     // Draw body
     g.setColour(baseColour.withAlpha(0.85f));
     g.fillRect(bounds);
@@ -169,6 +173,8 @@ void ClipComponent::paint(juce::Graphics& g) {
     // Draw waveform or MIDI
     g.setColour(juce::Colour(0xff212121)); // Audacity dark waveform
     
+    auto waveBounds = bounds; // Copy bounds so we don't mutate the original
+    
     if (isAudio) {
         auto audioClip = std::static_pointer_cast<AudioClip>(clipData);
         if (thumbnail.getTotalLength() > 0.0) {
@@ -180,19 +186,144 @@ void ClipComponent::paint(juce::Graphics& g) {
             
             int numChannels = thumbnail.getNumChannels();
             if (numChannels == 2) {
-                auto topHalf = bounds.removeFromTop(bounds.getHeight() / 2);
+                auto topHalf = waveBounds.removeFromTop(waveBounds.getHeight() / 2);
                 thumbnail.drawChannel(g, topHalf.reduced(0, 1), startSecs, endSecs, 0, 1.0f);
                 g.setColour(juce::Colours::black.withAlpha(0.2f));
-                g.fillRect(bounds.getX(), bounds.getY() - 1, bounds.getWidth(), 1); // Divider
+                g.fillRect(waveBounds.getX(), waveBounds.getY() - 1, waveBounds.getWidth(), 1); // Divider
                 g.setColour(juce::Colour(0xff212121));
-                thumbnail.drawChannel(g, bounds.reduced(0, 1), startSecs, endSecs, 1, 1.0f);
+                thumbnail.drawChannel(g, waveBounds.reduced(0, 1), startSecs, endSecs, 1, 1.0f);
             } else {
-                thumbnail.drawChannels(g, bounds.reduced(0, 2), startSecs, endSecs, 1.0f);
+                thumbnail.drawChannels(g, waveBounds.reduced(0, 2), startSecs, endSecs, 1.0f);
             }
         } else {
             g.setFont(DesignSystem::Typography::getPrimaryFont());
             g.setColour(juce::Colours::white);
             g.drawText("Loading...", bounds, juce::Justification::centred, false);
+        }
+        
+        // --- Draw Fades ---
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0) sampleRate = 48000.0;
+        
+        double lengthSamples = audioClip->lengthSamples.get();
+        if (lengthSamples > 0) {
+            float inWidth = static_cast<float>((audioClip->fadeInSamples.get() / lengthSamples) * bounds.getWidth());
+            float outWidth = static_cast<float>((audioClip->fadeOutSamples.get() / lengthSamples) * bounds.getWidth());
+            float inCurve = audioClip->fadeInCurve.get();
+            float outCurve = audioClip->fadeOutCurve.get();
+            float height = bounds.getHeight();
+            
+            float handleSize = 6.0f;
+            float handleOffset = handleSize / 2.0f;
+            
+            // --- Fade In ---
+            if (inWidth > 0.0f) {
+                juce::Path inPath;
+                inPath.startNewSubPath(bounds.getX(), bounds.getY());
+                for (float x = 0; x <= inWidth; x += 1.0f) {
+                    float t = x / inWidth;
+                    float y = bounds.getBottom() - (std::pow(t, inCurve) * height);
+                    inPath.lineTo(bounds.getX() + x, y);
+                }
+                inPath.lineTo(bounds.getX(), bounds.getBottom());
+                inPath.closeSubPath();
+                
+                g.setColour(juce::Colours::black.withAlpha(0.4f));
+                g.fillPath(inPath);
+                
+                if (inWidth > 2.0f) {
+                    juce::Path strokePath;
+                    strokePath.startNewSubPath(bounds.getX(), bounds.getBottom());
+                    for (float x = 0; x <= inWidth; x += 1.0f) {
+                        float t = x / inWidth;
+                        float y = bounds.getBottom() - (std::pow(t, inCurve) * height);
+                        strokePath.lineTo(bounds.getX() + x, y);
+                    }
+                    g.setColour(juce::Colours::black);
+                    g.strokePath(strokePath, juce::PathStrokeType(1.0f));
+                }
+            }
+            
+            // --- Fade Out ---
+            if (outWidth > 0.0f) {
+                float startX = bounds.getRight() - outWidth;
+                juce::Path outPath;
+                outPath.startNewSubPath(bounds.getRight(), bounds.getY());
+                outPath.lineTo(startX, bounds.getY());
+                for (float x = 0; x <= outWidth; x += 1.0f) {
+                    float t = x / outWidth;
+                    float y = bounds.getBottom() - (std::pow(1.0f - t, outCurve) * height);
+                    outPath.lineTo(startX + x, y);
+                }
+                outPath.lineTo(bounds.getRight(), bounds.getBottom());
+                outPath.closeSubPath();
+                
+                g.setColour(juce::Colours::black.withAlpha(0.4f));
+                g.fillPath(outPath);
+                
+                if (outWidth > 2.0f) {
+                    juce::Path strokePath;
+                    strokePath.startNewSubPath(startX, bounds.getY());
+                    for (float x = 0; x <= outWidth; x += 1.0f) {
+                        float t = x / outWidth;
+                        float y = bounds.getBottom() - (std::pow(1.0f - t, outCurve) * height);
+                        strokePath.lineTo(startX + x, y);
+                    }
+                    g.setColour(juce::Colours::black);
+                    g.strokePath(strokePath, juce::PathStrokeType(1.0f));
+                }
+            }
+                
+            // --- Handles ---
+            bool showHandles = isMouseOver(true) || isMouseButtonDown();
+            if (showHandles) {
+                // Fade In Duration Handle (Top Left)
+                float durXIn = juce::jlimit(0.0f, (float)bounds.getWidth() - handleSize, bounds.getX() + inWidth - handleOffset);
+                float durYIn = bounds.getY();
+                
+                g.setColour(juce::Colours::black);
+                g.fillRect(durXIn, durYIn, handleSize, handleSize);
+                g.setColour(juce::Colours::white);
+                g.drawRect(durXIn, durYIn, handleSize, handleSize, 1.0f);
+                
+                // Fade In Curve Handle
+                if (inWidth >= 10.0f) {
+                    float tMid = 0.5f;
+                    float cx = inWidth * tMid;
+                    float cy = bounds.getBottom() - (std::pow(tMid, inCurve) * height);
+                    float curveX = juce::jlimit(0.0f, (float)bounds.getWidth() - handleSize, bounds.getX() + cx - handleOffset);
+                    float curveY = juce::jlimit((float)bounds.getY(), bounds.getBottom() - handleSize, cy - handleOffset);
+                    
+                    g.setColour(juce::Colours::black);
+                    g.fillRect(curveX, curveY, handleSize, handleSize);
+                    g.setColour(juce::Colours::white);
+                    g.drawRect(curveX, curveY, handleSize, handleSize, 1.0f);
+                }
+                
+                // Fade Out Duration Handle (Top Right)
+                float startXOut = bounds.getRight() - outWidth;
+                float durXOut = juce::jlimit(0.0f, (float)bounds.getWidth() - handleSize, startXOut - handleOffset);
+                float durYOut = bounds.getY();
+                
+                g.setColour(juce::Colours::black);
+                g.fillRect(durXOut, durYOut, handleSize, handleSize);
+                g.setColour(juce::Colours::white);
+                g.drawRect(durXOut, durYOut, handleSize, handleSize, 1.0f);
+                
+                // Fade Out Curve Handle
+                if (outWidth >= 10.0f) {
+                    float tMid = 0.5f;
+                    float cx = outWidth * tMid;
+                    float cy = bounds.getBottom() - (std::pow(1.0f - tMid, outCurve) * height);
+                    float curveX = juce::jlimit(0.0f, (float)bounds.getWidth() - handleSize, startXOut + cx - handleOffset);
+                    float curveY = juce::jlimit((float)bounds.getY(), bounds.getBottom() - handleSize, cy - handleOffset);
+                    
+                    g.setColour(juce::Colours::black);
+                    g.fillRect(curveX, curveY, handleSize, handleSize);
+                    g.setColour(juce::Colours::white);
+                    g.drawRect(curveX, curveY, handleSize, handleSize, 1.0f);
+                }
+            }
         }
     } else if (clipData->getType() == Clip::Type::Midi) {
         auto midiClip = std::static_pointer_cast<MidiClip>(clipData);
@@ -266,10 +397,66 @@ void ClipComponent::mouseDown(const juce::MouseEvent& event) {
     }
 
     dragStartX = event.getScreenX();
+    dragStartY = event.getScreenY();
     
     originalStartSamples = clipData->startSample.get();
     originalLengthSamples = clipData->lengthSamples.get();
     originalSourceOffsetSamples = clipData->sourceOffsetSamples.get();
+    
+    isDraggingFadeIn = false;
+    isDraggingFadeOut = false;
+    isDraggingFadeInCurve = false;
+    isDraggingFadeOutCurve = false;
+
+    if (clipData->getType() == Clip::Type::Audio) {
+        auto audioClip = std::static_pointer_cast<AudioClip>(clipData);
+        double lengthSamples = audioClip->lengthSamples.get();
+        if (lengthSamples > 0) {
+            float inWidth = static_cast<float>((audioClip->fadeInSamples.get() / lengthSamples) * getWidth());
+            float outWidth = static_cast<float>((audioClip->fadeOutSamples.get() / lengthSamples) * getWidth());
+            float waveHeight = getHeight() - 18.0f;
+            float waveBottom = getHeight();
+            
+            // --- Fade In ---
+            // Duration Handle Hover
+            if (std::abs(event.x - inWidth) <= 12 && std::abs(event.y - 18.0f) <= 12) {
+                isDraggingFadeIn = true;
+                dragStartFadeInSamples = audioClip->fadeInSamples.get();
+                return;
+            }
+            if (inWidth >= 10.0f) {
+                // Curve Handle Hover
+                float inCurve = audioClip->fadeInCurve.get();
+                float xMidIn = inWidth * 0.5f;
+                float yMidIn = waveBottom - (std::pow(0.5f, inCurve) * waveHeight);
+                if (std::abs(event.x - xMidIn) <= 12 && std::abs(event.y - yMidIn) <= 12) {
+                    isDraggingFadeInCurve = true;
+                    dragStartFadeInCurve = inCurve;
+                    return;
+                }
+            }
+            
+            // --- Fade Out ---
+            // Duration Handle Hover
+            float startXOut = getWidth() - outWidth;
+            if (std::abs(event.x - startXOut) <= 12 && std::abs(event.y - 18.0f) <= 12) {
+                isDraggingFadeOut = true;
+                dragStartFadeOutSamples = audioClip->fadeOutSamples.get();
+                return;
+            }
+            if (outWidth >= 10.0f) {
+                // Curve Handle Hover
+                float outCurve = audioClip->fadeOutCurve.get();
+                float xMidOut = outWidth * 0.5f;
+                float yMidOut = waveBottom - (std::pow(0.5f, outCurve) * waveHeight);
+                if (std::abs(event.x - (startXOut + xMidOut)) <= 12 && std::abs(event.y - yMidOut) <= 12) {
+                    isDraggingFadeOutCurve = true;
+                    dragStartFadeOutCurve = outCurve;
+                    return;
+                }
+            }
+        }
+    }
     
     bool isHeaderClick = event.y <= 18;
     isResizingLeft = (event.x <= 5);
@@ -284,11 +471,75 @@ void ClipComponent::mouseDown(const juce::MouseEvent& event) {
     }
 }
 
+void ClipComponent::mouseEnter(const juce::MouseEvent& event) {
+    if (clipData->getType() == Clip::Type::Audio) {
+        isHoveringEdges = true;
+        repaint();
+    }
+}
+
+void ClipComponent::mouseExit(const juce::MouseEvent& event) {
+    if (isHoveringEdges) {
+        isHoveringEdges = false;
+        repaint();
+    }
+    if (clipData->getType() == Clip::Type::Audio) {
+        repaint();
+    }
+    setMouseCursor(juce::MouseCursor::NormalCursor);
+}
+
 void ClipComponent::mouseMove(const juce::MouseEvent& event) {
-    if (event.x <= 5 || event.x >= getWidth() - 5) {
+    setMouseCursor(juce::MouseCursor::NormalCursor);
+    
+    if (clipData->getType() == Clip::Type::Audio) {
+        auto audioClip = std::static_pointer_cast<AudioClip>(clipData);
+        double lengthSamples = audioClip->lengthSamples.get();
+        if (lengthSamples > 0) {
+            float inWidth = static_cast<float>((audioClip->fadeInSamples.get() / lengthSamples) * getWidth());
+            float outWidth = static_cast<float>((audioClip->fadeOutSamples.get() / lengthSamples) * getWidth());
+            float waveHeight = getHeight() - 18.0f;
+            float waveBottom = getHeight();
+            
+            // --- Fade In Hit Testing ---
+            if (std::abs(event.x - inWidth) <= 12 && std::abs(event.y - 18.0f) <= 12) {
+                setMouseCursor(juce::MouseCursor::PointingHandCursor);
+                return;
+            }
+            if (inWidth >= 10.0f) {
+                float inCurve = audioClip->fadeInCurve.get();
+                float xMidIn = inWidth * 0.5f;
+                float yMidIn = waveBottom - (std::pow(0.5f, inCurve) * waveHeight);
+                if (std::abs(event.x - xMidIn) <= 12 && std::abs(event.y - yMidIn) <= 12) {
+                    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+                    return;
+                }
+            }
+            
+            // --- Fade Out Hit Testing ---
+            float startXOut = getWidth() - outWidth;
+            if (std::abs(event.x - startXOut) <= 12 && std::abs(event.y - 18.0f) <= 12) {
+                setMouseCursor(juce::MouseCursor::PointingHandCursor);
+                return;
+            }
+            if (outWidth >= 10.0f) {
+                float outCurve = audioClip->fadeOutCurve.get();
+                float xMidOut = outWidth * 0.5f;
+                float yMidOut = waveBottom - (std::pow(0.5f, outCurve) * waveHeight);
+                if (std::abs(event.x - (startXOut + xMidOut)) <= 12 && std::abs(event.y - yMidOut) <= 12) {
+                    setMouseCursor(juce::MouseCursor::PointingHandCursor);
+                    return;
+                }
+            }
+        }
+    }
+    
+    bool isHeaderHover = event.y <= 18;
+    bool isLeftEdge = (event.x <= 5);
+    bool isRightEdge = (event.x >= getWidth() - 5);
+    
+    if (!isHeaderHover && (isLeftEdge || isRightEdge)) {
         setMouseCursor(juce::MouseCursor::LeftRightResizeCursor);
-    } else {
-        setMouseCursor(juce::MouseCursor::NormalCursor);
     }
 }
 
@@ -323,6 +574,32 @@ void ClipComponent::mouseDrag(const juce::MouseEvent& event) {
     double tempo = engine.getTransport().getTempo();
     double secondsPerBeat = 60.0 / tempo;
     double snapSeconds = secondsPerBeat / 4.0;
+    
+    if (isDraggingFadeIn || isDraggingFadeOut || isDraggingFadeInCurve || isDraggingFadeOutCurve) {
+        if (clipData->getType() == Clip::Type::Audio) {
+            auto audioClip = std::static_pointer_cast<AudioClip>(clipData);
+            
+            if (isDraggingFadeIn) {
+                double newSamples = dragStartFadeInSamples + deltaSamples;
+                newSamples = juce::jlimit(192.0, audioClip->lengthSamples.get(), newSamples);
+                audioClip->fadeInSamples = static_cast<int>(newSamples);
+            } else if (isDraggingFadeOut) {
+                double newSamples = dragStartFadeOutSamples - deltaSamples;
+                newSamples = juce::jlimit(192.0, audioClip->lengthSamples.get(), newSamples);
+                audioClip->fadeOutSamples = static_cast<int>(newSamples);
+            } else if (isDraggingFadeInCurve) {
+                int deltaY = event.getScreenY() - dragStartY;
+                float newCurve = dragStartFadeInCurve + (deltaY * 0.05f); // drag UP = negative deltaY = lower exponent = handle moves UP
+                audioClip->fadeInCurve = juce::jlimit(0.1f, 4.0f, newCurve);
+            } else if (isDraggingFadeOutCurve) {
+                int deltaY = event.getScreenY() - dragStartY;
+                float newCurve = dragStartFadeOutCurve + (deltaY * 0.05f);
+                audioClip->fadeOutCurve = juce::jlimit(0.1f, 4.0f, newCurve);
+            }
+            repaint();
+        }
+        return;
+    }
     
     if (isResizingRight) {
         double newLengthSamples = originalLengthSamples + deltaSamples;
@@ -371,10 +648,30 @@ void ClipComponent::mouseUp(const juce::MouseEvent& event) {
         return;
     }
 
+    bool wasFadeDrag = isDraggingFadeIn || isDraggingFadeOut || isDraggingFadeInCurve || isDraggingFadeOutCurve;
+
     isDragging = false;
     isResizingLeft = false;
     isResizingRight = false;
+    isDraggingFadeIn = false;
+    isDraggingFadeOut = false;
+    isDraggingFadeInCurve = false;
+    isDraggingFadeOutCurve = false;
     setMouseCursor(juce::MouseCursor::NormalCursor);
+    
+    // Notify listeners after fade changes are complete (NOT during drag)
+    if (wasFadeDrag) {
+        repaint();
+    }
+
+    // Resolve crossfades on mouse drop
+    for (int i = 0; i < engine.getTimelineProject().getNumTracks(); ++i) {
+        auto clips = engine.getTimelineProject().getClipsOnTrack(i);
+        if (std::find(clips.begin(), clips.end(), clipData) != clips.end()) {
+            engine.getTimelineProject().resolveCrossfades(i);
+            break;
+        }
+    }
 }
 
 void ClipComponent::mouseDoubleClick(const juce::MouseEvent& event) {}

@@ -24,6 +24,9 @@ public:
     
     static juce::Colour getClipColor(int index);
 
+    void mouseEnter(const juce::MouseEvent& event) override;
+    void mouseExit(const juce::MouseEvent& event) override;
+
 private:
     NimbusEngine& engine;
     AnyClipPtr clipData;
@@ -33,7 +36,20 @@ private:
     bool isResizingRight = false;
     bool isDragging = false;
     bool isSelectingTime = false;
+    
+    // Fade UI state
+    bool isHoveringEdges = false;
+    bool isDraggingFadeIn = false;
+    bool isDraggingFadeOut = false;
+    bool isDraggingFadeInCurve = false;
+    bool isDraggingFadeOutCurve = false;
+    int dragStartFadeInSamples = 0;
+    int dragStartFadeOutSamples = 0;
+    float dragStartFadeInCurve = 1.0f;
+    float dragStartFadeOutCurve = 1.0f;
+
     int dragStartX = 0;
+    int dragStartY = 0;
     double originalStartSamples = 0;
     double originalLengthSamples = 0;
     double originalSourceOffsetSamples = 0;

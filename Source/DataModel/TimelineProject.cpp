@@ -480,6 +480,40 @@ std::vector<AnyClipPtr> TimelineProject::getClipsOnTrack(int trackIndex) const {
     return {};
 }
 
+void TimelineProject::resolveCrossfades(int trackIndex) {
+    if (trackIndex < 0 || trackIndex >= trackClips.size()) return;
+    
+    auto& clips = trackClips[trackIndex];
+    if (clips.size() < 2) return;
+    
+    std::vector<AnyClipPtr> sortedClips = clips;
+    std::sort(sortedClips.begin(), sortedClips.end(), [](const AnyClipPtr& a, const AnyClipPtr& b) {
+        return a->startSample.get() < b->startSample.get();
+    });
+    
+    for (size_t i = 0; i < sortedClips.size() - 1; ++i) {
+        auto& clipA = sortedClips[i];
+        auto& clipB = sortedClips[i + 1];
+        
+        if (clipA->getType() == Clip::Type::Audio && clipB->getType() == Clip::Type::Audio) {
+            double endA = clipA->startSample.get() + clipA->lengthSamples.get();
+            double startB = clipB->startSample.get();
+            
+            if (endA > startB) {
+                double overlapSamples = endA - startB;
+                auto audioA = std::static_pointer_cast<AudioClip>(clipA);
+                auto audioB = std::static_pointer_cast<AudioClip>(clipB);
+                
+                audioA->fadeOutSamples = static_cast<int>(overlapSamples);
+                audioA->isCrossfadingOut = true;
+                
+                audioB->fadeInSamples = static_cast<int>(overlapSamples);
+                audioB->isCrossfadingIn = true;
+            }
+        }
+    }
+}
+
 void TimelineProject::notifyClipModified() {
     for (size_t trackIndex = 0; trackIndex < std::min(tracks.size(), trackClips.size()); ++trackIndex) {
         listeners.call(&Listener::trackClipsChanged, static_cast<int>(trackIndex));
