@@ -220,12 +220,12 @@ void ClipComponent::paint(juce::Graphics& g) {
             if (inWidth > 0.0f) {
                 juce::Path inPath;
                 inPath.startNewSubPath(bounds.getX(), bounds.getY());
-                for (float x = 0; x <= inWidth; x += 1.0f) {
+                inPath.lineTo(bounds.getX() + inWidth, bounds.getY());
+                for (float x = inWidth; x >= 0.0f; x -= 1.0f) {
                     float t = x / inWidth;
                     float y = bounds.getBottom() - (std::pow(t, inCurve) * height);
                     inPath.lineTo(bounds.getX() + x, y);
                 }
-                inPath.lineTo(bounds.getX(), bounds.getBottom());
                 inPath.closeSubPath();
                 
                 g.setColour(juce::Colours::black.withAlpha(0.4f));
@@ -277,14 +277,20 @@ void ClipComponent::paint(juce::Graphics& g) {
             // --- Handles ---
             bool showHandles = isMouseOver(true) || isMouseButtonDown();
             if (showHandles) {
+                // Determine hovers (approximation based on current state)
+                auto mousePos = getMouseXYRelative();
+                bool hoverInDur = isDraggingFadeIn || (std::abs(mousePos.x - inWidth) <= 12 && std::abs(mousePos.y - 18.0f) <= 12);
+                float startXOut = bounds.getRight() - outWidth;
+                bool hoverOutDur = isDraggingFadeOut || (std::abs(mousePos.x - startXOut) <= 12 && std::abs(mousePos.y - 18.0f) <= 12);
+
                 // Fade In Duration Handle (Top Left)
                 float durXIn = juce::jlimit(0.0f, (float)bounds.getWidth() - handleSize, bounds.getX() + inWidth - handleOffset);
                 float durYIn = bounds.getY();
                 
-                g.setColour(juce::Colours::black);
+                g.setColour(hoverInDur ? juce::Colours::white : juce::Colours::black);
                 g.fillRect(durXIn, durYIn, handleSize, handleSize);
                 g.setColour(juce::Colours::white);
-                g.drawRect(durXIn, durYIn, handleSize, handleSize, 1.0f);
+                g.drawRect(durXIn, durYIn, handleSize, handleSize, hoverInDur ? 2.0f : 1.0f);
                 
                 // Fade In Curve Handle
                 if (inWidth >= 10.0f) {
@@ -293,35 +299,36 @@ void ClipComponent::paint(juce::Graphics& g) {
                     float cy = bounds.getBottom() - (std::pow(tMid, inCurve) * height);
                     float curveX = juce::jlimit(0.0f, (float)bounds.getWidth() - handleSize, bounds.getX() + cx - handleOffset);
                     float curveY = juce::jlimit((float)bounds.getY(), bounds.getBottom() - handleSize, cy - handleOffset);
+                    bool hoverInCurve = isDraggingFadeInCurve || (std::abs(mousePos.x - cx) <= 12 && std::abs(mousePos.y - (cy + 18.0f)) <= 12);
                     
-                    g.setColour(juce::Colours::black);
+                    g.setColour(hoverInCurve ? juce::Colours::white : juce::Colours::black);
                     g.fillRect(curveX, curveY, handleSize, handleSize);
                     g.setColour(juce::Colours::white);
-                    g.drawRect(curveX, curveY, handleSize, handleSize, 1.0f);
+                    g.drawRect(curveX, curveY, handleSize, handleSize, hoverInCurve ? 2.0f : 1.0f);
                 }
                 
                 // Fade Out Duration Handle (Top Right)
-                float startXOut = bounds.getRight() - outWidth;
                 float durXOut = juce::jlimit(0.0f, (float)bounds.getWidth() - handleSize, startXOut - handleOffset);
                 float durYOut = bounds.getY();
                 
-                g.setColour(juce::Colours::black);
+                g.setColour(hoverOutDur ? juce::Colours::white : juce::Colours::black);
                 g.fillRect(durXOut, durYOut, handleSize, handleSize);
                 g.setColour(juce::Colours::white);
-                g.drawRect(durXOut, durYOut, handleSize, handleSize, 1.0f);
+                g.drawRect(durXOut, durYOut, handleSize, handleSize, hoverOutDur ? 2.0f : 1.0f);
                 
                 // Fade Out Curve Handle
                 if (outWidth >= 10.0f) {
                     float tMid = 0.5f;
                     float cx = outWidth * tMid;
                     float cy = bounds.getBottom() - (std::pow(1.0f - tMid, outCurve) * height);
-                    float curveX = juce::jlimit(0.0f, (float)bounds.getWidth() - handleSize, startXOut + cx - handleOffset);
+                    float curveX = juce::jlimit(0.0f, (float)bounds.getWidth() - handleSize, bounds.getX() + startXOut + cx - handleOffset);
                     float curveY = juce::jlimit((float)bounds.getY(), bounds.getBottom() - handleSize, cy - handleOffset);
+                    bool hoverOutCurve = isDraggingFadeOutCurve || (std::abs(mousePos.x - (startXOut + cx)) <= 12 && std::abs(mousePos.y - (cy + 18.0f)) <= 12);
                     
-                    g.setColour(juce::Colours::black);
+                    g.setColour(hoverOutCurve ? juce::Colours::white : juce::Colours::black);
                     g.fillRect(curveX, curveY, handleSize, handleSize);
                     g.setColour(juce::Colours::white);
-                    g.drawRect(curveX, curveY, handleSize, handleSize, 1.0f);
+                    g.drawRect(curveX, curveY, handleSize, handleSize, hoverOutCurve ? 2.0f : 1.0f);
                 }
             }
         }
@@ -581,11 +588,11 @@ void ClipComponent::mouseDrag(const juce::MouseEvent& event) {
             
             if (isDraggingFadeIn) {
                 double newSamples = dragStartFadeInSamples + deltaSamples;
-                newSamples = juce::jlimit(192.0, audioClip->lengthSamples.get(), newSamples);
+                newSamples = juce::jlimit(192.0, static_cast<double>(audioClip->lengthSamples.get()), newSamples);
                 audioClip->fadeInSamples = static_cast<int>(newSamples);
             } else if (isDraggingFadeOut) {
                 double newSamples = dragStartFadeOutSamples - deltaSamples;
-                newSamples = juce::jlimit(192.0, audioClip->lengthSamples.get(), newSamples);
+                newSamples = juce::jlimit(192.0, static_cast<double>(audioClip->lengthSamples.get()), newSamples);
                 audioClip->fadeOutSamples = static_cast<int>(newSamples);
             } else if (isDraggingFadeInCurve) {
                 int deltaY = event.getScreenY() - dragStartY;

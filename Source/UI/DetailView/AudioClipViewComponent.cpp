@@ -1,6 +1,7 @@
 #include "AudioClipViewComponent.h"
 #include "Core/NimbusEngine.h"
 #include "UI/DesignSystem/Colors.h"
+#include "UI/DesignSystem/Typography.h"
 #include "UI/DesignSystem/Iconography.h"
 #include "UI/DesignSystem/NimbusLookAndFeel.h"
 
@@ -32,8 +33,20 @@ void AudioClipContent::setAudioClip(std::shared_ptr<AudioClip> clip) {
 }
 
 void AudioClipContent::paint(juce::Graphics& g) {
-    // Premium dark background #111111
-    g.fillAll(juce::Colour(0xff111111));
+    // Premium dark background #111111 overlaid with clip tint
+    juce::Colour bgColor = juce::Colour(0xff111111);
+    
+    if (currentClip) {
+        int index = currentClip->colorIndex.get();
+        juce::Colour clipColor = juce::Colour(0xff0a84ff);
+        if (index >= 0) {
+            float hue = std::fmod(index * 0.381966f, 1.0f);
+            clipColor = juce::Colour::fromHSV(hue, 0.6f, 0.95f, 1.0f);
+        }
+        bgColor = clipColor.withAlpha(0.1f).overlaidWith(juce::Colour(0xff111111));
+    }
+    
+    g.fillAll(bgColor);
     
     // Draw subtle 1px grid lines
     g.setColour(juce::Colours::white.withAlpha(0.05f));
@@ -98,11 +111,11 @@ void AudioClipContent::paint(juce::Graphics& g) {
     }
     
     // Draw playhead
-    if (engine.getTransport().isPlaying()) {
-        double positionSamples = engine.getTransport().getCurrentPosition();
-        double sampleRate = engine.getTransport().getSampleRate();
-        if (sampleRate <= 0.0) sampleRate = 48000.0;
-        
+    double positionSamples = engine.getTransport().getCurrentPosition();
+    double sampleRate = engine.getTransport().getSampleRate();
+    if (sampleRate <= 0.0) sampleRate = 48000.0;
+    
+    if (currentClip) {
         double clipGlobalStart = currentClip->startSample.get();
         double clipGlobalEnd = clipGlobalStart + currentClip->lengthSamples.get();
         
@@ -115,12 +128,14 @@ void AudioClipContent::paint(juce::Graphics& g) {
                 px = static_cast<float>((sourceSecs / thumbnail.getTotalLength()) * getWidth());
             }
             
-            g.setColour(juce::Colours::white);
+            // Draw Playhead Line
+            g.setColour(juce::Colour(0xffffffff)); // bright white
             g.drawVerticalLine(static_cast<int>(px), 0.0f, static_cast<float>(getHeight()));
             
-            juce::Path p;
-            p.addTriangle(px - 5.0f, 0.0f, px + 5.0f, 0.0f, px, 8.0f);
-            g.fillPath(p);
+            // Draw Playhead Head (Triangle)
+            juce::Path headPath;
+            headPath.addTriangle(px - 4.0f, 0.0f, px + 4.0f, 0.0f, px, 6.0f);
+            g.fillPath(headPath);
         }
     }
 }
@@ -243,8 +258,29 @@ void AudioClipViewComponent::resized() {
 void AudioClipViewComponent::paint(juce::Graphics& g) {
     g.fillAll(DesignSystem::Colors::PanelBackground);
     
-    g.setColour(DesignSystem::Colors::AppBackground);
+    // Premium dark background overlaid with clip tint
+    juce::Colour bgColor = DesignSystem::Colors::AppBackground;
+    juce::Colour clipColor = juce::Colour(0xff0a84ff);
+    juce::String clipName = "Audio Clip";
+    
+    if (currentClip) {
+        int index = currentClip->colorIndex.get();
+        if (index >= 0) {
+            float hue = std::fmod(index * 0.381966f, 1.0f);
+            clipColor = juce::Colour::fromHSV(hue, 0.6f, 0.95f, 1.0f);
+        }
+        bgColor = clipColor.withAlpha(0.2f).overlaidWith(DesignSystem::Colors::AppBackground);
+        clipName = currentClip->name.get();
+    }
+    
+    g.setColour(bgColor);
     g.fillRect(toolbar.getBounds());
+    
+    // Draw clip name in toolbar
+    bool isDark = bgColor.getPerceivedBrightness() < 0.5f;
+    g.setColour(isDark ? juce::Colours::white : juce::Colours::black);
+    g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f).boldened());
+    g.drawText("  " + clipName, toolbar.getBounds().withTrimmedLeft(10), juce::Justification::centredLeft, true);
     
     g.setColour(DesignSystem::Colors::Divider);
     g.drawHorizontalLine(toolbar.getBottom() - 1, 0, static_cast<float>(getWidth()));

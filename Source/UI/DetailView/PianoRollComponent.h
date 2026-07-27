@@ -24,6 +24,7 @@ public:
     bool keyPressed(const juce::KeyPress& key) override;
     
     void setMidiClip(std::shared_ptr<MidiClip> clip);
+    std::shared_ptr<MidiClip> getCurrentClip() const { return currentClip; }
     
     enum class Snap { Off, Bar, Beat, Eighth, Sixteenth, ThirtySecond };
     void setSnap(Snap s) { currentSnap = s; }
@@ -71,6 +72,8 @@ public:
     void paint(juce::Graphics& g) override;
     
     void setMidiClip(std::shared_ptr<MidiClip> clip);
+    
+    std::shared_ptr<MidiClip> getCurrentClip() const { return content.getCurrentClip(); }
 
 private:
     NimbusEngine& engine;

@@ -1,7 +1,7 @@
 #include "PianoRollComponent.h"
 #include "Core/NimbusEngine.h"
 #include "UI/DesignSystem/Colors.h"
-#include "UI/DesignSystem/Colors.h"
+#include "UI/DesignSystem/Typography.h"
 #include "UI/DesignSystem/Iconography.h"
 #include "UI/Timeline/ClipComponent.h"
 
@@ -811,8 +811,35 @@ void PianoRollComponent::resized() {
 }
 
 void PianoRollComponent::paint(juce::Graphics& g) {
-    g.setColour(DesignSystem::Colors::ComponentBackground);
+    g.fillAll(DesignSystem::Colors::PanelBackground);
+    
+    // Premium dark background overlaid with clip tint
+    juce::Colour bgColor = DesignSystem::Colors::ComponentBackground;
+    juce::Colour clipColor = juce::Colour(0xff0a84ff);
+    juce::String clipName = "MIDI Clip";
+    
+    if (auto currentClip = getCurrentClip()) {
+        int index = currentClip->colorIndex.get();
+        if (index >= 0) {
+            float hue = std::fmod(index * 0.381966f, 1.0f);
+            clipColor = juce::Colour::fromHSV(hue, 0.6f, 0.95f, 1.0f);
+        }
+        bgColor = clipColor.withAlpha(0.2f).overlaidWith(DesignSystem::Colors::ComponentBackground);
+        clipName = currentClip->name.get();
+    }
+    
+    g.setColour(bgColor);
     g.fillRect(toolbar.getBounds());
+    
+    // Draw clip name in toolbar
+    bool isDark = bgColor.getPerceivedBrightness() < 0.5f;
+    g.setColour(isDark ? juce::Colours::white : juce::Colours::black);
+    g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f).boldened());
+    
+    // Position text to the right of the velocity toggle
+    int textX = velocityToggle.getRight() + 10;
+    g.drawText(clipName, toolbar.getBounds().withTrimmedLeft(textX), juce::Justification::centredLeft, true);
+    
     g.setColour(DesignSystem::Colors::Divider);
     g.drawHorizontalLine(toolbar.getBottom() - 1, 0, static_cast<float>(getWidth()));
 }
