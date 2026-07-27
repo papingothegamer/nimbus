@@ -181,6 +181,8 @@ target_sources(Nimbus PRIVATE
     Source/AudioEngine/MidiRecorder.cpp
     Source/AudioEngine/Mixer.cpp
     Source/AudioEngine/AudioClipNode.cpp
+    Source/AudioEngine/GranularTimeStretcher.cpp
+    Source/AudioEngine/GranularTimeStretcher.h
     Source/AudioEngine/DiskStreaming/DiskStreamer.cpp
     Source/DSP/GainNode.cpp
     Source/DSP/DelayLine.cpp

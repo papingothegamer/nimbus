@@ -20,6 +20,7 @@ add_executable(NimbusTests
     ../Source/AudioEngine/MidiRecorder.cpp
     ../Source/AudioEngine/Mixer.cpp
     ../Source/AudioEngine/AudioClipNode.cpp
+    ../Source/AudioEngine/GranularTimeStretcher.cpp
     ../Source/AudioEngine/DiskStreaming/DiskStreamer.cpp
     ../Source/AudioEngine/Transport.cpp
     ../Source/DSP/GainNode.cpp

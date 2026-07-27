@@ -25,7 +25,7 @@ class ComputerMidiController;
  * The root service container for the Nimbus DAW.
  * Owns the core audio engine components and manages their lifecycles.
  */
-class NimbusEngine {
+class NimbusEngine : public Transport::Listener {
 public:
     NimbusEngine();
     ~NimbusEngine();
@@ -69,6 +69,11 @@ public:
 
     void startRecording();
     void stopRecording();
+
+    // Transport::Listener
+    void transportStateChanged() override {}
+    void transportTempoChanged(double newTempo) override;
+    void transportLoopingChanged(bool) override {}
 
 private:
     AudioGraph mainGraph; // The root graph executing on the audio thread

@@ -581,38 +581,88 @@ void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int 
         }
         
         if (isAudio) {
-            juce::MessageBoxOptions options = juce::MessageBoxOptions()
-                   .withIconType(juce::MessageBoxIconType::QuestionIcon)
-                   .withTitle("Match DAW Tempo?")
-                   .withMessage("Do you want to match this clip to the project's current BPM (" + juce::String(engine.getTransport().getTempo(), 1) + " BPM)?")
-                   .withButton("Match Tempo (Auto)")
-                   .withButton("Specify Tempo...")
-                   .withButton("Keep Original");
-                   
-            juce::AlertWindow::showAsync(options, [this, file, droppedSample, sampleRate, targetTrackIndex](int result) {
-                int lengthSamples = static_cast<int>(sampleRate * 4.0);
+            juce::Thread::launch([this, file, droppedSample, sampleRate, targetTrackIndex]() {
+                double estimatedBpm = 120.0;
+                int sourceLengthSamples = static_cast<int>(sampleRate * 4.0);
+                
                 if (auto* reader = engine.getFormatManager().createReaderFor(file)) {
-                    lengthSamples = static_cast<int>(reader->lengthInSamples);
+                    sourceLengthSamples = static_cast<int>(reader->lengthInSamples);
+                    
+                    // Robust Autocorrelation BPM Estimation
+                    int bufferSize = std::min((int)reader->lengthInSamples, static_cast<int>(sampleRate * 30.0)); // analyze up to 30s
+                    juce::AudioBuffer<float> tempBuffer(1, bufferSize);
+                    reader->read(&tempBuffer, 0, bufferSize, 0, true, false);
+
+                    // 1. Downsample and extract envelope (rectified)
+                    int downsampleFactor = 128; 
+                    int envLength = bufferSize / downsampleFactor;
+                    std::vector<float> envelope(envLength, 0.0f);
+                    const float* data = tempBuffer.getReadPointer(0);
+                    for (int i = 0; i < bufferSize; ++i) {
+                        envelope[i / downsampleFactor] += std::abs(data[i]);
+                    }
+                    
+                    // 2. Remove DC offset from envelope
+                    float envMean = 0.0f;
+                    for (float v : envelope) envMean += v;
+                    envMean /= envLength;
+                    for (float& v : envelope) v -= envMean;
+
+                    // 3. Autocorrelation
+                    float envSampleRate = sampleRate / downsampleFactor;
+                    int minLag = static_cast<int>(envSampleRate * (60.0 / 220.0)); // 220 BPM max
+                    int maxLag = static_cast<int>(envSampleRate * (60.0 / 60.0));  // 60 BPM min
+                    
+                    float maxCorr = -1e9f;
+                    int bestLag = minLag;
+
+                    for (int lag = minLag; lag <= maxLag; ++lag) {
+                        float corr = 0.0f;
+                        for (int i = 0; i < envLength - lag; ++i) {
+                            corr += envelope[i] * envelope[i + lag];
+                        }
+                        if (corr > maxCorr) {
+                            maxCorr = corr;
+                            bestLag = lag;
+                        }
+                    }
+
+                    double beatDuration = (double)bestLag / envSampleRate;
+                    estimatedBpm = 60.0 / beatDuration;
+                    
                     delete reader;
                 }
-                auto clip = std::make_shared<AudioClip>(file, static_cast<int>(droppedSample), lengthSamples);
-                clip->name = file.getFileNameWithoutExtension();
-                
-                if (result == 1 || result == 2) { 
-                    clip->preservePitch = true;
-                    clip->matchDawTempo = true;
-                    clip->originalBpm = 120.0;
-                } else {
-                    clip->preservePitch = false;
-                    clip->matchDawTempo = false;
-                }
-                
-                engine.getTimelineProject().addClipToTrack(targetTrackIndex, clip);
-                
-                if (result == 2) {
-                    // Specify tempo: auto-select the clip to open the clip properties
-                    engine.getTimelineProject().setSelectedClip(clip);
-                }
+
+                juce::MessageManager::callAsync([this, file, droppedSample, sourceLengthSamples, targetTrackIndex, estimatedBpm]() {
+                    juce::MessageBoxOptions options = juce::MessageBoxOptions()
+                           .withIconType(juce::MessageBoxIconType::QuestionIcon)
+                           .withTitle("Match DAW Tempo?")
+                           .withMessage("Estimated BPM: " + juce::String(estimatedBpm, 1) + "\n\nDo you want to match this clip to the project's current BPM (" + juce::String(engine.getTransport().getTempo(), 1) + " BPM)?")
+                           .withButton("Match Tempo (Auto)")
+                           .withButton("Specify Tempo...")
+                           .withButton("Keep Original");
+                           
+                    juce::AlertWindow::showAsync(options, [this, file, droppedSample, sourceLengthSamples, targetTrackIndex, estimatedBpm](int result) {
+                        auto clip = std::make_shared<AudioClip>(file, static_cast<int>(droppedSample), sourceLengthSamples, sourceLengthSamples);
+                        clip->name = file.getFileNameWithoutExtension();
+                        
+                        if (result == 1 || result == 2) { 
+                            clip->preservePitch = true;
+                            clip->matchDawTempo = true;
+                            clip->originalBpm = estimatedBpm;
+                            clip->updateWarpedLength(engine.getTransport().getTempo());
+                        } else {
+                            clip->preservePitch = false;
+                            clip->matchDawTempo = false;
+                        }
+                        
+                        engine.getTimelineProject().addClipToTrack(targetTrackIndex, clip);
+                        
+                        if (result == 2) {
+                            engine.getTimelineProject().setSelectedClip(clip);
+                        }
+                    });
+                });
             });
         } else if (isMidi) {
             auto clip = std::make_shared<MidiClip>(static_cast<int>(droppedSample), static_cast<int>(sampleRate * 4.0));

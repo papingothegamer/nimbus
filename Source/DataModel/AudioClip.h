@@ -12,8 +12,12 @@ public:
         Melodic = 1
     };
 
-    AudioClip(const juce::File& file, double startSample, double lengthSamples, double sourceOffsetSamples = 0.0);
+    AudioClip(const juce::File& file, double startSample, double lengthSamples, double sourceLengthSamples = -1.0);
     ~AudioClip() override = default;
+
+    void updateWarpedLength(double currentDawTempo);
+
+    juce::File getFile() const { return sourceFile; }
 
     std::shared_ptr<Clip> clone() const override;
 
@@ -26,15 +30,16 @@ public:
     juce::CachedValue<float> gain;
     juce::CachedValue<float> pan;
     juce::CachedValue<bool> reverse;
-    juce::CachedValue<int> fadeInSamples;
-    juce::CachedValue<int> fadeOutSamples;
-    juce::CachedValue<float> fadeInCurve;
+    juce::CachedValue<double> sourceLengthSamples;
+    juce::CachedValue<double> speedMultiplier;
     juce::CachedValue<float> fadeOutCurve;
     juce::CachedValue<bool> isCrossfadingIn;
     juce::CachedValue<bool> isCrossfadingOut;
     juce::CachedValue<float> pitchShift;
     
-    juce::CachedValue<double> speedMultiplier;
+    juce::CachedValue<int> fadeInSamples;
+    juce::CachedValue<int> fadeOutSamples;
+    juce::CachedValue<float> fadeInCurve;
     juce::CachedValue<int> pitchShiftSemitones;
     juce::CachedValue<bool> matchDawTempo;
     juce::CachedValue<double> originalBpm;

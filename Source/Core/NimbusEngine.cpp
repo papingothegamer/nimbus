@@ -24,10 +24,13 @@ NimbusEngine::NimbusEngine()
     // Create computer midi controller
     computerMidiController = std::make_unique<ComputerMidiController>(*this);
     
+    transport.addListener(this);
+    
     juce::Logger::writeToLog("NimbusEngine constructed");
 }
 
 NimbusEngine::~NimbusEngine() {
+    transport.removeListener(this);
 }
 
 void NimbusEngine::initialise() {
@@ -48,6 +51,20 @@ void NimbusEngine::initialise() {
     playbackEngine = std::make_unique<PlaybackEngine>(*this, timelineProject, *mixer, pluginManager);
 
     juce::Logger::writeToLog("Engine: Initialise Complete");
+}
+
+void NimbusEngine::transportTempoChanged(double newTempo) {
+    // Loop through all tracks and clips, update warped length if matching DAW tempo
+    for (int t = 0; t < timelineProject.getNumTracks(); ++t) {
+        auto clips = timelineProject.getClipsOnTrack(t);
+        for (auto& clip : clips) {
+            if (auto audioClip = std::dynamic_pointer_cast<AudioClip>(clip)) {
+                if (audioClip->matchDawTempo.get()) {
+                    audioClip->updateWarpedLength(newTempo);
+                }
+            }
+        }
+    }
 }
 
 void NimbusEngine::addTrack(bool isMidi, bool isStereo) {

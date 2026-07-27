@@ -4,13 +4,41 @@ namespace Nimbus {
 
 AudioClipNode::AudioClipNode(std::shared_ptr<AudioClip> clip, std::shared_ptr<DiskStreamer> streamer, Transport& transport)
     : clipModel(std::move(clip)), diskStreamer(std::move(streamer)), globalTransport(transport) {
+    syncStateFromModel(); // Initial sync
+    startTimerHz(30);     // 30 times a second, sync model safely to atomics
 }
 
-void AudioClipNode::prepareToPlay(double /*sampleRate*/, int /*maximumExpectedSamplesPerBlock*/) {
+AudioClipNode::~AudioClipNode() {
+    stopTimer();
+}
+
+void AudioClipNode::syncStateFromModel() {
+    if (!clipModel) return;
+    renderState.startSample.store(clipModel->startSample.get());
+    renderState.lengthSamples.store(clipModel->lengthSamples.get());
+    renderState.sourceOffsetSamples.store(clipModel->sourceOffsetSamples.get());
+    renderState.speedMultiplier.store(clipModel->speedMultiplier.get());
+    renderState.pitchShiftSemitones.store(clipModel->pitchShiftSemitones.get());
+    renderState.gain.store(clipModel->gain.get());
+    renderState.fadeInSamples.store(clipModel->fadeInSamples.get());
+    renderState.fadeOutSamples.store(clipModel->fadeOutSamples.get());
+    renderState.fadeInCurve.store(clipModel->fadeInCurve.get());
+    renderState.fadeOutCurve.store(clipModel->fadeOutCurve.get());
+    renderState.isCrossfadingIn.store(clipModel->isCrossfadingIn.get());
+    renderState.isCrossfadingOut.store(clipModel->isCrossfadingOut.get());
+    renderState.preservePitch.store(clipModel->preservePitch.get());
+    renderState.matchDawTempo.store(clipModel->matchDawTempo.get());
+    renderState.originalBpm.store(clipModel->originalBpm.get());
+}
+
+void AudioClipNode::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) {
     if (diskStreamer && !diskStreamer->isThreadRunning()) {
-        diskStreamer->requestSeek(clipModel->sourceOffsetSamples.get());
+        diskStreamer->requestSeek(renderState.sourceOffsetSamples.load());
         diskStreamer->startStreaming();
     }
+    
+    // Default channels to 2 for our typical audio clips
+    granularStretcher.prepare(sampleRate, maximumExpectedSamplesPerBlock, 2);
 }
 
 void AudioClipNode::releaseResources() {
@@ -29,20 +57,23 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
     int currentTransportPos = globalTransport.getCurrentPositionSamples();
     int numSamples = buffer.getNumSamples();
 
+    // Read atomics locally for consistency across the block
+    int clipStart = renderState.startSample.load();
+    int clipLength = renderState.lengthSamples.load();
+    int clipSourceOffset = renderState.sourceOffsetSamples.load();
+    int clipEnd = clipStart + clipLength;
+
     // Did the transport jump or just start?
     if (lastProcessedTransportPos == -1 || currentTransportPos != lastProcessedTransportPos) {
         // Transport seeked!
-        int relativeFilePos = currentTransportPos - clipModel->startSample.get() + clipModel->sourceOffsetSamples.get();
+        int relativeFilePos = currentTransportPos - clipStart + clipSourceOffset;
         if (relativeFilePos >= 0) {
             diskStreamer->requestSeek(relativeFilePos);
         } else {
             // If we seeked before the clip, prime the disk streamer to the clip's start
-            diskStreamer->requestSeek(clipModel->sourceOffsetSamples.get());
+            diskStreamer->requestSeek(clipSourceOffset);
         }
     }
-
-    int clipStart = clipModel->startSample.get();
-    int clipEnd = clipStart + clipModel->lengthSamples.get();
 
     // Check if the current block overlaps with the clip
     if (currentTransportPos + numSamples <= clipStart || currentTransportPos >= clipEnd) {
@@ -62,20 +93,20 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
             renderLength -= (currentTransportPos + numSamples - clipEnd);
         }
 
-        double speedRatio = clipModel->speedMultiplier.get();
-        if (clipModel->matchDawTempo.get()) {
+        double speedRatio = renderState.speedMultiplier.load();
+        if (renderState.matchDawTempo.load()) {
             double dawTempo = globalTransport.getTempo();
-            double originalTempo = clipModel->originalBpm.get();
+            double originalTempo = renderState.originalBpm.load();
             if (originalTempo > 0.0 && dawTempo > 0.0) {
                 speedRatio = dawTempo / originalTempo;
             }
         }
         
-        double pitchRatio = std::pow(2.0, clipModel->pitchShiftSemitones.get() / 12.0);
+        double pitchRatio = std::pow(2.0, renderState.pitchShiftSemitones.load() / 12.0);
         
         // The position inside the audio file corresponding to the first sample we need to render
         double timeIntoClip = (currentTransportPos + renderStartOffset) - clipStart;
-        int filePosition = static_cast<int>(clipModel->sourceOffsetSamples.get() + (timeIntoClip * speedRatio));
+        int filePosition = static_cast<int>(clipSourceOffset + (timeIntoClip * speedRatio));
 
         // Clear regions before and after
         if (renderStartOffset > 0) {
@@ -90,61 +121,69 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
             juce::AudioBuffer<float> subBuffer(buffer.getArrayOfWritePointers(), buffer.getNumChannels(), renderStartOffset, renderLength);
             diskStreamer->processBlock(subBuffer, filePosition, renderLength);
         } else {
-            // Combine speed and pitch into a single resampling ratio.
-            // Note: If clipModel->getPreservePitch() is true, we ideally want Granular Time Stretching here.
-            // For now, we fall back to standard resampling, which will shift pitch when speed changes.
-            // The architecture is now ready to swap this interpolator block for a Granular Stretcher class.
-            double playbackRatio = speedRatio;
-            if (!clipModel->preservePitch.get()) {
-                // If not preserving pitch, speed is dictated strictly by the ratio.
-                playbackRatio = speedRatio * pitchRatio;
-            } else {
-                // Even if preserving pitch, without a granular engine, it will currently shift pitch.
-                // A future GranularTimeStretcher would process 'speedRatio' and 'pitchRatio' independently here.
-                playbackRatio = speedRatio * pitchRatio;
-            }
+            bool preservePitch = renderState.preservePitch.load();
+            double playbackRatio = speedRatio * pitchRatio; // Combined ratio
             
-            int samplesToRead = static_cast<int>(std::ceil(renderLength * playbackRatio)) + 4; // Add padding for interpolation
-            if (readBuffer.getNumSamples() < samplesToRead || readBuffer.getNumChannels() < buffer.getNumChannels()) {
-                readBuffer.setSize(buffer.getNumChannels(), samplesToRead, false, false, true);
-            }
-            readBuffer.clear();
-            
-            juce::AudioBuffer<float> subReadBuffer(readBuffer.getArrayOfWritePointers(), readBuffer.getNumChannels(), 0, samplesToRead);
-            diskStreamer->processBlock(subReadBuffer, filePosition, samplesToRead);
-            
-            for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
-                auto* outPtr = buffer.getWritePointer(ch) + renderStartOffset;
-                auto* inPtr = readBuffer.getReadPointer(ch);
+            if (preservePitch) {
+                // If preserving pitch, the granular stretcher handles speedRatio.
+                // It does NOT handle pitchRatio natively yet (we would need to resample the grains for pitchShift),
+                // but for now, we will let the granular stretcher handle the speed ratio without pitch change.
+                // Assuming pitchShift is 0.0 when matchDawTempo is used (which is our primary goal).
+                int samplesToRead = granularStretcher.getNumSourceSamplesRequired(renderLength, speedRatio) + 4;
+                if (readBuffer.getNumSamples() < samplesToRead || readBuffer.getNumChannels() < buffer.getNumChannels()) {
+                    readBuffer.setSize(buffer.getNumChannels(), samplesToRead, false, false, true);
+                }
+                readBuffer.clear();
                 
-                if (ch == 0) interpolatorLeft.process(playbackRatio, inPtr, outPtr, renderLength);
-                else if (ch == 1) interpolatorRight.process(playbackRatio, inPtr, outPtr, renderLength);
+                juce::AudioBuffer<float> subReadBuffer(readBuffer.getArrayOfWritePointers(), readBuffer.getNumChannels(), 0, samplesToRead);
+                diskStreamer->processBlock(subReadBuffer, filePosition, samplesToRead);
+                
+                juce::AudioBuffer<float> subOutBuffer(buffer.getArrayOfWritePointers(), buffer.getNumChannels(), renderStartOffset, renderLength);
+                granularStretcher.process(subOutBuffer, subReadBuffer, speedRatio);
+                
+            } else {
+                // Not preserving pitch -> standard resampling (speed shift = pitch shift)
+                int samplesToRead = static_cast<int>(std::ceil(renderLength * playbackRatio)) + 4; // Add padding for interpolation
+                if (readBuffer.getNumSamples() < samplesToRead || readBuffer.getNumChannels() < buffer.getNumChannels()) {
+                    readBuffer.setSize(buffer.getNumChannels(), samplesToRead, false, false, true);
+                }
+                readBuffer.clear();
+                
+                juce::AudioBuffer<float> subReadBuffer(readBuffer.getArrayOfWritePointers(), readBuffer.getNumChannels(), 0, samplesToRead);
+                diskStreamer->processBlock(subReadBuffer, filePosition, samplesToRead);
+                
+                for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
+                    auto* outPtr = buffer.getWritePointer(ch) + renderStartOffset;
+                    auto* inPtr = readBuffer.getReadPointer(ch);
+                    
+                    if (ch == 0) interpolatorLeft.process(playbackRatio, inPtr, outPtr, renderLength);
+                    else if (ch == 1) interpolatorRight.process(playbackRatio, inPtr, outPtr, renderLength);
+                }
             }
         }
 
         // Apply fades and gain
-        int fadeInSamples = clipModel->fadeInSamples.get();
-        int fadeOutSamples = clipModel->fadeOutSamples.get();
-        float inCurve = clipModel->fadeInCurve.get();
-        float outCurve = clipModel->fadeOutCurve.get();
-        bool isXFadeIn = clipModel->isCrossfadingIn.get();
-        bool isXFadeOut = clipModel->isCrossfadingOut.get();
-        float clipGain = clipModel->gain.get();
-        int clipLength = clipModel->lengthSamples.get();
+        int fadeInSamples = renderState.fadeInSamples.load();
+        int fadeOutSamples = renderState.fadeOutSamples.load();
+        float inCurve = renderState.fadeInCurve.load();
+        float outCurve = renderState.fadeOutCurve.load();
+        bool isXFadeIn = renderState.isCrossfadingIn.load();
+        bool isXFadeOut = renderState.isCrossfadingOut.load();
+        float clipGain = renderState.gain.load();
 
         for (int i = 0; i < renderLength; ++i) {
-            int timeIntoClip = (currentTransportPos + renderStartOffset + i) - clipStart;
+            int timeIntoClipRel = (currentTransportPos + renderStartOffset + i) - clipStart;
             float sampleGain = clipGain;
             
-            if (timeIntoClip < fadeInSamples && fadeInSamples > 0) {
-                float t_fade = static_cast<float>(timeIntoClip) / static_cast<float>(fadeInSamples);
+            if (timeIntoClipRel < fadeInSamples && fadeInSamples > 0) {
+                float t_fade = static_cast<float>(timeIntoClipRel) / static_cast<float>(fadeInSamples);
                 if (isXFadeIn) {
                     sampleGain *= std::sin(juce::MathConstants<float>::halfPi * t_fade);
                 } else {
                     sampleGain *= std::pow(t_fade, inCurve);
                 }
-            } else if (timeIntoClip > clipLength - fadeOutSamples && fadeOutSamples > 0) {
-                float t_fade = static_cast<float>(timeIntoClip - (clipLength - fadeOutSamples)) / static_cast<float>(fadeOutSamples);
+            } else if (timeIntoClipRel > clipLength - fadeOutSamples && fadeOutSamples > 0) {
+                float t_fade = static_cast<float>(timeIntoClipRel - (clipLength - fadeOutSamples)) / static_cast<float>(fadeOutSamples);
                 if (isXFadeOut) {
                     sampleGain *= std::cos(juce::MathConstants<float>::halfPi * t_fade);
                 } else {
