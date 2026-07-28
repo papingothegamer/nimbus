@@ -70,7 +70,7 @@ void DetailViewComponent::resized() {
     } else {
         deviceChain.setVisible(false);
         
-        int propsWidth = 180;
+        int propsWidth = juce::jmax(220, area.getWidth() / 6); // Responsive width management
         clipProperties.setBounds(area.removeFromLeft(propsWidth));
         
         auto timelineArea = area.removeFromTop(20);

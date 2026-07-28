@@ -12,6 +12,16 @@ public:
         Melodic = 1
     };
 
+    struct WarpMarker {
+        double sourceSample = 0.0;
+        double targetSample = 0.0;
+        bool isSelected = false;
+        
+        bool operator==(const WarpMarker& other) const {
+            return sourceSample == other.sourceSample && targetSample == other.targetSample;
+        }
+    };
+
     AudioClip(const juce::File& file, double startSample, double lengthSamples, double sourceLengthSamples = -1.0);
     ~AudioClip() override = default;
 
@@ -48,6 +58,18 @@ public:
 
     StretchAlgorithm getAlgorithm() const { return static_cast<StretchAlgorithm>(algorithmInt.get()); }
     void setAlgorithm(StretchAlgorithm a) { algorithmInt = static_cast<int>(a); }
+    
+    // Transients (in source samples)
+    std::vector<double> detectedTransients;
+    
+    // Warp Markers
+    std::vector<WarpMarker> warpMarkers;
+    
+    void addWarpMarker(double source, double target);
+    void removeWarpMarker(int index);
+    
+    // Generate some fake transients for UI testing
+    void generateMockTransients(double sampleRate);
 
 private:
     juce::File sourceFile;

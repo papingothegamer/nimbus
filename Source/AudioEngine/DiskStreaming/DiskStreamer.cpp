@@ -98,7 +98,8 @@ void DiskStreamer::run() {
         if (freeSpace >= READ_CHUNK_SIZE) {
             // Read a chunk from disk
             tempReadBuffer.clear();
-            bool success = reader->read(&tempReadBuffer, 0, READ_CHUNK_SIZE, filePosition, true, true);
+            bool useRight = tempReadBuffer.getNumChannels() > 1;
+            bool success = reader->read(&tempReadBuffer, 0, READ_CHUNK_SIZE, filePosition, true, useRight);
             
             if (success) {
                 ringBuffer->write(tempReadBuffer, READ_CHUNK_SIZE);

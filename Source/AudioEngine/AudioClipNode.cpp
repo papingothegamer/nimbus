@@ -73,6 +73,11 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
             // If we seeked before the clip, prime the disk streamer to the clip's start
             diskStreamer->requestSeek(clipSourceOffset);
         }
+        
+        granularStretcher.reset();
+        interpolatorLeft.reset();
+        interpolatorRight.reset();
+        lastFilePosition = -1;
     }
 
     // Check if the current block overlaps with the clip
@@ -108,6 +113,12 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
         double timeIntoClip = (currentTransportPos + renderStartOffset) - clipStart;
         int filePosition = static_cast<int>(clipSourceOffset + (timeIntoClip * speedRatio));
 
+        int samplesAdvanced = 0;
+        if (lastFilePosition != -1) {
+            samplesAdvanced = filePosition - lastFilePosition;
+        }
+        lastFilePosition = filePosition;
+
         // Clear regions before and after
         if (renderStartOffset > 0) {
             buffer.clear(0, renderStartOffset);
@@ -139,7 +150,7 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
                 diskStreamer->processBlock(subReadBuffer, filePosition, samplesToRead);
                 
                 juce::AudioBuffer<float> subOutBuffer(buffer.getArrayOfWritePointers(), buffer.getNumChannels(), renderStartOffset, renderLength);
-                granularStretcher.process(subOutBuffer, subReadBuffer, speedRatio);
+                granularStretcher.process(subOutBuffer, subReadBuffer, speedRatio, samplesAdvanced);
                 
             } else {
                 // Not preserving pitch -> standard resampling (speed shift = pitch shift)

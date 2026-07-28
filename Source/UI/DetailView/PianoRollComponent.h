@@ -49,6 +49,7 @@ private:
     int draggedEventIndex = -1;
     bool isResizing = false;
     bool isDraggingVelocity = false;
+    bool hasDuplicatedForDrag = false;
     double dragStartNoteTime = 0.0;
     double dragStartNoteLength = 0.0;
     int dragStartMouseX = 0;

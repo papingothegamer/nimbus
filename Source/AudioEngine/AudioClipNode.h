@@ -57,6 +57,7 @@ private:
     AudioClipRenderState renderState;
 
     int lastProcessedTransportPos = -1;
+    int lastFilePosition = -1;
 
     juce::LagrangeInterpolator interpolatorLeft;
     juce::LagrangeInterpolator interpolatorRight;

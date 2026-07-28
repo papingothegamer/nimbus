@@ -4,6 +4,8 @@
 #include "UI/DesignSystem/Typography.h"
 #include "UI/DesignSystem/Iconography.h"
 #include "UI/DesignSystem/NimbusLookAndFeel.h"
+#include "DataModel/TimelineProject.h"
+#include "AudioEngine/Track.h"
 
 namespace Nimbus::DetailView {
 
@@ -105,6 +107,36 @@ void AudioClipContent::paint(juce::Graphics& g) {
         if (x2 >= clipBounds.getX() && x2 <= clipBounds.getRight()) {
             g.drawVerticalLine(static_cast<int>(x2), 0.0f, static_cast<float>(getHeight()));
         }
+        
+        // Draw Transients
+        g.setColour(juce::Colours::white.withAlpha(0.2f));
+        for (double tSample : currentClip->detectedTransients) {
+            double tSecs = tSample / sampleRate;
+            if (tSecs >= visibleStartSecs && tSecs <= visibleEndSecs) {
+                float px = static_cast<float>((tSecs / thumbnail.getTotalLength()) * getWidth());
+                g.drawVerticalLine(static_cast<int>(px), 0.0f, static_cast<float>(getHeight()));
+            }
+        }
+        
+        // Draw Warp Markers
+        for (const auto& wm : currentClip->warpMarkers) {
+            double sourceSecs = wm.sourceSample / sampleRate;
+            double targetSecs = wm.targetSample / sampleRate;
+            
+            float pxSource = static_cast<float>((sourceSecs / thumbnail.getTotalLength()) * getWidth());
+            float pxTarget = static_cast<float>((targetSecs / thumbnail.getTotalLength()) * getWidth());
+            
+            // Draw a line from target handle down to source position to indicate stretch
+            g.setColour(wm.isSelected ? DesignSystem::Colors::PrimaryAction : juce::Colours::yellow);
+            
+            // Stem: straight down from Target to 20px, then diagonal to Source at the bottom
+            g.drawLine(pxTarget, 12.0f, pxTarget, 30.0f, 1.0f);
+            g.drawLine(pxTarget, 30.0f, pxSource, static_cast<float>(getHeight()), 1.0f);
+            
+            // Top handle at Target
+            g.fillRoundedRectangle(pxTarget - 4.0f, 2.0f, 8.0f, 10.0f, 2.0f);
+        }
+        
     } else {
         g.setColour(DesignSystem::Colors::TextSecondary);
         g.drawText("Loading waveform...", getLocalBounds(), juce::Justification::centred, true);
@@ -128,7 +160,7 @@ void AudioClipContent::paint(juce::Graphics& g) {
                 px = static_cast<float>((sourceSecs / thumbnail.getTotalLength()) * getWidth());
             }
             
-            // Draw Playhead Line
+        // Draw Playhead Line
             g.setColour(juce::Colour(0xffffffff)); // bright white
             g.drawVerticalLine(static_cast<int>(px), 0.0f, static_cast<float>(getHeight()));
             
@@ -137,6 +169,20 @@ void AudioClipContent::paint(juce::Graphics& g) {
             headPath.addTriangle(px - 4.0f, 0.0f, px + 4.0f, 0.0f, px, 6.0f);
             g.fillPath(headPath);
         }
+    }
+    
+    // Draw selection
+    if (selectionStartSecs >= 0.0 && selectionEndSecs >= 0.0) {
+        double sMin = std::min(selectionStartSecs, selectionEndSecs);
+        double sMax = std::max(selectionStartSecs, selectionEndSecs);
+        
+        float x1 = static_cast<float>((sMin / thumbnail.getTotalLength()) * getWidth());
+        float x2 = static_cast<float>((sMax / thumbnail.getTotalLength()) * getWidth());
+        
+        g.setColour(juce::Colours::white.withAlpha(0.2f));
+        g.fillRect(x1, 0.0f, x2 - x1, static_cast<float>(getHeight()));
+        g.setColour(juce::Colours::white.withAlpha(0.5f));
+        g.drawRect(x1, 0.0f, x2 - x1, static_cast<float>(getHeight()), 1.0f);
     }
 }
 
@@ -152,20 +198,153 @@ void AudioClipContent::changeListenerCallback(juce::ChangeBroadcaster* source) {
 void AudioClipContent::mouseDown(const juce::MouseEvent& e) {
     if (!currentClip || thumbnail.getTotalLength() <= 0.0) return;
     
-    // To implement slip-stretch editing, we can check if we clicked near the edges of the active region
-    // while holding Alt.
+    double sampleRate = engine.getTransport().getSampleRate();
+    if (sampleRate <= 0) sampleRate = 48000.0;
+    
+    double clickedSecs = (e.x / static_cast<double>(getWidth())) * thumbnail.getTotalLength();
+
+    if (e.mods.isPopupMenu()) {
+        juce::PopupMenu menu;
+        menu.addItem(1, "Split");
+        menu.addItem(2, "Crop");
+        menu.addSeparator();
+        menu.addItem(3, "Consolidate");
+        
+        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this).withMousePosition(),
+            [this, clickedSecs](int result) {
+                if (result == 1) {
+                    // Split logic: split at selection start (or click point if no selection)
+                    double splitTime = (selectionStartSecs >= 0.0) ? std::min(selectionStartSecs, selectionEndSecs) : clickedSecs;
+                    double sampleRate = engine.getTransport().getSampleRate();
+                    if (sampleRate <= 0) sampleRate = 48000.0;
+                    
+                    if (splitTime > 0.0 && splitTime < (currentClip->lengthSamples.get() / sampleRate)) {
+                        auto& project = engine.getTimelineProject();
+                        for (int trackIdx = 0; trackIdx < project.getNumTracks(); ++trackIdx) {
+                            auto trackClips = project.getClipsOnTrack(trackIdx);
+                            auto it = std::find(trackClips.begin(), trackClips.end(), currentClip);
+                            if (it != trackClips.end()) {
+                                // Clone clip
+                                auto newClip = std::static_pointer_cast<AudioClip>(currentClip->clone());
+                                newClip->name = currentClip->name.get() + " (Split)";
+                                
+                                double splitSampleOffset = splitTime * sampleRate;
+                                
+                                newClip->startSample = currentClip->startSample.get() + splitSampleOffset;
+                                newClip->sourceOffsetSamples = currentClip->sourceOffsetSamples.get() + splitSampleOffset;
+                                newClip->lengthSamples = currentClip->lengthSamples.get() - splitSampleOffset;
+                                
+                                currentClip->lengthSamples = splitSampleOffset;
+                                
+                                project.addClipToTrack(trackIdx, newClip);
+                                project.notifyClipModified();
+                                break;
+                            }
+                        }
+                    }
+                } else if (result == 2) {
+                    // Crop logic
+                    if (selectionStartSecs >= 0.0 && selectionEndSecs >= 0.0) {
+                        double sMin = std::min(selectionStartSecs, selectionEndSecs);
+                        double sMax = std::max(selectionStartSecs, selectionEndSecs);
+                        double sampleRate = engine.getTransport().getSampleRate();
+                        if (sampleRate <= 0) sampleRate = 48000.0;
+                        double selLengthSecs = sMax - sMin;
+                        if (selLengthSecs > 0.01) {
+                            currentClip->startSample = currentClip->startSample.get() + (sMin * sampleRate);
+                            currentClip->sourceOffsetSamples = currentClip->sourceOffsetSamples.get() + (sMin * sampleRate);
+                            currentClip->lengthSamples = selLengthSecs * sampleRate;
+                            engine.getTimelineProject().notifyClipModified();
+                            selectionStartSecs = -1.0;
+                            selectionEndSecs = -1.0;
+                            repaint();
+                        }
+                    }
+                } else if (result == 3) {
+                    // Consolidate logic (placeholder for bouncing/rendering)
+                }
+            });
+        return;
+    }
+    
+    // Check if clicked on a warp marker handle
+    draggedMarkerIndex = -1;
+    for (size_t i = 0; i < currentClip->warpMarkers.size(); ++i) {
+        auto& wm = currentClip->warpMarkers[i];
+        wm.isSelected = false; // deselect all
+        
+        double targetSecs = wm.targetSample / sampleRate;
+        float pxTarget = static_cast<float>((targetSecs / thumbnail.getTotalLength()) * getWidth());
+        
+        // Handle hit test (pxTarget - 4 to pxTarget + 4, top area)
+        if (std::abs(e.x - pxTarget) < 6.0f) {
+            draggedMarkerIndex = static_cast<int>(i);
+            wm.isSelected = true;
+        }
+    }
+    
+    if (draggedMarkerIndex < 0) {
+        // Start selection
+        selectionStartSecs = clickedSecs;
+        selectionEndSecs = clickedSecs;
+    }
+    
+    repaint();
 }
 
 void AudioClipContent::mouseDrag(const juce::MouseEvent& e) {
     if (!currentClip || thumbnail.getTotalLength() <= 0.0) return;
     
-    // Alt-drag stretching logic to go here
+    if (draggedMarkerIndex >= 0 && draggedMarkerIndex < currentClip->warpMarkers.size()) {
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0) sampleRate = 48000.0;
+        
+        double draggedSecs = (e.x / static_cast<double>(getWidth())) * thumbnail.getTotalLength();
+        double draggedSample = draggedSecs * sampleRate;
+        
+        // Update targetSample based on drag
+        currentClip->warpMarkers[draggedMarkerIndex].targetSample = draggedSample;
+        engine.getTimelineProject().notifyClipModified();
+        repaint();
+    } else {
+        // Update selection
+        double draggedSecs = (e.x / static_cast<double>(getWidth())) * thumbnail.getTotalLength();
+        selectionEndSecs = draggedSecs;
+        repaint();
+    }
 }
 
 void AudioClipContent::mouseUp(const juce::MouseEvent& e) {
+    draggedMarkerIndex = -1;
 }
 
 void AudioClipContent::mouseDoubleClick(const juce::MouseEvent& e) {
+    if (!currentClip || thumbnail.getTotalLength() <= 0.0) return;
+    
+    double sampleRate = engine.getTransport().getSampleRate();
+    if (sampleRate <= 0) sampleRate = 48000.0;
+    
+    double clickedSecs = (e.x / static_cast<double>(getWidth())) * thumbnail.getTotalLength();
+    double clickedSample = clickedSecs * sampleRate;
+    
+    // Check if clicked near a transient
+    double thresholdSamples = sampleRate * 0.05; // 50ms threshold
+    double closestDist = thresholdSamples;
+    double targetSample = clickedSample;
+    bool foundTransient = false;
+    
+    for (double tSample : currentClip->detectedTransients) {
+        if (std::abs(tSample - clickedSample) < closestDist) {
+            closestDist = std::abs(tSample - clickedSample);
+            targetSample = tSample;
+            foundTransient = true;
+        }
+    }
+    
+    // Add warp marker
+    currentClip->addWarpMarker(targetSample, targetSample); // target = source initially
+    engine.getTimelineProject().notifyClipModified();
+    repaint();
 }
 
 // ==============================================================================
@@ -222,6 +401,13 @@ void AudioClipViewComponent::setAudioClip(std::shared_ptr<AudioClip> clip) {
             zoomFactor = static_cast<double>(getWidth()) / (targetSeconds * 100.0);
             zoomFactor = juce::jlimit(0.001, 1000.0, zoomFactor);
         }
+        
+        // Generate mock transients if none exist for UI testing
+        if (clip->detectedTransients.empty()) {
+            double sampleRate = engine.getTransport().getSampleRate();
+            if (sampleRate <= 0.0) sampleRate = 48000.0;
+            clip->generateMockTransients(sampleRate);
+        }
     }
     
     resized();
@@ -258,7 +444,6 @@ void AudioClipViewComponent::resized() {
 void AudioClipViewComponent::paint(juce::Graphics& g) {
     g.fillAll(DesignSystem::Colors::PanelBackground);
     
-    // Premium dark background overlaid with clip tint
     juce::Colour bgColor = DesignSystem::Colors::AppBackground;
     juce::Colour clipColor = juce::Colour(0xff0a84ff);
     juce::String clipName = "Audio Clip";
@@ -269,7 +454,7 @@ void AudioClipViewComponent::paint(juce::Graphics& g) {
             float hue = std::fmod(index * 0.381966f, 1.0f);
             clipColor = juce::Colour::fromHSV(hue, 0.6f, 0.95f, 1.0f);
         }
-        bgColor = clipColor.withAlpha(0.2f).overlaidWith(DesignSystem::Colors::AppBackground);
+        bgColor = clipColor; // Fully opaque clip color
         clipName = currentClip->name.get();
     }
     

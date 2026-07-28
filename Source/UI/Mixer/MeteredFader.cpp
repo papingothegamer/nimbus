@@ -26,6 +26,13 @@ void MeteredFader::FaderLookAndFeel::drawLinearSlider(juce::Graphics& g, int x, 
     g.strokePath(p, juce::PathStrokeType(1.0f)); 
 }
 
+void MeteredFader::FaderLookAndFeel::drawLinearSliderBackground(juce::Graphics& /*g*/, int /*x*/, int /*y*/, int /*width*/, int /*height*/,
+                                                                float /*sliderPos*/, float /*minSliderPos*/, float /*maxSliderPos*/,
+                                                                const juce::Slider::SliderStyle /*style*/, juce::Slider& /*slider*/) {
+    // Intentionally empty. We draw the background as a VU meter in the component's paint method.
+}
+
+
 MeteredFader::MeteredFader() {
     volumeSlider.setLookAndFeel(&customLaf);
     volumeSlider.setSliderStyle(juce::Slider::LinearVertical);

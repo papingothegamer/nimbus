@@ -4,6 +4,8 @@
 #include "UI/DesignSystem/Typography.h"
 #include "UI/DesignSystem/Iconography.h"
 #include "UI/Timeline/ClipComponent.h"
+#include "DataModel/TimelineProject.h"
+#include "AudioEngine/Track.h"
 
 namespace Nimbus::DetailView {
 
@@ -56,6 +58,48 @@ void PianoRollContent::paint(juce::Graphics& g) {
                 g.drawVerticalLine(static_cast<int>(x), 0, static_cast<float>(getHeight()));
             }
             
+            // Draw ghost notes from other MIDI clips
+            auto& project = engine.getTimelineProject();
+            for (int trackIdx = 0; trackIdx < project.getNumTracks(); ++trackIdx) {
+            for (auto& clipBase : project.getClipsOnTrack(trackIdx)) {
+                if (clipBase->getType() == Clip::Type::Midi && clipBase.get() != currentClip.get()) {
+                    auto otherClip = std::static_pointer_cast<MidiClip>(clipBase);
+                    double otherGlobalStart = otherClip->startSample.get();
+                        double otherOffset = otherClip->sourceOffsetSamples.get();
+                        
+                        double currentGlobalStart = currentClip->startSample.get();
+                        double currentOffset = currentClip->sourceOffsetSamples.get();
+                        
+                        for (int i = 0; i < otherClip->getSequence().getNumEvents(); ++i) {
+                            auto* event = otherClip->getSequence().getEventPointer(i);
+                            if (event->message.isNoteOn()) {
+                                double noteStart = event->message.getTimeStamp();
+                                double noteLength = 0.0;
+                                if (event->noteOffObject != nullptr) {
+                                    noteLength = event->noteOffObject->message.getTimeStamp() - noteStart;
+                                }
+                                if (noteLength == 0.0) noteLength = 48000.0 * 0.25;
+                                
+                                double globalNoteStart = otherGlobalStart + noteStart - otherOffset;
+                                double relativeNoteStart = globalNoteStart - currentGlobalStart + currentOffset;
+                                
+                                float x = keyWidth + static_cast<float>((relativeNoteStart / sampleRate) * pixelsPerSecond);
+                                float w = static_cast<float>((noteLength / sampleRate) * pixelsPerSecond);
+                                
+                                int noteNumber = event->message.getNoteNumber();
+                                int row = 127 - noteNumber;
+                                int y = row * keyHeight;
+                                
+                                // Draw faintly
+                                juce::Colour clipColor = Nimbus::Timeline::ClipComponent::getClipColor(otherClip->colorIndex.get());
+                                g.setColour(clipColor.withAlpha(0.2f));
+                                g.fillRect(x, static_cast<float>(y) + 1.0f, w, static_cast<float>(keyHeight) - 2.0f);
+                            }
+                        }
+                    }
+                }
+            }
+            
             // Draw notes
             if (clipSamples > 0) {
                 for (int i = 0; i < currentClip->getSequence().getNumEvents(); ++i) {
@@ -99,20 +143,36 @@ void PianoRollContent::paint(juce::Graphics& g) {
         }
             
         // Draw keyboard on the left, sticky!
+        // First pass: Draw white keys
+        for (int note = 0; note < totalKeys; ++note) {
+            int midiNote = 127 - note;
+            if (!juce::MidiMessage::isMidiNoteBlack(midiNote)) {
+                int y = note * keyHeight;
+                juce::Rectangle<float> keyRect(vx, y, keyWidth, keyHeight);
+                g.setColour(juce::Colour::fromString("#FFF4F4F4"));
+                g.fillRect(keyRect);
+                g.setColour(DesignSystem::Colors::Divider.withAlpha(0.2f));
+                g.drawHorizontalLine(y + keyHeight, vx, vx + keyWidth);
+            }
+        }
+        
+        // Second pass: Draw black keys on top
+        for (int note = 0; note < totalKeys; ++note) {
+            int midiNote = 127 - note;
+            if (juce::MidiMessage::isMidiNoteBlack(midiNote)) {
+                int y = note * keyHeight;
+                float blackKeyWidth = keyWidth * 0.65f;
+                juce::Rectangle<float> keyRect(vx, y, blackKeyWidth, keyHeight);
+                g.setColour(juce::Colour::fromString("#FF2A2A2E"));
+                g.fillRoundedRectangle(keyRect.reduced(0, 1).withTrimmedRight(2), 3.0f);
+            }
+        }
+        
+        // Third pass: Draw grid lines and labels
         for (int note = 0; note < totalKeys; ++note) {
             int y = note * keyHeight;
             int midiNote = 127 - note;
             bool isBlack = juce::MidiMessage::isMidiNoteBlack(midiNote);
-            
-            juce::Rectangle<float> keyRect(vx, y, keyWidth, keyHeight);
-            
-            if (isBlack) {
-                g.setColour(juce::Colour::fromString("#FF2A2A2E")); // Dark grey
-                g.fillRoundedRectangle(keyRect.reduced(0, 1).withTrimmedRight(2), 3.0f);
-            } else {
-                g.setColour(juce::Colour::fromString("#FFF4F4F4")); // Off-white
-                g.fillRoundedRectangle(keyRect.reduced(0, 0.5f).withTrimmedRight(2), 2.0f);
-            }
             
             // Draw horizontal grid lines extended from white keys
             if (!isBlack) {
@@ -151,10 +211,16 @@ void PianoRollContent::paint(juce::Graphics& g) {
                         float vh = vel * (velocityLaneHeight - 4);
                         float vy = contentHeight + velocityLaneHeight - vh;
                         
-                        g.setColour(selectedEventIndices.contains(i) ? DesignSystem::Colors::PrimaryAction : DesignSystem::Colors::PrimaryAction.withAlpha(0.6f));
-                        g.fillRect(x - 2.0f, vy, 4.0f, vh);
-                        g.setColour(juce::Colours::black.withAlpha(0.5f));
-                        g.drawRect(x - 2.0f, vy, 4.0f, vh, 1.0f);
+                        juce::Colour stalkColor = selectedEventIndices.contains(i) ? DesignSystem::Colors::PrimaryAction : DesignSystem::Colors::TextSecondary.withAlpha(0.6f);
+                        g.setColour(stalkColor);
+                        
+                        // Thin stalk (1px wide)
+                        g.drawLine(x, vy, x, contentHeight + velocityLaneHeight, 1.0f);
+                        
+                        // Top handle (small circle)
+                        float handleRadius = 3.0f;
+                        g.setColour(selectedEventIndices.contains(i) ? juce::Colours::white : stalkColor);
+                        g.fillEllipse(x - handleRadius, vy - handleRadius, handleRadius * 2, handleRadius * 2);
                     }
                 }
             }
@@ -310,6 +376,7 @@ void PianoRollContent::mouseDown(const juce::MouseEvent& event) {
                     dragStartNoteTime = foundNoteStart;
                     dragStartNoteLength = foundNoteLength;
                     dragStartNoteNumber = noteNumber;
+                    hasDuplicatedForDrag = false;
                     
                     double noteRightEdgeTime = foundNoteStart + foundNoteLength;
                     double noteRightEdgeX = keyWidth + (noteRightEdgeTime / sampleRate) * pixelsPerSecond;
@@ -545,6 +612,43 @@ bool PianoRollContent::keyPressed(const juce::KeyPress& key) {
         return true;
     }
     
+    if (key.isKeyCode(juce::KeyPress::leftKey) || key.isKeyCode(juce::KeyPress::rightKey)) {
+        if (selectedEventIndices.isEmpty()) return false;
+        
+        double sampleRate = engine.getTransport().getSampleRate();
+        if (sampleRate <= 0.0) sampleRate = 48000.0;
+        double tempo = engine.getTransport().getTempo();
+        double secondsPerBeat = 60.0 / tempo;
+        
+        double snapBeats = 0.25;
+        if (currentSnap == Snap::Bar) snapBeats = 4.0;
+        else if (currentSnap == Snap::Beat) snapBeats = 1.0;
+        else if (currentSnap == Snap::Eighth) snapBeats = 0.5;
+        else if (currentSnap == Snap::Sixteenth) snapBeats = 0.25;
+        else if (currentSnap == Snap::ThirtySecond) snapBeats = 0.125;
+        else if (currentSnap == Snap::Off) snapBeats = 0.0625; // Nudge by 1/64th if snap is off
+        
+        double snapSamples = snapBeats * secondsPerBeat * sampleRate;
+        double deltaSamples = key.isKeyCode(juce::KeyPress::leftKey) ? -snapSamples : snapSamples;
+        
+        auto& seq = currentClip->getSequence();
+        for (int idx : selectedEventIndices) {
+            auto* evt = seq.getEventPointer(idx);
+            if (evt && evt->message.isNoteOn()) {
+                double newTime = juce::jmax(0.0, evt->message.getTimeStamp() + deltaSamples);
+                evt->message.setTimeStamp(newTime);
+                if (evt->noteOffObject) {
+                    double offTime = juce::jmax(newTime + 10.0, evt->noteOffObject->message.getTimeStamp() + deltaSamples);
+                    evt->noteOffObject->message.setTimeStamp(offTime);
+                }
+            }
+        }
+        seq.updateMatchedPairs();
+        engine.getTimelineProject().notifyClipModified();
+        repaint();
+        return true;
+    }
+    
     if (key.isKeyCode(juce::KeyPress::backspaceKey) || key.isKeyCode(juce::KeyPress::deleteKey)) {
         if (selectedEventIndices.isEmpty()) return false;
         
@@ -635,6 +739,30 @@ void PianoRollContent::mouseDrag(const juce::MouseEvent& event) {
     }
     
     auto& seq = currentClip->getSequence();
+    
+    if (event.mods.isAltDown() && !hasDuplicatedForDrag && !isResizing && !isDraggingVelocity) {
+        hasDuplicatedForDrag = true;
+        juce::Array<juce::MidiMessageSequence::MidiEventHolder*> newNoteOns;
+        for (int idx : selectedEventIndices) {
+            auto* evt = seq.getEventPointer(idx);
+            if (evt && evt->message.isNoteOn()) {
+                auto* newEvt = seq.addEvent(evt->message);
+                newNoteOns.add(newEvt);
+                if (evt->noteOffObject) {
+                    seq.addEvent(evt->noteOffObject->message);
+                }
+            }
+        }
+        seq.updateMatchedPairs();
+        selectedEventIndices.clear();
+        for (auto* newEvt : newNoteOns) {
+            selectedEventIndices.add(seq.getIndexOf(newEvt));
+        }
+        if (!selectedEventIndices.isEmpty()) {
+            draggedEventIndex = selectedEventIndices.getFirst();
+        }
+    }
+    
     auto* draggedEvt = seq.getEventPointer(draggedEventIndex);
     if (!draggedEvt || !draggedEvt->message.isNoteOn()) return;
 
@@ -658,7 +786,7 @@ void PianoRollContent::mouseDrag(const juce::MouseEvent& event) {
     double xDeltaSeconds = (event.x - dragStartMouseX) / pixelsPerSecond;
     double newTimeSeconds = (dragStartNoteTime / sampleRate) + xDeltaSeconds;
     
-    if (currentSnap != Snap::Off) {
+    if (currentSnap != Snap::Off && !event.mods.isCommandDown() && !event.mods.isCtrlDown()) {
         newTimeSeconds = std::round(newTimeSeconds / snapSeconds) * snapSeconds;
     }
     
@@ -667,7 +795,7 @@ void PianoRollContent::mouseDrag(const juce::MouseEvent& event) {
     
     if (isResizing) {
         double newLengthSeconds = (dragStartNoteLength / sampleRate) + xDeltaSeconds;
-        if (currentSnap != Snap::Off) {
+        if (currentSnap != Snap::Off && !event.mods.isCommandDown() && !event.mods.isCtrlDown()) {
             newLengthSeconds = std::round(newLengthSeconds / snapSeconds) * snapSeconds;
         }
         if (newLengthSeconds < snapSeconds && currentSnap != Snap::Off) newLengthSeconds = snapSeconds;

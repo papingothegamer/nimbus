@@ -60,7 +60,47 @@ std::shared_ptr<Clip> AudioClip::clone() const {
     c->originalBpm = originalBpm.get();
     c->preservePitch = preservePitch.get();
     c->algorithmInt = algorithmInt.get();
+    
+    c->detectedTransients = detectedTransients;
+    c->warpMarkers = warpMarkers;
+    
     return c;
+}
+
+void AudioClip::addWarpMarker(double source, double target) {
+    // Add marker, keeping the list sorted by sourceSample
+    WarpMarker m;
+    m.sourceSample = source;
+    m.targetSample = target;
+    
+    auto it = std::lower_bound(warpMarkers.begin(), warpMarkers.end(), m, 
+        [](const WarpMarker& a, const WarpMarker& b) { return a.sourceSample < b.sourceSample; });
+        
+    // Don't add if very close to existing
+    if (it != warpMarkers.end() && std::abs(it->sourceSample - source) < 10.0) {
+        it->targetSample = target;
+    } else {
+        warpMarkers.insert(it, m);
+    }
+}
+
+void AudioClip::removeWarpMarker(int index) {
+    if (index >= 0 && index < warpMarkers.size()) {
+        warpMarkers.erase(warpMarkers.begin() + index);
+    }
+}
+
+void AudioClip::generateMockTransients(double sampleRate) {
+    detectedTransients.clear();
+    // Generate a transient roughly every 0.5 seconds
+    double step = sampleRate * 0.5;
+    double maxLen = sourceLengthSamples.get();
+    for (double pos = 0.0; pos < maxLen; pos += step) {
+        // Add some jitter
+        double jitter = (static_cast<double>(rand()) / RAND_MAX - 0.5) * (sampleRate * 0.1);
+        double p = juce::jlimit(0.0, maxLen, pos + jitter);
+        detectedTransients.push_back(p);
+    }
 }
 
 } // namespace Nimbus

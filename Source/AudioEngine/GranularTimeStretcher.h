@@ -20,7 +20,7 @@ public:
      * The outputBuffer is filled with `outputBuffer.getNumSamples()` samples.
      * The input buffer is expected to have enough samples to satisfy the demand.
      */
-    void process(juce::AudioBuffer<float>& outputBuffer, const juce::AudioBuffer<float>& sourceBuffer, double speedRatio);
+    void process(juce::AudioBuffer<float>& outputBuffer, const juce::AudioBuffer<float>& sourceBuffer, double speedRatio, int samplesAdvancedByCaller = 0);
 
     /**
      * Helper to determine how many source samples to read to produce `numOutputSamples`

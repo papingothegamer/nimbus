@@ -30,6 +30,9 @@ private:
     std::shared_ptr<AudioClip> currentClip;
     juce::AudioThumbnail thumbnail;
     int draggedMarkerIndex = -1;
+    
+    double selectionStartSecs = -1.0;
+    double selectionEndSecs = -1.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioClipContent)
 };

@@ -1,4 +1,4 @@
-#include "AbletonWidgets.h"
+#include "InspectorWidgets.h"
 #include "UI/DesignSystem/Colors.h"
 #include "UI/DesignSystem/Typography.h"
 #include "UI/DesignSystem/NimbusLookAndFeel.h"
@@ -7,12 +7,12 @@
 namespace Nimbus::UI {
 
 // ==============================================================================
-AbletonToggleButton::AbletonToggleButton(const juce::String& name) : juce::Button(name) {
+InspectorToggleButton::InspectorToggleButton(const juce::String& name) : juce::Button(name) {
     setButtonText(name);
     setClickingTogglesState(true);
 }
 
-void AbletonToggleButton::paintButton(juce::Graphics& g, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) {
+void InspectorToggleButton::paintButton(juce::Graphics& g, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) {
     auto bounds = getLocalBounds().toFloat();
     
     if (getToggleState()) {
@@ -38,7 +38,7 @@ void AbletonToggleButton::paintButton(juce::Graphics& g, bool shouldDrawButtonAs
 }
 
 // ==============================================================================
-AbletonNumberBox::AbletonNumberBox() {
+InspectorNumberBox::InspectorNumberBox() {
     addAndMakeVisible(editLabel);
     editLabel.setEditable(true, false, false);
     editLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextPrimary);
@@ -53,15 +53,15 @@ AbletonNumberBox::AbletonNumberBox() {
     };
 }
 
-AbletonNumberBox::~AbletonNumberBox() = default;
+InspectorNumberBox::~InspectorNumberBox() = default;
 
-void AbletonNumberBox::setRange(double min, double max, double step) {
+void InspectorNumberBox::setRange(double min, double max, double step) {
     minValue = min;
     maxValue = max;
     stepSize = step;
 }
 
-void AbletonNumberBox::setValue(double newValue, juce::NotificationType notification) {
+void InspectorNumberBox::setValue(double newValue, juce::NotificationType notification) {
     double clamped = juce::jlimit(minValue, maxValue, newValue);
     if (clamped != value) {
         value = clamped;
@@ -71,14 +71,14 @@ void AbletonNumberBox::setValue(double newValue, juce::NotificationType notifica
     }
 }
 
-void AbletonNumberBox::paint(juce::Graphics& g) {
+void InspectorNumberBox::paint(juce::Graphics& g) {
     auto bounds = getLocalBounds().toFloat();
     
     // Background
     g.setColour(juce::Colours::transparentBlack);
     g.fillRect(bounds);
     
-    // Fill representing value (optional, like Ableton's gain slider)
+    // Fill representing value (optional, like Inspector's gain slider)
     float proportion = static_cast<float>((value - minValue) / (maxValue - minValue));
     if (proportion > 0.0f) {
         g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.2f));
@@ -105,15 +105,15 @@ void AbletonNumberBox::paint(juce::Graphics& g) {
     g.drawRect(bounds, 1.0f);
 }
 
-void AbletonNumberBox::resized() {
+void InspectorNumberBox::resized() {
     editLabel.setBounds(getLocalBounds());
 }
 
-void AbletonNumberBox::mouseDown(const juce::MouseEvent& e) {
+void InspectorNumberBox::mouseDown(const juce::MouseEvent& e) {
     dragStartValue = static_cast<float>(value);
 }
 
-void AbletonNumberBox::mouseDrag(const juce::MouseEvent& e) {
+void InspectorNumberBox::mouseDrag(const juce::MouseEvent& e) {
     float delta = -e.getDistanceFromDragStartY() * static_cast<float>(stepSize);
     
     if (e.mods.isShiftDown()) {
@@ -123,16 +123,16 @@ void AbletonNumberBox::mouseDrag(const juce::MouseEvent& e) {
     setValue(dragStartValue + delta, juce::sendNotificationAsync);
 }
 
-void AbletonNumberBox::mouseDoubleClick(const juce::MouseEvent& e) {
+void InspectorNumberBox::mouseDoubleClick(const juce::MouseEvent& e) {
     setValue(defaultValue, juce::sendNotificationAsync);
 }
 
 // ==============================================================================
-AbletonPanel::AbletonPanel(const juce::String& title) : panelTitle(title) {
+InspectorPanel::InspectorPanel(const juce::String& title) : panelTitle(title) {
     addAndMakeVisible(contentContainer);
 }
 
-void AbletonPanel::paint(juce::Graphics& g) {
+void InspectorPanel::paint(juce::Graphics& g) {
     auto bounds = getLocalBounds().toFloat();
     
     g.setColour(DesignSystem::Colors::PanelBackground);
@@ -162,7 +162,7 @@ void AbletonPanel::paint(juce::Graphics& g) {
     g.drawRect(bounds, 1.0f);
 }
 
-void AbletonPanel::setFolded(bool shouldBeFolded) {
+void InspectorPanel::setFolded(bool shouldBeFolded) {
     if (folded != shouldBeFolded) {
         folded = shouldBeFolded;
         contentContainer.setVisible(!folded);
@@ -171,13 +171,13 @@ void AbletonPanel::setFolded(bool shouldBeFolded) {
     }
 }
 
-void AbletonPanel::mouseDown(const juce::MouseEvent& e) {
+void InspectorPanel::mouseDown(const juce::MouseEvent& e) {
     if (e.y < 18) {
         setFolded(!folded);
     }
 }
 
-void AbletonPanel::resized() {
+void InspectorPanel::resized() {
     auto bounds = getLocalBounds();
     bounds.removeFromTop(18); // Header
     
@@ -188,12 +188,12 @@ void AbletonPanel::resized() {
     }
 }
 
-void AbletonPanel::addContent(juce::Component* comp) {
+void InspectorPanel::addContent(juce::Component* comp) {
     contentContainer.addAndMakeVisible(comp);
     contents.add(comp);
 }
 
-void AbletonPanel::clearContent() {
+void InspectorPanel::clearContent() {
     for (auto* c : contents) {
         contentContainer.removeChildComponent(c);
     }
@@ -201,7 +201,7 @@ void AbletonPanel::clearContent() {
 }
 
 // ==============================================================================
-void AbletonVerticalGainSlider::GainSliderLookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
+void InspectorVerticalGainSlider::GainSliderLookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
                                                                         float sliderPos, float minSliderPos, float maxSliderPos,
                                                                         const juce::Slider::SliderStyle style, juce::Slider& slider) {
     float meterWidth = width - 12.0f; 
@@ -230,7 +230,7 @@ void AbletonVerticalGainSlider::GainSliderLookAndFeel::drawLinearSlider(juce::Gr
     g.setColour(juce::Colours::white.withAlpha(0.8f));
     g.fillRect((float)x, sliderPos - 1.0f, meterWidth, 2.0f);
 
-    // Ableton-style triangle pointer thumb on the right
+    // Inspector-style triangle pointer thumb on the right
     juce::Path p;
     float pW = 6.0f;
     float pH = 8.0f;
@@ -243,7 +243,7 @@ void AbletonVerticalGainSlider::GainSliderLookAndFeel::drawLinearSlider(juce::Gr
     g.strokePath(p, juce::PathStrokeType(1.0f)); 
 }
 
-AbletonVerticalGainSlider::AbletonVerticalGainSlider() {
+InspectorVerticalGainSlider::InspectorVerticalGainSlider() {
     setLookAndFeel(&customLaf);
     setSliderStyle(juce::Slider::LinearVertical);
     setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
@@ -251,7 +251,7 @@ AbletonVerticalGainSlider::AbletonVerticalGainSlider() {
     setValue(0.0);
 }
 
-AbletonVerticalGainSlider::~AbletonVerticalGainSlider() {
+InspectorVerticalGainSlider::~InspectorVerticalGainSlider() {
     setLookAndFeel(nullptr);
 }
 

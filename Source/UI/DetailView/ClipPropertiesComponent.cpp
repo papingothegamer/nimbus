@@ -10,6 +10,11 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
     viewport.setViewedComponent(&contentContainer, false);
     viewport.setScrollBarsShown(true, false); // vertical only
     
+    contentContainer.addAndMakeVisible(clipNameLabel);
+    clipNameLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f).boldened());
+    clipNameLabel.setJustificationType(juce::Justification::centred);
+    clipNameLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    
     contentContainer.addAndMakeVisible(clipPanel);
     
     // Layout helpers
@@ -32,7 +37,7 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
         box.setBorderSize(juce::BorderSize<int>(0)); // Crucial to stop text truncation
     };
     
-    auto setupTimeBox = [](UI::AbletonNumberBox& box) {
+    auto setupTimeBox = [](UI::InspectorNumberBox& box) {
         box.setRange(0.0, 1000.0, 0.01);
         box.textFormatter = [](double value) {
             int bars = static_cast<int>(value) + 1;
@@ -140,6 +145,17 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
     audioPanel.addContent(&pitchLabel);
     audioPanel.addContent(&pitchBox);
     
+    audioPanel.addContent(&formantSlider);
+    setupBox(formantBox, "0");
+    formantSlider.getSlider().onValueChange = [this] {
+        if (currentAudioClip) {
+            // Note: AudioClip needs formantShiftSemitones later, this is a placeholder
+            formantBox.setText(juce::String(formantSlider.getSlider().getValue()), juce::dontSendNotification);
+            engine.getTimelineProject().notifyClipModified();
+        }
+    };
+    audioPanel.addContent(&formantBox);
+    
     audioPanel.addContent(&reverseButton);
     editButton.setColour(juce::TextButton::buttonColourId, DesignSystem::Colors::ComponentBackground);
     audioPanel.addContent(&editButton);
@@ -170,15 +186,48 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
     
     // --- Notes Panel ---
     contentContainer.addAndMakeVisible(notesPanel);
+    
+    scaleKeyBox.setColour(juce::ComboBox::backgroundColourId, juce::Colours::transparentBlack);
+    scaleKeyBox.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+    const char* keys[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+    for (int i = 0; i < 12; ++i) scaleKeyBox.addItem(keys[i], i + 1);
+    scaleKeyBox.setSelectedId(1, juce::dontSendNotification);
+    
+    scaleTypeBox.setColour(juce::ComboBox::backgroundColourId, juce::Colours::transparentBlack);
+    scaleTypeBox.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+    scaleTypeBox.addItem("Major", 1);
+    scaleTypeBox.addItem("Minor", 2);
+    scaleTypeBox.addItem("Dorian", 3);
+    scaleTypeBox.addItem("Phrygian", 4);
+    scaleTypeBox.addItem("Lydian", 5);
+    scaleTypeBox.addItem("Mixolydian", 6);
+    scaleTypeBox.addItem("Locrian", 7);
+    scaleTypeBox.setSelectedId(1, juce::dontSendNotification);
+    
+    notesPanel.addContent(&scaleKeyBox);
+    notesPanel.addContent(&scaleTypeBox);
+    notesPanel.addContent(&foldButton);
+    
     notesPanel.addContent(&quantizeButton);
-    notesPanel.addContent(&quantizeBox);
+    notesPanel.addContent(&legatoButton);
+    
+    notesPanel.addContent(&quantizeStrengthDial);
+    notesPanel.addContent(&quantizeSwingDial);
+    
+    notesPanel.addContent(&transposeLabel);
     notesPanel.addContent(&transposeBox);
+    notesPanel.addContent(&velocityScaleLabel);
     notesPanel.addContent(&velocityScaleBox);
     
-    quantizeBox.setRange(0.0, 100.0, 1.0);
-    quantizeBox.setSuffix(" %");
-    quantizeBox.setNumDecimalPlaces(0);
-    quantizeBox.setValue(100.0, juce::dontSendNotification);
+    transposeLabel.setFont(DesignSystem::Typography::getSecondaryFont().withHeight(11.0f));
+    transposeLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextSecondary);
+    transposeLabel.setJustificationType(juce::Justification::centredLeft);
+    transposeLabel.setBorderSize(juce::BorderSize<int>(0));
+    
+    velocityScaleLabel.setFont(DesignSystem::Typography::getSecondaryFont().withHeight(11.0f));
+    velocityScaleLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextSecondary);
+    velocityScaleLabel.setJustificationType(juce::Justification::centredLeft);
+    velocityScaleLabel.setBorderSize(juce::BorderSize<int>(0));
     
     transposeBox.setRange(-24.0, 24.0, 1.0);
     transposeBox.setSuffix(" st");
@@ -198,6 +247,16 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
 
 void ClipPropertiesComponent::paint(juce::Graphics& g) {
     g.fillAll(DesignSystem::Colors::PanelBackground.darker(0.2f));
+    
+    if (clipNameLabel.isVisible()) {
+        auto bounds = clipNameLabel.getBounds();
+        g.setColour(currentClipColor);
+        g.fillRect(bounds);
+        
+        // Add a subtle bottom divider
+        g.setColour(DesignSystem::Colors::Divider);
+        g.drawHorizontalLine(bounds.getBottom(), bounds.getX(), bounds.getRight());
+    }
 }
 
 void ClipPropertiesComponent::resized() {
@@ -210,116 +269,125 @@ void ClipPropertiesComponent::layoutPanels() {
     area.setPosition(0, 0);
     area.setWidth(viewport.getMaximumVisibleWidth() > 0 ? viewport.getMaximumVisibleWidth() - 4 : area.getWidth());
     
-    int currentY = 2;
-    const int spacing = 4;
+    int currentY = 0;
+    const int spacing = 6;
+    
+    // --- CLIP HEADER ---
+    if (clipNameLabel.getText().isNotEmpty()) {
+        clipNameLabel.setVisible(true);
+        clipNameLabel.setBounds(0, currentY, area.getWidth() + 4, 28);
+        currentY += 28 + spacing;
+    } else {
+        clipNameLabel.setVisible(false);
+    }
+    
+    // Helper to layout a row with label and component
+    auto layoutRow = [](juce::Rectangle<int>& container, juce::Component& label, juce::Component& comp, int height = 20) {
+        auto row = container.removeFromTop(height);
+        label.setBounds(row.removeFromLeft(row.getWidth() / 2).reduced(2, 0));
+        comp.setBounds(row.reduced(2, 0));
+        container.removeFromTop(4); // padding
+    };
     
     // --- CLIP PANEL ---
     if (clipPanel.isVisible()) {
-        int height = clipPanel.isFolded() ? 18 : 155;
+        int height = clipPanel.isFolded() ? 18 : 170;
         clipPanel.setBounds(2, currentY, area.getWidth(), height);
         currentY += height + spacing;
         
         if (!clipPanel.isFolded()) {
             auto content = juce::Rectangle<int>(0, 0, clipPanel.getWidth() - 12, height - 23);
-            int half = content.getWidth() / 2;
+            layoutRow(content, startLabel, startBox);
+            layoutRow(content, endLabel, endBox);
             
-            auto r1_lbl = content.removeFromTop(12);
-            startLabel.setBounds(r1_lbl.removeFromLeft(half));
-            endLabel.setBounds(r1_lbl);
+            auto loopRow = content.removeFromTop(20);
+            loopButton.setBounds(loopRow.reduced(20, 0));
+            content.removeFromTop(4);
             
-            auto r1_box = content.removeFromTop(18);
-            startBox.setBounds(r1_box.removeFromLeft(half).reduced(2, 0));
-            endBox.setBounds(r1_box.reduced(2, 0));
-            
-            content.removeFromTop(spacing);
-            
-            loopButton.setBounds(content.removeFromTop(18));
-            
-            content.removeFromTop(spacing);
-            
-            auto r2_lbl = content.removeFromTop(12);
-            positionLabel.setBounds(r2_lbl.removeFromLeft(half));
-            lengthLabel.setBounds(r2_lbl);
-            
-            auto r2_box = content.removeFromTop(18);
-            positionBox.setBounds(r2_box.removeFromLeft(half).reduced(2, 0));
-            lengthBox.setBounds(r2_box.reduced(2, 0));
-            
-            content.removeFromTop(spacing);
-            
-            auto r3_lbl = content.removeFromTop(12);
-            signatureLabel.setBounds(r3_lbl.removeFromLeft(half));
-            grooveLabel.setBounds(r3_lbl);
-            
-            auto r3_box = content.removeFromTop(18);
-            signatureBox.setBounds(r3_box.removeFromLeft(half).reduced(2, 0));
-            grooveBox.setBounds(r3_box.reduced(2, 0));
+            layoutRow(content, positionLabel, positionBox);
+            layoutRow(content, lengthLabel, lengthBox);
+            layoutRow(content, signatureLabel, signatureBox);
+            layoutRow(content, grooveLabel, grooveBox);
         }
     }
     
     // --- AUDIO PANEL ---
     if (audioPanel.isVisible()) {
-        int height = audioPanel.isFolded() ? 18 : 185;
+        int height = audioPanel.isFolded() ? 18 : 250;
         audioPanel.setBounds(2, currentY, area.getWidth(), height);
         currentY += height + spacing;
         
         if (!audioPanel.isFolded()) {
             auto content = juce::Rectangle<int>(0, 0, audioPanel.getWidth() - 12, height - 23);
-            auto leftCol = content.removeFromLeft(100);
-            auto rightCol = content.withTrimmedLeft(4);
             
-            // Left Col Setup
-            auto lRow1 = leftCol.removeFromTop(18);
-            matchTempoButton.setBounds(lRow1.removeFromLeft(48).reduced(1,0));
-            followButton.setBounds(lRow1.reduced(1,0));
+            // Match and Follow on one row
+            auto row1 = content.removeFromTop(20);
+            matchTempoButton.setBounds(row1.removeFromLeft(row1.getWidth() / 2).reduced(2, 0));
+            followButton.setBounds(row1.reduced(2, 0));
+            content.removeFromTop(4);
             
-            leftCol.removeFromTop(spacing);
+            layoutRow(content, bpmLabel, bpmBox);
             
-            bpmLabel.setBounds(leftCol.removeFromTop(12));
-            auto lRow2 = leftCol.removeFromTop(18);
-            bpmBox.setBounds(lRow2.removeFromLeft(48).reduced(1,0));
-            halfSpeedBtn.setBounds(lRow2.removeFromLeft(25).reduced(1,0));
-            doubleSpeedBtn.setBounds(lRow2.reduced(1,0));
+            auto row2 = content.removeFromTop(20);
+            halfSpeedBtn.setBounds(row2.removeFromLeft(row2.getWidth() / 2).reduced(2, 0));
+            doubleSpeedBtn.setBounds(row2.reduced(2, 0));
+            content.removeFromTop(4);
             
-            leftCol.removeFromTop(spacing);
-            preservePitchButton.setBounds(leftCol.removeFromTop(18));
+            auto row3 = content.removeFromTop(20);
+            preservePitchButton.setBounds(row3.removeFromLeft(row3.getWidth() / 2).reduced(2, 0));
+            reverseButton.setBounds(row3.reduced(2, 0));
+            content.removeFromTop(4);
             
-            leftCol.removeFromTop(spacing);
-            algorithmBox.setBounds(leftCol.removeFromTop(18));
+            // Full width dropdown for Algorithm
+            algorithmBox.setBounds(content.removeFromTop(20).reduced(2, 0));
+            content.removeFromTop(4);
             
-            leftCol.removeFromTop(spacing);
-            transientBox.setBounds(leftCol.removeFromTop(18));
+            // Transients if Beats mode
+            transientBox.setBounds(content.removeFromTop(20).reduced(2, 0));
+            content.removeFromTop(10);
             
-            leftCol.removeFromTop(spacing);
-            auto revRow = leftCol.removeFromTop(18);
-            reverseButton.setBounds(revRow.removeFromLeft(40));
-            
-            // Right Col Setup (Gain Slider & Pitch Knob)
-            gainSlider.setBounds(rightCol.removeFromTop(65).reduced(4, 0));
-            gainLabel.setBounds(rightCol.removeFromTop(16));
-            gainLabel.setJustificationType(juce::Justification::centred);
-            
-            rightCol.removeFromTop(spacing);
-            pitchSlider.setBounds(rightCol.removeFromTop(50));
-            pitchBox.setBounds(rightCol.removeFromTop(18));
+            // Dials row
+            auto dialRow = content.removeFromTop(60);
+            int third = dialRow.getWidth() / 3;
+            gainSlider.setBounds(dialRow.removeFromLeft(third));
+            pitchSlider.setBounds(dialRow.removeFromLeft(third));
+            formantSlider.setBounds(dialRow);
         }
     }
     
     // --- NOTES PANEL ---
     if (notesPanel.isVisible()) {
-        int height = notesPanel.isFolded() ? 18 : 120;
+        int height = notesPanel.isFolded() ? 18 : 200;
         notesPanel.setBounds(2, currentY, area.getWidth(), height);
         currentY += height + spacing;
         
         if (!notesPanel.isFolded()) {
-            auto content = juce::Rectangle<int>(0, 0, notesPanel.getWidth() - 20, height - 23);
-            quantizeButton.setBounds(content.removeFromTop(20));
-            content.removeFromTop(spacing);
-            quantizeBox.setBounds(content.removeFromTop(20));
-            content.removeFromTop(spacing);
-            transposeBox.setBounds(content.removeFromTop(20));
-            content.removeFromTop(spacing);
-            velocityScaleBox.setBounds(content.removeFromTop(20));
+            auto content = juce::Rectangle<int>(0, 0, notesPanel.getWidth() - 12, height - 23);
+            
+            auto row1 = content.removeFromTop(20);
+            scaleKeyBox.setBounds(row1.removeFromLeft(row1.getWidth() / 3).reduced(2, 0));
+            scaleTypeBox.setBounds(row1.removeFromLeft(row1.getWidth() / 2).reduced(2, 0));
+            foldButton.setBounds(row1.reduced(2, 0));
+            content.removeFromTop(4);
+            
+            auto row2 = content.removeFromTop(20);
+            quantizeButton.setBounds(row2.removeFromLeft(row2.getWidth() / 2).reduced(2, 0));
+            legatoButton.setBounds(row2.reduced(2, 0));
+            content.removeFromTop(10);
+            
+            auto dialRow = content.removeFromTop(60);
+            quantizeStrengthDial.setBounds(dialRow.removeFromLeft(dialRow.getWidth() / 2));
+            quantizeSwingDial.setBounds(dialRow);
+            content.removeFromTop(10);
+            
+            auto tRow = content.removeFromTop(20);
+            transposeLabel.setBounds(tRow.removeFromLeft(tRow.getWidth() / 2).reduced(2, 0));
+            transposeBox.setBounds(tRow.reduced(2, 0));
+            content.removeFromTop(4);
+            
+            auto vRow = content.removeFromTop(20);
+            velocityScaleLabel.setBounds(vRow.removeFromLeft(vRow.getWidth() / 2).reduced(2, 0));
+            velocityScaleBox.setBounds(vRow.reduced(2, 0));
         }
     }
     
@@ -334,6 +402,8 @@ void ClipPropertiesComponent::setMidiMode(bool isMidi) {
 }
 
 void ClipPropertiesComponent::updateClipInfo(const juce::String& name, double startSamples, double lengthSamples) {
+    clipNameLabel.setText(name, juce::dontSendNotification);
+    
     double sampleRate = engine.getTransport().getSampleRate();
     if (sampleRate <= 0.0) sampleRate = 48000.0;
     
@@ -359,11 +429,26 @@ void ClipPropertiesComponent::updateClipInfo(const juce::String& name, double st
 
 void ClipPropertiesComponent::setMidiClip(std::shared_ptr<MidiClip> clip) {
     currentMidiClip = clip;
+    if (clip) {
+        int index = clip->colorIndex.get();
+        if (index >= 0) {
+            float hue = std::fmod(index * 0.381966f, 1.0f);
+            currentClipColor = juce::Colour::fromHSV(hue, 0.6f, 0.95f, 1.0f);
+        }
+        repaint();
+    }
 }
 
 void ClipPropertiesComponent::setAudioClip(std::shared_ptr<AudioClip> clip) {
     currentAudioClip = clip;
     if (clip) {
+        int index = clip->colorIndex.get();
+        if (index >= 0) {
+            float hue = std::fmod(index * 0.381966f, 1.0f);
+            currentClipColor = juce::Colour::fromHSV(hue, 0.6f, 0.95f, 1.0f);
+        }
+        repaint();
+        
         matchTempoButton.setToggleState(clip->matchDawTempo.get(), juce::dontSendNotification);
         preservePitchButton.setToggleState(clip->preservePitch.get(), juce::dontSendNotification);
         reverseButton.setToggleState(clip->reverse.get(), juce::dontSendNotification);
@@ -385,7 +470,7 @@ void ClipPropertiesComponent::quantizeAction() {
     double secondsPerBeat = 60.0 / tempo;
     
     double gridSamples = 0.25 * secondsPerBeat * sampleRate;
-    double strength = quantizeBox.getValue() / 100.0;
+    double strength = quantizeStrengthDial.getSlider().getValue() / 100.0;
     
     for (int i = 0; i < seq.getNumEvents(); ++i) {
         auto* evt = seq.getEventPointer(i);

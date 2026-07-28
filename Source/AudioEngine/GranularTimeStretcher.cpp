@@ -40,10 +40,13 @@ int GranularTimeStretcher::getNumSourceSamplesRequired(int numOutputSamples, dou
     return static_cast<int>(std::ceil(numOutputSamples * speedRatio)) + grainSizeSamples;
 }
 
-void GranularTimeStretcher::process(juce::AudioBuffer<float>& outputBuffer, const juce::AudioBuffer<float>& sourceBuffer, double speedRatio) {
+void GranularTimeStretcher::process(juce::AudioBuffer<float>& outputBuffer, const juce::AudioBuffer<float>& sourceBuffer, double speedRatio, int samplesAdvancedByCaller) {
+    sourcePhase -= samplesAdvancedByCaller;
+
+    int actualChannels = std::min(channels, std::min(outputBuffer.getNumChannels(), sourceBuffer.getNumChannels()));
     if (speedRatio == 1.0) {
         // Just pass through if no stretching is needed
-        for (int ch = 0; ch < channels; ++ch) {
+        for (int ch = 0; ch < actualChannels; ++ch) {
             outputBuffer.copyFrom(ch, 0, sourceBuffer, ch, 0, outputBuffer.getNumSamples());
         }
         return;
@@ -61,7 +64,7 @@ void GranularTimeStretcher::process(juce::AudioBuffer<float>& outputBuffer, cons
             // Only generate if we have enough source samples left
             if (currentSourceInt + grainSizeSamples <= sourceBuffer.getNumSamples()) {
                 // Add new grain to overlap buffer
-                for (int ch = 0; ch < channels; ++ch) {
+                for (int ch = 0; ch < actualChannels; ++ch) {
                     auto* overlapPtr = overlapBuffer.getWritePointer(ch);
                     auto* sourcePtr = sourceBuffer.getReadPointer(ch, currentSourceInt);
                     
@@ -75,7 +78,7 @@ void GranularTimeStretcher::process(juce::AudioBuffer<float>& outputBuffer, cons
         // Copy from overlap buffer to output
         int samplesToCopy = std::min(hopSize - outputPhase, numOutputSamples - outputWritten);
         
-        for (int ch = 0; ch < channels; ++ch) {
+        for (int ch = 0; ch < actualChannels; ++ch) {
             outputBuffer.copyFrom(ch, outputWritten, overlapBuffer, ch, 0, samplesToCopy);
         }
 

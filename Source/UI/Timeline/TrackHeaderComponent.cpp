@@ -402,9 +402,8 @@ void TrackHeaderComponent::paint(juce::Graphics& g) {
             cg.addColour(0.7f, juce::Colours::yellow);
             
             int fillHeight = juce::roundToInt(meterBounds.getHeight() * currentLevel);
-            auto fillBounds = meterBounds.withTrimmedTop(meterBounds.getHeight() - fillHeight);
             g.setGradientFill(cg);
-            g.fillRect(fillBounds);
+            g.fillRect(meterBounds.withTrimmedTop(meterBounds.getHeight() - fillHeight));
         }
     }
 
@@ -415,9 +414,12 @@ void TrackHeaderComponent::paint(juce::Graphics& g) {
 }
 
 void TrackHeaderComponent::updateMeters() {
-    float newLevel = engine.getTrackPeakLevel(trackIndex);
-    if (std::abs(newLevel - currentLevel) > 0.01f) {
-        currentLevel = newLevel;
+    float rawPeak = engine.getTrackPeakLevel(trackIndex);
+    float currentDb = juce::Decibels::gainToDecibels(rawPeak, -60.0f);
+    float normalized = juce::jlimit(0.0f, 1.0f, (currentDb + 60.0f) / 70.0f);
+    
+    if (std::abs(normalized - currentLevel) > 0.01f) {
+        currentLevel = normalized;
         repaint();
     }
 }

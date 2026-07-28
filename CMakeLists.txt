@@ -26,6 +26,10 @@ target_compile_definitions(Nimbus PRIVATE
     JUCE_PLUGINHOST_VST3=1
     JUCE_PLUGINHOST_AU=1
     JUCE_ASIO=1
+    JUCE_USE_MP3AUDIOFORMAT=1
+    JUCE_USE_FLAC=1
+    JUCE_USE_MP3AUDIOFORMAT=1
+    JUCE_USE_FLAC=1
 )
 
 if (MSVC)
@@ -164,8 +168,8 @@ target_sources(Nimbus PRIVATE
     Source/UI/DetailView/ClipPropertiesComponent.cpp
     Source/UI/DetailView/ClipPropertiesComponent.h
     Source/UI/DetailView/ExpandableSection.h
-    Source/UI/DetailView/AbletonWidgets.cpp
-    Source/UI/DetailView/AbletonWidgets.h
+    Source/UI/DetailView/InspectorWidgets.cpp
+    Source/UI/DetailView/InspectorWidgets.h
     Source/UI/DetailView/PianoRollTimelineComponent.cpp
     Source/UI/DetailView/PianoRollTimelineComponent.h
     Source/UI/PluginWindow.cpp

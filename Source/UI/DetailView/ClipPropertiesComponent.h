@@ -2,7 +2,7 @@
 
 #include <JuceHeader.h>
 #include "Core/NimbusEngine.h"
-#include "AbletonWidgets.h"
+#include "InspectorWidgets.h"
 #include "Core/Plugins/Stock/StockPluginUI.h"
 #include "DataModel/AudioClip.h"
 #include "DataModel/MidiClip.h"
@@ -35,20 +35,24 @@ private:
     juce::Viewport viewport;
     juce::Component contentContainer;
 
+    // --- Clip Header ---
+    juce::Label clipNameLabel;
+    juce::Colour currentClipColor = juce::Colour(0xff333333);
+
     // --- Clip Panel ---
-    UI::AbletonPanel clipPanel{"CLIP"};
+    UI::InspectorPanel clipPanel{"CLIP"};
     
     juce::Label startLabel{"", "Start"};
-    UI::AbletonNumberBox startBox;
+    UI::InspectorNumberBox startBox;
     juce::Label endLabel{"", "End"};
-    UI::AbletonNumberBox endBox;
+    UI::InspectorNumberBox endBox;
     
-    UI::AbletonToggleButton loopButton{"Loop"};
+    UI::InspectorToggleButton loopButton{"Loop"};
     
     juce::Label positionLabel{"", "Position"};
-    UI::AbletonNumberBox positionBox;
+    UI::InspectorNumberBox positionBox;
     juce::Label lengthLabel{"", "Length"};
-    UI::AbletonNumberBox lengthBox;
+    UI::InspectorNumberBox lengthBox;
     
     juce::Label signatureLabel{"", "Signature"};
     juce::Label signatureBox{"", "4 / 4"};
@@ -56,11 +60,11 @@ private:
     juce::ComboBox grooveBox;
     
     // === Audio Panel ===
-    UI::AbletonPanel audioPanel{"Audio"};
-    UI::AbletonToggleButton matchTempoButton{"Match Tempo"}; // Shortened to fit panel
-    UI::AbletonToggleButton followButton{"Follow"};
+    UI::InspectorPanel audioPanel{"Audio"};
+    UI::InspectorToggleButton matchTempoButton{"Match Tempo"}; // Shortened to fit panel
+    UI::InspectorToggleButton followButton{"Follow"};
     juce::ComboBox algorithmBox;
-    UI::AbletonToggleButton preservePitchButton{"Preserve Pitch"};
+    UI::InspectorToggleButton preservePitchButton{"Preserve Pitch"};
     
     // Time sub-column placeholders
     juce::ComboBox transientBox;
@@ -70,24 +74,40 @@ private:
     juce::TextButton doubleSpeedBtn{"*2"};
     
     // Gain & Pitch sub-column
-    UI::AbletonVerticalGainSlider gainSlider;
+    UI::InspectorVerticalGainSlider gainSlider;
     juce::Label gainLabel{"", "0.00 dB"};
     
     Nimbus::PluginDial pitchSlider{"Pitch", -24.0, 24.0, 0.0, " st", nullptr};
     juce::Label pitchLabel{"", "st"};
     juce::Label pitchBox{"", "0"};
     
+    Nimbus::PluginDial formantSlider{"Formant", -24.0, 24.0, 0.0, " st", nullptr};
+    juce::Label formantBox{"", "0"};
+    
     Nimbus::PluginDial panSlider{"Pan", -1.0, 1.0, 0.0, "", nullptr};
     
-    UI::AbletonToggleButton reverseButton{"Rev"};
+    UI::InspectorToggleButton reverseButton{"Rev"};
     juce::TextButton editButton{"Edit"};
     
     // === Notes Panel ===
-    UI::AbletonPanel notesPanel{"Notes"};
-    UI::AbletonNumberBox quantizeBox;
-    UI::AbletonToggleButton quantizeButton{"Quantize"};
-    UI::AbletonNumberBox transposeBox;
-    UI::AbletonNumberBox velocityScaleBox;
+    UI::InspectorPanel notesPanel{"Notes"};
+    
+    // Scale section
+    juce::ComboBox scaleKeyBox;
+    juce::ComboBox scaleTypeBox;
+    UI::InspectorToggleButton foldButton{"Fold"};
+    
+    // Quantize / Legato section
+    UI::InspectorToggleButton quantizeButton{"Quantize"};
+    UI::InspectorToggleButton legatoButton{"Legato"};
+    
+    Nimbus::PluginDial quantizeStrengthDial{"Strength", 0.0, 100.0, 100.0, "%", nullptr};
+    Nimbus::PluginDial quantizeSwingDial{"Swing", 0.0, 100.0, 0.0, "%", nullptr};
+    
+    juce::Label transposeLabel{"", "Trans."};
+    UI::InspectorNumberBox transposeBox;
+    juce::Label velocityScaleLabel{"", "Velocity"};
+    UI::InspectorNumberBox velocityScaleBox;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ClipPropertiesComponent)
 };
