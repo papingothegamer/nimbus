@@ -98,6 +98,7 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
     algorithmBox.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
     algorithmBox.onChange = [this] {
         if (currentAudioClip) {
+            juce::Logger::writeToLog("Tempo Popup: Algorithm changed to ID " + juce::String(algorithmBox.getSelectedId()));
             currentAudioClip->setAlgorithm(static_cast<AudioClip::StretchAlgorithm>(algorithmBox.getSelectedId() - 1));
             engine.getTimelineProject().notifyClipModified();
         }
@@ -162,13 +163,17 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
     
     matchTempoButton.onClick = [this] {
         if (currentAudioClip) {
+            juce::Logger::writeToLog("Tempo Popup: Match Tempo clicked. New state=" + juce::String((int)matchTempoButton.getToggleState()));
             currentAudioClip->matchDawTempo = matchTempoButton.getToggleState();
+            double currentTempo = engine.getTempoSequence().getTempoAtTime(currentAudioClip->startSample.get() / engine.getTransport().getSampleRate());
+            currentAudioClip->updateWarpedLength(currentTempo);
             engine.getTimelineProject().notifyClipModified();
         }
     };
     
     preservePitchButton.onClick = [this] {
         if (currentAudioClip) {
+            juce::Logger::writeToLog("Tempo Popup: Preserve Pitch clicked. New state=" + juce::String((int)preservePitchButton.getToggleState()));
             currentAudioClip->preservePitch = preservePitchButton.getToggleState();
             engine.getTimelineProject().notifyClipModified();
         }
@@ -176,6 +181,7 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
     
     reverseButton.onClick = [this] {
         if (currentAudioClip) {
+            juce::Logger::writeToLog("Tempo Popup: Reverse clicked. New state=" + juce::String((int)reverseButton.getToggleState()));
             currentAudioClip->reverse = reverseButton.getToggleState();
             engine.getTimelineProject().notifyClipModified();
         }

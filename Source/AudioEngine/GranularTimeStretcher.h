@@ -13,14 +13,13 @@ public:
     void reset();
 
     /**
-     * Processes audio to change speed without changing pitch.
-     * speedRatio > 1.0 means faster playback (shorter duration).
-     * speedRatio < 1.0 means slower playback (longer duration).
-     * 
-     * The outputBuffer is filled with `outputBuffer.getNumSamples()` samples.
-     * The input buffer is expected to have enough samples to satisfy the demand.
+     * Processes audio with granular stretching.
+     * outputStartSample/outputNumSamples dictate where to write in outputBuffer.
+     * sourceStartSample/sourceNumSamples dictate where to read in sourceBuffer.
      */
-    void process(juce::AudioBuffer<float>& outputBuffer, const juce::AudioBuffer<float>& sourceBuffer, double speedRatio, int samplesAdvancedByCaller = 0);
+    void process(juce::AudioBuffer<float>& outputBuffer, int outputStartSample, int outputNumSamples,
+                 const juce::AudioBuffer<float>& sourceBuffer, int sourceStartSample, int sourceNumSamples,
+                 double speedRatio, int samplesAdvancedByCaller);
 
     /**
      * Helper to determine how many source samples to read to produce `numOutputSamples`

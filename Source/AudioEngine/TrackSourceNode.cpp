@@ -2,8 +2,8 @@
 
 namespace Nimbus {
 
-TrackSourceNode::TrackSourceNode(Transport& t, juce::AudioFormatManager& fm)
-    : transport(t), formatManager(fm) {
+TrackSourceNode::TrackSourceNode(Transport& t, AudioFileCache& cache)
+    : transport(t), audioFileCache(cache) {
 }
 
 TrackSourceNode::~TrackSourceNode() {
@@ -15,6 +15,10 @@ void TrackSourceNode::prepareToPlay(double sampleRate, int maximumExpectedSample
     currentBlockSize = maximumExpectedSamplesPerBlock;
 
     const juce::SpinLock::ScopedLockType sl(processLock);
+    
+    // Pre-allocate mixBuffer for at least 16 channels to support multi-channel/surround outputs without reallocating.
+    mixBuffer.setSize(16, maximumExpectedSamplesPerBlock, false, false, false);
+
     for (auto& node : clipNodes) {
         node->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
     }
@@ -33,24 +37,20 @@ void TrackSourceNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiB
     // We mix all clip nodes into the track buffer. 
     // They are internally position-aware and will only render if the transport overlaps them.
     for (auto& node : clipNodes) {
-        // We use a temporary buffer because we are mixing multiple nodes 
+        // We use a pre-allocated mix buffer because we are mixing multiple nodes 
         // that might overwrite each other if they share the exact buffer.
-        // Wait, AudioClipNode uses addFrom? No, it clears regions.
-        // AudioClipNode does buffer.clear() and then reads directly into it.
-        // We must pass a clear sub-buffer to it.
         
-        juce::AudioBuffer<float> tempBuf;
-        tempBuf.makeCopyOf(buffer, true);
-        tempBuf.clear();
+        mixBuffer.setSize(buffer.getNumChannels(), buffer.getNumSamples(), false, false, true);
+        mixBuffer.clear();
         
         juce::MidiBuffer tempMidi;
         
-        node->processBlock(tempBuf, tempMidi);
+        node->processBlock(mixBuffer, tempMidi);
         
         // Mix into the main track buffer
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
-            if (ch < tempBuf.getNumChannels()) {
-                buffer.addFrom(ch, 0, tempBuf, ch, 0, buffer.getNumSamples());
+            if (ch < mixBuffer.getNumChannels()) {
+                buffer.addFrom(ch, 0, mixBuffer, ch, 0, buffer.getNumSamples());
             }
         }
         
@@ -65,7 +65,7 @@ void TrackSourceNode::updateClips(const std::vector<AnyClipPtr>& newClips) {
         if (clipPtr->getType() == Clip::Type::Audio) {
             auto audioClip = std::static_pointer_cast<AudioClip>(clipPtr);
             if (audioClip) {
-                auto streamer = std::make_shared<DiskStreamer>(audioClip->getSourceFile(), formatManager);
+                auto streamer = audioFileCache.createStream(audioClip->getSourceFile());
                 newNodes.push_back(std::make_unique<AudioClipNode>(audioClip, streamer, transport));
             }
         } else if (clipPtr->getType() == Clip::Type::Midi) {

@@ -23,27 +23,13 @@ AudioClip::AudioClip(const juce::File& file, double startSample, double lengthSa
       preservePitch(state, "preservePitch", nullptr, false),
       algorithmInt(state, "algorithm", nullptr, static_cast<int>(StretchAlgorithm::Melodic))
 {
-}
-
-void AudioClip::updateWarpedLength(double currentDawTempo) {
-    double speedRatio = speedMultiplier.get();
-    if (matchDawTempo.get()) {
-        double originalTempo = originalBpm.get();
-        if (originalTempo > 0.0 && currentDawTempo > 0.0) {
-            speedRatio = currentDawTempo / originalTempo;
-        }
-    }
-    
-    if (speedRatio > 0.0) {
-        double newLength = sourceLengthSamples.get() / speedRatio;
-        lengthSamples = newLength;
-    }
+    juce::Logger::writeToLog("Sample Import: " + file.getFullPathName() + " startSample=" + juce::String(startSample) + " lengthSamples=" + juce::String(lengthSamples));
 }
 
 std::shared_ptr<Clip> AudioClip::clone() const {
     auto c = std::make_shared<AudioClip>(sourceFile, startSample.get(), lengthSamples.get(), sourceLengthSamples.get());
     c->sourceOffsetSamples = sourceOffsetSamples.get();
-    c->name = name.get();
+    c->name = name.getValue();
     c->colorIndex = colorIndex.get();
     c->muted = muted.get();
     c->gain = gain.get();
@@ -88,6 +74,54 @@ void AudioClip::removeWarpMarker(int index) {
     if (index >= 0 && index < warpMarkers.size()) {
         warpMarkers.erase(warpMarkers.begin() + index);
     }
+}
+
+void AudioClip::updateWarpedLength(double dawBpm) {
+    juce::Logger::writeToLog("Tempo Match: dawBpm=" + juce::String(dawBpm) + " originalBpm=" + juce::String(originalBpm.get()) + " matchDawTempo=" + juce::String((int)matchDawTempo.get()));
+    if (matchDawTempo.get() && originalBpm.get() > 0.0 && dawBpm > 0.0) {
+        double ratio = dawBpm / originalBpm.get();
+        double originalLength = sourceLengthSamples.get();
+        double targetLength = originalLength / ratio;
+        juce::Logger::writeToLog("Tempo Match Calculated: ratio=" + juce::String(ratio) + " originalLength=" + juce::String(originalLength) + " targetLength=" + juce::String(targetLength));
+        
+        lengthSamples = targetLength;
+        speedMultiplier = ratio;
+        
+        warpMarkers.clear();
+        addWarpMarker(0.0, 0.0);
+        addWarpMarker(originalLength, targetLength);
+    }
+}
+
+void AudioClip::cropLeft(double deltaSamples) {
+    if (deltaSamples == 0.0) return;
+    
+    double newStart = startSample.get() + deltaSamples;
+    double newLength = lengthSamples.get() - deltaSamples;
+    
+    double currentSpeed = speedMultiplier.get();
+    if (currentSpeed <= 0.0) currentSpeed = 1.0;
+    
+    double sourceDelta = deltaSamples * currentSpeed;
+    double newOffset = sourceOffsetSamples.get() + sourceDelta;
+    
+    startSample = newStart;
+    lengthSamples = newLength > 0.0 ? newLength : 0.0;
+    sourceOffsetSamples = std::max(0.0, newOffset);
+}
+
+void AudioClip::cropRight(double deltaSamples) {
+    if (deltaSamples == 0.0) return;
+    
+    double newLength = lengthSamples.get() + deltaSamples;
+    lengthSamples = newLength > 0.0 ? newLength : 0.0;
+}
+
+void AudioClip::shiftOffset(double deltaSamples) {
+    if (deltaSamples == 0.0) return;
+    
+    double newOffset = sourceOffsetSamples.get() + deltaSamples;
+    sourceOffsetSamples = std::max(0.0, newOffset);
 }
 
 void AudioClip::generateMockTransients(double sampleRate) {

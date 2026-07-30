@@ -134,6 +134,8 @@ target_sources(Nimbus PRIVATE
     Source/UI/Timeline/TrackLaneComponent.h
     Source/UI/Timeline/ClipComponent.cpp
     Source/UI/Timeline/ClipComponent.h
+    Source/UI/Timeline/SmartThumbnail.cpp
+    Source/UI/Timeline/SmartThumbnail.h
     Source/UI/DesignSystem/Colors.h
     Source/UI/DesignSystem/ThemeManager.h
     Source/UI/DesignSystem/Typography.h
@@ -187,11 +189,15 @@ target_sources(Nimbus PRIVATE
     Source/AudioEngine/AudioClipNode.cpp
     Source/AudioEngine/GranularTimeStretcher.cpp
     Source/AudioEngine/GranularTimeStretcher.h
-    Source/AudioEngine/DiskStreaming/DiskStreamer.cpp
+    Source/AudioEngine/DiskStreaming/DiskStream.cpp
+    Source/AudioEngine/DiskStreaming/DiskStreamManager.cpp
+    Source/AudioEngine/DiskStreaming/AudioFileCache.cpp
     Source/DSP/GainNode.cpp
     Source/DSP/DelayLine.cpp
     Source/DataModel/AudioClip.cpp
     Source/DataModel/MidiClip.cpp
+    Source/DataModel/TempoSequence.cpp
+    Source/AudioEngine/PlayHead.cpp
     Source/AudioEngine/MidiClipNode.cpp
     Source/DataModel/TimelineProject.cpp
     Source/PluginHost/PluginManager.cpp

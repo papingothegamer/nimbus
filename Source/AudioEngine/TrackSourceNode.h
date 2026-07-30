@@ -10,11 +10,13 @@
 #include <memory>
 #include <juce_core/juce_core.h>
 
+#include "DiskStreaming/AudioFileCache.h"
+
 namespace Nimbus {
 
 class TrackSourceNode : public IAudioNode {
 public:
-    TrackSourceNode(Transport& t, juce::AudioFormatManager& fm);
+    TrackSourceNode(Transport& t, AudioFileCache& cache);
     ~TrackSourceNode() override;
 
     void prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) override;
@@ -25,13 +27,15 @@ public:
 
 private:
     Transport& transport;
-    juce::AudioFormatManager& formatManager;
+    AudioFileCache& audioFileCache;
 
     std::vector<std::unique_ptr<IAudioNode>> clipNodes;
     juce::SpinLock processLock;
 
     double currentSampleRate = 0.0;
     int currentBlockSize = 0;
+
+    juce::AudioBuffer<float> mixBuffer;
 };
 
 } // namespace Nimbus

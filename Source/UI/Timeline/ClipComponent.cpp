@@ -66,7 +66,7 @@ private:
 };
 
 ClipComponent::ClipComponent(AnyClipPtr clip, NimbusEngine& e)
-    : engine(e), clipData(clip), thumbnail(512, engine.getFormatManager(), engine.getThumbnailCache()) {
+    : engine(e), clipData(clip), thumbnail(engine.getFormatManager(), engine.getThumbnailCache(), engine.getBackgroundThread()) {
     
     if (clipData->getType() == Clip::Type::Audio) {
         auto audioClip = std::static_pointer_cast<AudioClip>(clipData);

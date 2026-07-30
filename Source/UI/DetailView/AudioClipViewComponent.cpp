@@ -11,7 +11,7 @@ namespace Nimbus::DetailView {
 
 AudioClipContent::AudioClipContent(NimbusEngine& e) 
     : engine(e), 
-      thumbnail(512, engine.getFormatManager(), engine.getThumbnailCache()) {
+      thumbnail(engine.getFormatManager(), engine.getThumbnailCache(), engine.getBackgroundThread()) {
     thumbnail.addChangeListener(this);
 }
 
@@ -153,7 +153,10 @@ void AudioClipContent::paint(juce::Graphics& g) {
         
         if (positionSamples >= clipGlobalStart && positionSamples <= clipGlobalEnd) {
             double timeIntoClip = (positionSamples - clipGlobalStart) / sampleRate;
-            double sourceSecs = (currentClip->sourceOffsetSamples.get() / sampleRate) + timeIntoClip;
+            double speedMult = currentClip->speedMultiplier.get();
+            if (speedMult <= 0.0) speedMult = 1.0;
+            
+            double sourceSecs = (currentClip->sourceOffsetSamples.get() / sampleRate) + (timeIntoClip * speedMult);
             
             float px = 0.0f;
             if (thumbnail.getTotalLength() > 0.0) {
@@ -226,7 +229,7 @@ void AudioClipContent::mouseDown(const juce::MouseEvent& e) {
                             if (it != trackClips.end()) {
                                 // Clone clip
                                 auto newClip = std::static_pointer_cast<AudioClip>(currentClip->clone());
-                                newClip->name = currentClip->name.get() + " (Split)";
+                                newClip->name = currentClip->name.getValue().toString() + " (Split)";
                                 
                                 double splitSampleOffset = splitTime * sampleRate;
                                 
@@ -347,11 +350,21 @@ void AudioClipContent::mouseDoubleClick(const juce::MouseEvent& e) {
     repaint();
 }
 
+void AudioClipContent::mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) {
+    if (e.mods.isCtrlDown() || e.mods.isAltDown()) {
+        if (onMouseWheelZoom) onMouseWheelZoom(e, wheel);
+    } else {
+        juce::Component::mouseWheelMove(e, wheel);
+    }
+}
+
 // ==============================================================================
 
 AudioClipViewComponent::AudioClipViewComponent(NimbusEngine& e) : engine(e), content(e) {
     addAndMakeVisible(viewport);
     viewport.setViewedComponent(&content, false);
+    viewport.setScrollBarsShown(true, true);
+    viewport.setScrollOnDragMode(juce::Viewport::ScrollOnDragMode::all);
     
     addAndMakeVisible(toolbar);
     
@@ -377,8 +390,13 @@ AudioClipViewComponent::AudioClipViewComponent(NimbusEngine& e) : engine(e), con
         resized();
     };
     
+    content.onMouseWheelZoom = [this](const juce::MouseEvent& e, const juce::MouseWheelDetails& w) {
+        this->mouseWheelMove(e, w);
+    };
+    
     followButton.onClick = [this] {
         autoScrollEnabled = followButton.getToggleState();
+        if (autoScrollEnabled) lastViewX = viewport.getViewPositionX();
     };
     
     startTimerHz(30);
@@ -455,7 +473,7 @@ void AudioClipViewComponent::paint(juce::Graphics& g) {
             clipColor = juce::Colour::fromHSV(hue, 0.6f, 0.95f, 1.0f);
         }
         bgColor = clipColor; // Fully opaque clip color
-        clipName = currentClip->name.get();
+        clipName = currentClip->name.getValue().toString();
     }
     
     g.setColour(bgColor);
@@ -504,7 +522,10 @@ void AudioClipViewComponent::timerCallback() {
     
     if (positionSamples >= clipGlobalStart && positionSamples <= clipGlobalEnd) {
         double timeIntoClip = (positionSamples - clipGlobalStart) / sampleRate;
-        double sourceSecs = (currentClip->sourceOffsetSamples.get() / sampleRate) + timeIntoClip;
+        double speedMult = currentClip->speedMultiplier.get();
+        if (speedMult <= 0.0) speedMult = 1.0;
+        
+        double sourceSecs = (currentClip->sourceOffsetSamples.get() / sampleRate) + (timeIntoClip * speedMult);
         
         if (content.getTotalLength() > 0.0) {
             float px = static_cast<float>((sourceSecs / content.getTotalLength()) * content.getWidth());
@@ -513,11 +534,23 @@ void AudioClipViewComponent::timerCallback() {
             int viewX = viewport.getViewPositionX();
             
             if (autoScrollEnabled) {
-                if (px > viewX + viewWidth * 0.8f) {
-                    viewport.setViewPosition(static_cast<int>(px - viewWidth * 0.8f), viewport.getViewPositionY());
-                } else if (px < viewX + viewWidth * 0.2f && px > viewWidth * 0.2f) {
-                    viewport.setViewPosition(static_cast<int>(px - viewWidth * 0.2f), viewport.getViewPositionY());
+                // If the user manually scrolled, disable auto-scroll
+                if (lastViewX != -1 && std::abs(viewX - lastViewX) > 1) {
+                    autoScrollEnabled = false;
+                    followButton.setToggleState(false, juce::dontSendNotification);
+                } else {
+                    int newViewX = viewX;
+                    if (px > viewX + viewWidth * 0.8f) {
+                        newViewX = static_cast<int>(px - viewWidth * 0.8f);
+                        viewport.setViewPosition(newViewX, viewport.getViewPositionY());
+                    } else if (px < viewX + viewWidth * 0.2f && px > viewWidth * 0.2f) {
+                        newViewX = static_cast<int>(px - viewWidth * 0.2f);
+                        viewport.setViewPosition(newViewX, viewport.getViewPositionY());
+                    }
+                    lastViewX = viewport.getViewPositionX();
                 }
+            } else {
+                lastViewX = viewX;
             }
         }
         

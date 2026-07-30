@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 #include <memory>
 #include "DataModel/AudioClip.h"
+#include "UI/Timeline/SmartThumbnail.h"
 
 namespace Nimbus {
 class NimbusEngine;
@@ -22,13 +23,16 @@ public:
     void mouseDrag(const juce::MouseEvent& e) override;
     void mouseUp(const juce::MouseEvent& e) override;
     void mouseDoubleClick(const juce::MouseEvent& e) override;
+    void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override;
+
+    std::function<void(const juce::MouseEvent&, const juce::MouseWheelDetails&)> onMouseWheelZoom;
 
     double getTotalLength() const { return thumbnail.getTotalLength(); }
 
 private:
     NimbusEngine& engine;
     std::shared_ptr<AudioClip> currentClip;
-    juce::AudioThumbnail thumbnail;
+    Timeline::SmartThumbnail thumbnail;
     int draggedMarkerIndex = -1;
     
     double selectionStartSecs = -1.0;
@@ -63,6 +67,7 @@ private:
     juce::TextButton zoomOutButton{"zoomminus_svg"};
     juce::TextButton followButton{"arrowrightthick_svg"};
     bool autoScrollEnabled = true;
+    int lastViewX = -1;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioClipViewComponent)
 };

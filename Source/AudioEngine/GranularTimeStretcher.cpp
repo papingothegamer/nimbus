@@ -40,33 +40,35 @@ int GranularTimeStretcher::getNumSourceSamplesRequired(int numOutputSamples, dou
     return static_cast<int>(std::ceil(numOutputSamples * speedRatio)) + grainSizeSamples;
 }
 
-void GranularTimeStretcher::process(juce::AudioBuffer<float>& outputBuffer, const juce::AudioBuffer<float>& sourceBuffer, double speedRatio, int samplesAdvancedByCaller) {
-    sourcePhase -= samplesAdvancedByCaller;
-
+void GranularTimeStretcher::process(juce::AudioBuffer<float>& outputBuffer, int outputStartSample, int outputNumSamples,
+                                    const juce::AudioBuffer<float>& sourceBuffer, int sourceStartSample, int sourceNumSamples,
+                                    double speedRatio, int samplesAdvancedByCaller) {
     int actualChannels = std::min(channels, std::min(outputBuffer.getNumChannels(), sourceBuffer.getNumChannels()));
     if (speedRatio == 1.0) {
         // Just pass through if no stretching is needed
         for (int ch = 0; ch < actualChannels; ++ch) {
-            outputBuffer.copyFrom(ch, 0, sourceBuffer, ch, 0, outputBuffer.getNumSamples());
+            outputBuffer.copyFrom(ch, outputStartSample, sourceBuffer, ch, sourceStartSample, outputNumSamples);
         }
+        sourcePhase = 0.0; // Keep reset so it doesn't drift negative
         return;
     }
 
-    int numOutputSamples = outputBuffer.getNumSamples();
+    sourcePhase -= samplesAdvancedByCaller;
+
     int outputWritten = 0;
     int hopSize = grainSizeSamples / 4; // 75% overlap for smoother sound
 
-    while (outputWritten < numOutputSamples) {
+    while (outputWritten < outputNumSamples) {
         // Check if we need to generate a new grain
         if (outputPhase == 0) {
-            int currentSourceInt = static_cast<int>(sourcePhase);
+            int currentSourceInt = static_cast<int>(std::max(0.0, sourcePhase));
             
             // Only generate if we have enough source samples left
-            if (currentSourceInt + grainSizeSamples <= sourceBuffer.getNumSamples()) {
+            if (currentSourceInt + grainSizeSamples <= sourceNumSamples) {
                 // Add new grain to overlap buffer
                 for (int ch = 0; ch < actualChannels; ++ch) {
                     auto* overlapPtr = overlapBuffer.getWritePointer(ch);
-                    auto* sourcePtr = sourceBuffer.getReadPointer(ch, currentSourceInt);
+                    auto* sourcePtr = sourceBuffer.getReadPointer(ch, sourceStartSample + currentSourceInt);
                     
                     for (int i = 0; i < grainSizeSamples; ++i) {
                         overlapPtr[i] += sourcePtr[i] * window[i];
@@ -76,14 +78,16 @@ void GranularTimeStretcher::process(juce::AudioBuffer<float>& outputBuffer, cons
         }
 
         // Copy from overlap buffer to output
-        int samplesToCopy = std::min(hopSize - outputPhase, numOutputSamples - outputWritten);
+        int samplesToCopy = std::min(hopSize - outputPhase, outputNumSamples - outputWritten);
         
         for (int ch = 0; ch < actualChannels; ++ch) {
-            outputBuffer.copyFrom(ch, outputWritten, overlapBuffer, ch, 0, samplesToCopy);
+            outputBuffer.copyFrom(ch, outputStartSample + outputWritten, overlapBuffer, ch, outputPhase, samplesToCopy);
         }
 
         outputWritten += samplesToCopy;
         outputPhase += samplesToCopy;
+        
+        sourcePhase += (samplesToCopy * speedRatio);
 
         // If we finished a hop, shift overlap buffer down and advance phases
         if (outputPhase >= hopSize) {
@@ -104,7 +108,6 @@ void GranularTimeStretcher::process(juce::AudioBuffer<float>& outputBuffer, cons
             }
             
             outputPhase = 0;
-            sourcePhase += (hopSize * speedRatio);
         }
     }
 }

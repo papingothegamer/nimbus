@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ITransport.h"
+#include "PlayHead.h"
 #include <atomic>
 #include <juce_events/juce_events.h>
 
@@ -50,6 +51,9 @@ public:
     int getTimeSignatureDenominator() const override;
     void setTimeSignature(int numerator, int denominator) override;
 
+    // Latency compensation
+    void setLatencySamples(int latencySamples);
+
     // Called by the Audio Engine to advance the clock
     void advancePosition(int numSamples);
     
@@ -59,7 +63,6 @@ public:
 private:
     std::atomic<bool> playing{false};
     std::atomic<bool> recording{false};
-    std::atomic<double> currentPosition{0.0};
     std::atomic<double> sampleRate{44100.0};
     std::atomic<double> tempo{120.0};
     std::atomic<int> timeSigNumerator{4};
@@ -68,6 +71,8 @@ private:
     std::atomic<bool> looping{false};
     std::atomic<double> loopStartSamples{0.0};
     std::atomic<double> loopEndSamples{0.0};
+
+    PlayHead playHead;
 
     juce::ListenerList<Listener> listeners;
 };

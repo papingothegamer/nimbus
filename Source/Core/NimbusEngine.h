@@ -5,17 +5,17 @@
 #include "AudioEngine/Transport.h"
 #include "AudioEngine/Mixer.h"
 #include "DataModel/TimelineProject.h"
-#include "AudioEngine/DiskStreaming/DiskStreamer.h"
+#include "AudioEngine/DiskStreaming/AudioFileCache.h"
 #include "PluginHost/PluginManager.h"
 #include "AudioEngine/PluginNode.h"
 #include "AudioEngine/AudioRecorder.h"
-#include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_audio_utils/juce_audio_utils.h>
 #include <memory>
+#include "DataModel/TempoSequence.h"
 
 namespace Nimbus {
 
-class DiskStreamer;
+class AudioFileCache;
 class PluginNode;
 class MidiRecorder;
 class PlaybackEngine;
@@ -42,6 +42,11 @@ public:
     ComputerMidiController* getComputerMidiController() const { return computerMidiController.get(); }
     PluginNode* getTestPluginNode() const { return testPluginNode.get(); }
     juce::UndoManager& getUndoManager() { return undoManager; }
+    AudioFileCache& getAudioFileCache() { return *mainStreamer; }
+    
+    juce::TimeSliceThread& getBackgroundThread() { return backgroundThread; }
+    
+    TempoSequence& getTempoSequence() { return tempoSequence; }
 
     bool isFollowPlayheadEnabled() const { return followPlayhead; }
     void setFollowPlayheadEnabled(bool enabled) { followPlayhead = enabled; }
@@ -56,6 +61,10 @@ public:
 
     void addTrack(bool isMidi, bool isStereo = true);
     void duplicateTrack(int trackIndex);
+    
+    // Imports an audio file and handles tempo matching
+    void importAudioClip(const juce::File& file, int trackIndex, double startPositionSeconds, bool matchDawTempo = true, double manualBpm = 0.0);
+    
     
     float getMasterPeakLevel() const;
     float getTrackPeakLevel(int trackIndex) const;
@@ -87,6 +96,9 @@ private:
     PluginManager pluginManager;
     TimelineProject timelineProject;
     juce::UndoManager undoManager;
+    TempoSequence tempoSequence;
+    
+    juce::TimeSliceThread backgroundThread { "NimbusBackground" };
 
     juce::TimeSliceThread recorderThread { "RecorderThread" };
     std::map<int, std::unique_ptr<AudioRecorder>> trackRecorders;
@@ -94,8 +106,7 @@ private:
 
     std::unique_ptr<PlaybackEngine> playbackEngine;
 
-    // Temporary storage for our single disk streamer for Phase 4
-    std::shared_ptr<DiskStreamer> mainStreamer;
+    std::shared_ptr<AudioFileCache> mainStreamer; // To be renamed or refactored later if needed
 
     std::unique_ptr<ComputerMidiController> computerMidiController;
 

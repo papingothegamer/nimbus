@@ -1,6 +1,6 @@
 #include "NimbusEngine.h"
 #include "../DataModel/TimelineProject.h"
-#include "../AudioEngine/DiskStreaming/DiskStreamer.h"
+#include "../AudioEngine/DiskStreaming/AudioFileCache.h"
 #include "../AudioEngine/AudioRecorder.h"
 #include "../AudioEngine/MidiRecorder.h"
 #include "AudioEngine/TestToneNode.h"
@@ -31,6 +31,7 @@ NimbusEngine::NimbusEngine()
 
 NimbusEngine::~NimbusEngine() {
     transport.removeListener(this);
+    backgroundThread.stopThread(2000);
 }
 
 void NimbusEngine::initialise() {
@@ -50,10 +51,17 @@ void NimbusEngine::initialise() {
 
     playbackEngine = std::make_unique<PlaybackEngine>(*this, timelineProject, *mixer, pluginManager);
 
+    backgroundThread.startThread(juce::Thread::Priority::low);
+
     juce::Logger::writeToLog("Engine: Initialise Complete");
 }
 
 void NimbusEngine::transportTempoChanged(double newTempo) {
+    // Note: With TempoSequence, we can change a specific segment.
+    // For now, if the global tempo changes, update the first segment
+    tempoSequence.clear();
+    tempoSequence.addSegment(0.0, newTempo);
+
     // Loop through all tracks and clips, update warped length if matching DAW tempo
     for (int t = 0; t < timelineProject.getNumTracks(); ++t) {
         auto clips = timelineProject.getClipsOnTrack(t);
@@ -65,6 +73,34 @@ void NimbusEngine::transportTempoChanged(double newTempo) {
             }
         }
     }
+}
+
+void NimbusEngine::importAudioClip(const juce::File& file, int trackIndex, double startPositionSeconds, bool matchDawTempo, double manualBpm) {
+    if (!file.existsAsFile()) return;
+    
+    double sampleRate = transport.getSampleRate();
+    if (sampleRate <= 0) sampleRate = 48000.0;
+    
+    double startPosSamples = startPositionSeconds * sampleRate;
+    
+    double sourceLengthSamples = sampleRate * 4.0; // Fallback
+    if (auto* reader = formatManager.createReaderFor(file)) {
+        sourceLengthSamples = static_cast<double>(reader->lengthInSamples);
+        delete reader;
+    }
+    
+    auto clip = std::make_shared<AudioClip>(file, startPosSamples, sourceLengthSamples, sourceLengthSamples); 
+    
+    if (matchDawTempo) {
+        clip->matchDawTempo = true;
+        clip->originalBpm = manualBpm > 0.0 ? manualBpm : tempoSequence.getTempoAtTime(startPositionSeconds);
+        clip->updateWarpedLength(tempoSequence.getTempoAtTime(startPositionSeconds));
+    } else {
+        clip->matchDawTempo = false;
+        if (manualBpm > 0.0) clip->originalBpm = manualBpm;
+    }
+    
+    timelineProject.addClipToTrack(trackIndex, clip);
 }
 
 void NimbusEngine::addTrack(bool isMidi, bool isStereo) {

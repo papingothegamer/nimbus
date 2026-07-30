@@ -86,6 +86,7 @@ void AudioDeviceManagerWrapper::audioDeviceAboutToStart(juce::AudioIODevice* dev
         processBuffer.setSize(2, blockSize);
         
         globalTransport.setSampleRate(sampleRate);
+        globalTransport.setLatencySamples(device->getOutputLatencyInSamples() + blockSize);
         graph.prepareToPlay(sampleRate, blockSize);
     }
 }

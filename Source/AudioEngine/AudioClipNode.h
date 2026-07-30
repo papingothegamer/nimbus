@@ -1,8 +1,8 @@
 #pragma once
 
 #include "AudioEngine/IAudioNode.h"
-#include "DataModel/AudioClip.h"
-#include "DiskStreaming/DiskStreamer.h"
+#include "../DataModel/AudioClip.h"
+#include "DiskStreaming/DiskStream.h"
 #include "Transport.h"
 #include <JuceHeader.h>
 #include <memory>
@@ -35,7 +35,7 @@ struct AudioClipRenderState {
  */
 class AudioClipNode : public IAudioNode, private juce::Timer {
 public:
-    AudioClipNode(std::shared_ptr<AudioClip> clip, std::shared_ptr<DiskStreamer> streamer, Transport& transport);
+    AudioClipNode(std::shared_ptr<AudioClip> clip, std::shared_ptr<DiskStream> streamer, Transport& t);
     ~AudioClipNode() override;
 
     // IAudioNode
@@ -50,14 +50,15 @@ public:
     void timerCallback() override { syncStateFromModel(); }
 
 private:
-    std::shared_ptr<AudioClip> clipModel;
-    std::shared_ptr<DiskStreamer> diskStreamer;
-    Transport& globalTransport;
+    std::shared_ptr<AudioClip> audioClip;
+    std::shared_ptr<DiskStream> diskStream;
+    Transport& transport;
 
     AudioClipRenderState renderState;
 
     int lastProcessedTransportPos = -1;
     int lastFilePosition = -1;
+    double lastSpeedRatio = -1.0;
 
     juce::LagrangeInterpolator interpolatorLeft;
     juce::LagrangeInterpolator interpolatorRight;

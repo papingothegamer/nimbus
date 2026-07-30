@@ -65,7 +65,15 @@ public:
     // Warp Markers
     std::vector<WarpMarker> warpMarkers;
     
-    void addWarpMarker(double source, double target);
+    void addWarpMarker(double sourceSample, double targetSample);
+
+    // Tracktion-style robust cropping handlers
+    void cropLeft(double deltaSamples);
+    void cropRight(double deltaSamples);
+    void shiftOffset(double deltaSamples);
+
+    juce::Value name;
+    
     void removeWarpMarker(int index);
     
     // Generate some fake transients for UI testing

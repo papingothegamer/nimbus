@@ -3,6 +3,7 @@
 #include <JuceHeader.h>
 #include "DataModel/TimelineProject.h"
 #include "Core/NimbusEngine.h"
+#include "SmartThumbnail.h"
 
 namespace Nimbus::Timeline {
 
@@ -30,7 +31,7 @@ public:
 private:
     NimbusEngine& engine;
     AnyClipPtr clipData;
-    juce::AudioThumbnail thumbnail;
+    SmartThumbnail thumbnail;
     
     bool isResizingLeft = false;
     bool isResizingRight = false;

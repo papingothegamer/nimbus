@@ -20,7 +20,7 @@ void PlaybackEngine::trackAdded(int trackIndex, const TrackModel& track) {
     newTrack->setParentGroupId(track.parentGroupId);
     
     if (!track.isGroup) {
-        newTrack->setSourceNode(std::make_unique<TrackSourceNode>(engine.getTransport(), engine.getFormatManager()));
+        newTrack->setSourceNode(std::make_unique<TrackSourceNode>(engine.getTransport(), engine.getAudioFileCache()));
     }
     
     trackNodes[track.id.toString()] = newTrack.get();

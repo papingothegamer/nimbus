@@ -13,7 +13,7 @@ void Mixer::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock)
         track->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
     }
     masterFader.prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
-    inputBufferCopy.setSize(2, maximumExpectedSamplesPerBlock);
+    inputBufferCopy.setSize(16, maximumExpectedSamplesPerBlock);
     inputBufferCopy.clear();
 }
 

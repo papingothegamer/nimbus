@@ -15,7 +15,7 @@ void Track::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock)
 
     trackBuffer.setSize(isStereo_ ? 2 : 1, maximumExpectedSamplesPerBlock);
     stereoPanBuffer.setSize(2, maximumExpectedSamplesPerBlock);
-    tempBuffer.setSize(isStereo_ ? 2 : 1, maximumExpectedSamplesPerBlock);
+    tempBuffer.setSize(16, maximumExpectedSamplesPerBlock);
     groupBuffer_.setSize(isStereo_ ? 2 : 1, maximumExpectedSamplesPerBlock);
     groupBuffer_.clear();
 

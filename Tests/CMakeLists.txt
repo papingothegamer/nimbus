@@ -21,7 +21,12 @@ add_executable(NimbusTests
     ../Source/AudioEngine/Mixer.cpp
     ../Source/AudioEngine/AudioClipNode.cpp
     ../Source/AudioEngine/GranularTimeStretcher.cpp
-    ../Source/AudioEngine/DiskStreaming/DiskStreamer.cpp
+    ../Source/AudioEngine/TrackSourceNode.cpp
+    ../Source/AudioEngine/MidiClipNode.cpp
+    AudioEngine/PlayHeadTest.cpp
+    ../Source/AudioEngine/DiskStreaming/DiskStream.cpp
+    ../Source/AudioEngine/DiskStreaming/DiskStreamManager.cpp
+    ../Source/AudioEngine/DiskStreaming/AudioFileCache.cpp
     ../Source/AudioEngine/Transport.cpp
     ../Source/DSP/GainNode.cpp
     ../Source/DSP/DelayLine.cpp

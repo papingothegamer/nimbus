@@ -613,16 +613,17 @@ void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int 
                     int minLag = static_cast<int>(envSampleRate * (60.0 / 220.0)); // 220 BPM max
                     int maxLag = static_cast<int>(envSampleRate * (60.0 / 60.0));  // 60 BPM min
                     
-                    float maxCorr = -1e9f;
+                    float maxAcf = -1e9f;
                     int bestLag = minLag;
 
                     for (int lag = minLag; lag <= maxLag; ++lag) {
-                        float corr = 0.0f;
-                        for (int i = 0; i < envLength - lag; ++i) {
-                            corr += envelope[i] * envelope[i + lag];
+                        float acf = 0.0f;
+                        int limit = static_cast<int>(envelope.size()) - lag;
+                        for (int i = 0; i < limit; ++i) {
+                            acf += envelope[i] * envelope[i + lag];
                         }
-                        if (corr > maxCorr) {
-                            maxCorr = corr;
+                        if (acf > maxAcf) {
+                            maxAcf = acf;
                             bestLag = lag;
                         }
                     }

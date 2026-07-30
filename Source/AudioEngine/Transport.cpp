@@ -28,15 +28,20 @@ void Transport::stopRecording() {
 }
 
 void Transport::setPosition(double samplePosition) {
-    currentPosition.store(samplePosition, std::memory_order_relaxed);
+    double sr = sampleRate.load(std::memory_order_relaxed);
+    if (sr > 0.0) {
+        playHead.setPositionSeconds(samplePosition / sr);
+    }
 }
 
 double Transport::getCurrentPosition() const {
-    return currentPosition.load(std::memory_order_relaxed);
+    double sr = sampleRate.load(std::memory_order_relaxed);
+    if (sr <= 0.0) sr = 48000.0;
+    return playHead.getLivePositionSeconds() * sr;
 }
 
 int Transport::getCurrentPositionSamples() const {
-    return static_cast<int>(currentPosition.load(std::memory_order_relaxed));
+    return static_cast<int>(getCurrentPosition());
 }
 
 bool Transport::isPlaying() const {
@@ -95,18 +100,18 @@ void Transport::setTimeSignature(int numerator, int denominator) {
     timeSigDenominator.store(denominator, std::memory_order_relaxed);
 }
 
+void Transport::setLatencySamples(int latencySamples) {
+    playHead.setLatencySamples(latencySamples);
+}
+
 void Transport::advancePosition(int numSamples) {
     if (isPlaying()) {
-        double oldPos = currentPosition.load(std::memory_order_relaxed);
-        double newPos = oldPos + static_cast<double>(numSamples);
-        if (looping.load(std::memory_order_relaxed)) {
-            double endPos = loopEndSamples.load(std::memory_order_relaxed);
-            double startPos = loopStartSamples.load(std::memory_order_relaxed);
-            if (endPos > startPos && oldPos < endPos && newPos >= endPos) {
-                newPos = startPos + (newPos - endPos);
-            }
-        }
-        currentPosition.store(newPos, std::memory_order_relaxed);
+        double sr = sampleRate.load(std::memory_order_relaxed);
+        if (sr <= 0.0) return;
+        bool isLoop = looping.load(std::memory_order_relaxed);
+        double loopStart = loopStartSamples.load(std::memory_order_relaxed) / sr;
+        double loopEnd = loopEndSamples.load(std::memory_order_relaxed) / sr;
+        playHead.advanceAudioTime(numSamples, sr, isLoop, loopStart, loopEnd);
     }
 }
 
