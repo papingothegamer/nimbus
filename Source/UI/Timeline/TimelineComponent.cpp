@@ -44,7 +44,9 @@ void ArrangementMiniViewComponent::paint(juce::Graphics& g) {
                 juce::Colour clipColour = Timeline::ClipComponent::getClipColor(clip->colorIndex.get()).withAlpha(0.6f);
                                           
                 g.setColour(clipColour);
-                g.fillRect(startX, yPos, juce::jmax(1, clipWidth), trackHeight - 1);
+                int rectHeight = juce::jlimit(2, 6, trackHeight / 2);
+                int centerY = yPos + trackHeight / 2 - rectHeight / 2;
+                g.fillRect(startX, centerY, juce::jmax(1, clipWidth), rectHeight);
             }
         }
         

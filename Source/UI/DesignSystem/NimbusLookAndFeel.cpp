@@ -88,7 +88,13 @@ void NimbusLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& bu
     bool isActive = shouldDrawButtonAsDown || button.getToggleState();
     
     if (isActive) {
-        if (button.isColourSpecified(juce::TextButton::buttonOnColourId)) {
+        if (auto* drawableButton = dynamic_cast<juce::DrawableButton*>(&button)) {
+            if (button.isColourSpecified(juce::DrawableButton::backgroundOnColourId)) {
+                baseColour = button.findColour(juce::DrawableButton::backgroundOnColourId);
+            } else {
+                baseColour = Colors::PrimaryAction.withAlpha(0.8f);
+            }
+        } else if (button.isColourSpecified(juce::TextButton::buttonOnColourId)) {
             baseColour = button.findColour(juce::TextButton::buttonOnColourId);
         } else {
             baseColour = Colors::PrimaryAction.withAlpha(0.8f);

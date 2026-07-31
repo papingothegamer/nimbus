@@ -3,8 +3,10 @@
 #include <JuceHeader.h>
 #include "DataModel/TimelineProject.h"
 #include "Nodes/Node.h"
+#include "LevelMeasurer.h"
 #include <atomic>
 #include <memory>
+#include <array>
 
 #include "Transport.h"
 
@@ -27,6 +29,7 @@ public:
     void rebuildGraph();
     
     std::pair<float, float> getTrackPeakLevel(int trackIndex) const;
+    std::pair<float, float> getMasterPeakLevel() const;
 
     // juce::AudioIODeviceCallback
     void audioDeviceIOCallbackWithContext(const float* const* inputChannelData, int numInputChannels,
@@ -60,8 +63,14 @@ private:
     double sampleRate = 44100.0;
     int blockSize = 512;
     // Max 128 tracks for simplicity, can be dynamic later
-    mutable std::array<std::atomic<float>, 128> trackPeaksL;
-    mutable std::array<std::atomic<float>, 128> trackPeaksR;
+    mutable std::array<LevelMeasurer, 128> trackLevelMeasurers;
+    mutable LevelMeasurer masterLevelMeasurer;
+    
+    std::array<std::atomic<float>, 128> trackVolumes;
+    std::array<std::atomic<float>, 128> trackPans;
+    std::array<std::atomic<bool>, 128> trackMutes;
+    std::array<std::atomic<bool>, 128> trackSolos;
+    std::atomic<bool> anySolo { false };
     
     bool hasAnySolo(const TimelineProject& project) const;
     std::shared_ptr<Node> createGraphFromProject();

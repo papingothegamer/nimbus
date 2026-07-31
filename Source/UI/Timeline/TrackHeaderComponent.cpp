@@ -62,7 +62,7 @@ void TrackHeaderComponent::loadSvgIcon(juce::DrawableButton& btn, const juce::St
         int size = 0;
         if (const char* data = BinaryData::getNamedResource(name.toUTF8(), size)) {
             juce::String str(data, (size_t)size);
-            str = str.replace("currentColor", "#000000").replace("#212121", "#000000");
+            str = str.replace("currentColor", "#000000").replace("#212121", "#000000").replace("#FFFFFF", "#000000").replace("#ffffff", "#000000").replace("white", "#000000");
             if (auto xml = juce::XmlDocument::parse(str)) {
                 if (auto svg = juce::Drawable::createFromSVG(*xml)) {
                     svg->replaceColour(juce::Colours::black, tint);
@@ -144,8 +144,8 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     addAndMakeVisible(muteButton);
     muteButton.setClickingTogglesState(true);
     muteButton.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
-    muteButton.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colours::orange);
-    loadSvgIcon(muteButton, DesignSystem::Iconography::VolumeOff, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::Unmute, juce::Colours::white);
+    muteButton.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colours::transparentBlack);
+    loadSvgIcon(muteButton, DesignSystem::Iconography::VolumeOff, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::Unmute, juce::Colours::orange);
     muteButton.onClick = [this] {
         engine.getTimelineProject().setTrackSelected(trackIndex, true);
         engine.getTimelineProject().setTrackMuted(trackIndex, muteButton.getToggleState());
@@ -154,7 +154,7 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
     addAndMakeVisible(soloButton);
     soloButton.setClickingTogglesState(true);
     soloButton.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
-    soloButton.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colours::yellow);
+    soloButton.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colour(0xfffdb913)); // Yellow
     loadSvgIcon(soloButton, DesignSystem::Iconography::Solo, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::Solo, juce::Colours::black);
     soloButton.onClick = [this] {
         engine.getTimelineProject().setTrackSelected(trackIndex, true);

@@ -13,8 +13,10 @@ PlaybackContext::PlaybackContext(NimbusEngine& e)
     : engine(e), timelineProject(e.getTimelineProject()), transport(e.getTransport())
 {
     for (int i = 0; i < 128; ++i) {
-        trackPeaksL[i].store(0.0f);
-        trackPeaksR[i].store(0.0f);
+        trackVolumes[i].store(1.0f);
+        trackPans[i].store(0.0f);
+        trackMutes[i].store(false);
+        trackSolos[i].store(false);
     }
     timelineProject.addListener(this);
     rebuildGraph();
@@ -45,12 +47,15 @@ std::shared_ptr<Node> PlaybackContext::createGraphFromProject()
     for (int i = 0; i < numTracks; ++i) {
         auto track = timelineProject.getTrack(i);
         auto trackNode = std::make_unique<TrackNode>();
-        trackNode->setVolume(track.volume);
-        trackNode->setPan(track.pan);
-        trackNode->setMuted(track.isMuted || (!track.isSoloed && hasAnySolo(timelineProject)));
         
         if (i < 128) {
-            trackNode->setPeakPointers(&trackPeaksL[i], &trackPeaksR[i]);
+            trackVolumes[i].store(track.volume, std::memory_order_relaxed);
+            trackPans[i].store(track.pan, std::memory_order_relaxed);
+            trackMutes[i].store(track.isMuted, std::memory_order_relaxed);
+            trackSolos[i].store(track.isSoloed, std::memory_order_relaxed);
+            anySolo.store(hasAnySolo(timelineProject), std::memory_order_relaxed);
+            
+            trackNode->bindState(&trackVolumes[i], &trackPans[i], &trackMutes[i], &trackSolos[i], &anySolo, &trackLevelMeasurers[i]);
         }
         
         // Add plugins
@@ -108,6 +113,15 @@ void PlaybackContext::audioDeviceIOCallbackWithContext(const float* const* input
         
         activeGraph->process(processContext);
         
+        // Simple master volume (could be smoothed in future)
+        float currentMasterVolume = engine.getTimelineProject().getMasterVolume();
+        if (currentMasterVolume != 1.0f) {
+            buffer.applyGain(currentMasterVolume);
+        }
+        
+        // Track master peaks
+        masterLevelMeasurer.processBuffer(buffer);
+        
         transport.advancePosition(numSamples);
     }
 }
@@ -127,11 +141,26 @@ void PlaybackContext::audioDeviceStopped()
 
 void PlaybackContext::trackAdded(int, const TrackModel&) { rebuildGraph(); }
 void PlaybackContext::trackRemoved(int) { rebuildGraph(); }
-void PlaybackContext::trackMuteChanged(int, bool) { rebuildGraph(); }
-void PlaybackContext::trackSoloChanged(int, bool) { rebuildGraph(); }
-void PlaybackContext::trackVolumeChanged(int, float) { rebuildGraph(); }
-void PlaybackContext::trackPanChanged(int, float) { rebuildGraph(); }
 void PlaybackContext::trackClipsChanged(int) { rebuildGraph(); }
+
+void PlaybackContext::trackMuteChanged(int trackIndex, bool isMuted) {
+    if (trackIndex >= 0 && trackIndex < 128) trackMutes[trackIndex].store(isMuted, std::memory_order_relaxed);
+}
+
+void PlaybackContext::trackSoloChanged(int trackIndex, bool isSoloed) {
+    if (trackIndex >= 0 && trackIndex < 128) {
+        trackSolos[trackIndex].store(isSoloed, std::memory_order_relaxed);
+        anySolo.store(hasAnySolo(timelineProject), std::memory_order_relaxed);
+    }
+}
+
+void PlaybackContext::trackVolumeChanged(int trackIndex, float volume) {
+    if (trackIndex >= 0 && trackIndex < 128) trackVolumes[trackIndex].store(volume, std::memory_order_relaxed);
+}
+
+void PlaybackContext::trackPanChanged(int trackIndex, float pan) {
+    if (trackIndex >= 0 && trackIndex < 128) trackPans[trackIndex].store(pan, std::memory_order_relaxed);
+}
 
 bool PlaybackContext::hasAnySolo(const TimelineProject& project) const {
     for (int i = 0; i < project.getNumTracks(); ++i) {
@@ -142,11 +171,13 @@ bool PlaybackContext::hasAnySolo(const TimelineProject& project) const {
 
 std::pair<float, float> PlaybackContext::getTrackPeakLevel(int trackIndex) const {
     if (trackIndex >= 0 && trackIndex < 128) {
-        float l = trackPeaksL[trackIndex].exchange(0.0f, std::memory_order_relaxed);
-        float r = trackPeaksR[trackIndex].exchange(0.0f, std::memory_order_relaxed);
-        return {l, r};
+        return trackLevelMeasurers[trackIndex].getDecayedPeak(0.85f);
     }
     return {0.0f, 0.0f};
+}
+
+std::pair<float, float> PlaybackContext::getMasterPeakLevel() const {
+    return masterLevelMeasurer.getDecayedPeak(0.85f);
 }
 
 } // namespace Nimbus

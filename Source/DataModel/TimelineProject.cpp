@@ -297,7 +297,21 @@ std::vector<AnyClipPtr> TimelineProject::getClipsOnTrack(int trackIndex) const
 }
 
 void TimelineProject::resolveCrossfades(int trackIndex) {}
-double TimelineProject::getTotalDurationSamples() const { return 0.0; }
+
+double TimelineProject::getTotalDurationSamples() const {
+    double maxSample = 0.0;
+    for (const auto& trackClips : cachedClips) {
+        for (const auto& clip : trackClips) {
+            if (clip) {
+                double endSample = clip->getEndSample();
+                if (endSample > maxSample) {
+                    maxSample = endSample;
+                }
+            }
+        }
+    }
+    return maxSample;
+}
 
 void TimelineProject::addPluginToTrack(int trackIndex, std::shared_ptr<Plugin> plugin) {
     if (trackIndex >= cachedPlugins.size()) cachedPlugins.resize(trackIndex + 1);
