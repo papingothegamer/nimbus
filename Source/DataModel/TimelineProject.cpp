@@ -319,6 +319,22 @@ void TimelineProject::addPluginToTrack(int trackIndex, std::shared_ptr<Plugin> p
     if (auto vt = getTrackTree(trackIndex); vt.isValid()) {
         vt.appendChild(plugin->state, &undoManager);
     }
+    listeners.call(&Listener::trackPluginsChanged, trackIndex);
+}
+
+void TimelineProject::removePluginFromTrack(int trackIndex, int pluginIndex) {
+    if (trackIndex >= 0 && trackIndex < cachedPlugins.size()) {
+        auto& plugins = cachedPlugins[trackIndex];
+        if (pluginIndex >= 0 && pluginIndex < plugins.size()) {
+            auto plugin = plugins[pluginIndex];
+            plugins.erase(plugins.begin() + pluginIndex);
+            
+            if (auto vt = getTrackTree(trackIndex); vt.isValid()) {
+                vt.removeChild(plugin->state, &undoManager);
+            }
+            listeners.call(&Listener::trackPluginsChanged, trackIndex);
+        }
+    }
 }
 
 void TimelineProject::setInstrumentForTrack(int trackIndex, std::shared_ptr<Plugin> plugin) {

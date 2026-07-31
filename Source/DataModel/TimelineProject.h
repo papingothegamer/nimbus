@@ -82,6 +82,7 @@ public:
         virtual void trackPanChanged(int trackIndex, float pan) {}
         virtual void trackInputChannelChanged(int trackIndex, int inputChannel) {}
         virtual void masterVolumeChanged(float volume) {}
+        virtual void trackPluginsChanged(int trackIndex) {}
         virtual void markerAdded(int markerIndex, const MarkerModel& marker) {}
         virtual void markerRemoved(int markerIndex) {}
         virtual void markerMoved(int markerIndex, double newPositionSamples) {}
@@ -136,7 +137,6 @@ public:
     bool isMultiArmingEnabled() const { return multiArmingEnabled; }
     void setMultiArmingEnabled(bool enabled) { multiArmingEnabled = enabled; }
 
-
     void setTrackSelected(int trackIndex, bool clearExisting = true);
     void toggleTrackSelection(int trackIndex);
     void selectTrackRange(int fromIndex, int toIndex);
@@ -177,6 +177,7 @@ public:
     
     // Plugins
     void addPluginToTrack(int trackIndex, std::shared_ptr<Plugin> plugin);
+    void removePluginFromTrack(int trackIndex, int pluginIndex);
     void setInstrumentForTrack(int trackIndex, std::shared_ptr<Plugin> plugin);
     
     // Clipboard & Duplication

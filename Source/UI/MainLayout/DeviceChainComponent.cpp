@@ -210,10 +210,24 @@ private:
     
     void deletePlugin() {
         if (trackIndex != -1 && plugin != nullptr) {
+            auto track = engine.getTimelineProject().getTrack(trackIndex);
+            int pluginIndex = -1;
+            
+            // If it's an instrument, the index might be handled differently, 
+            // but for now we only support removing audio effects
+            for (int i = 0; i < track.plugins.size(); ++i) {
+                if (track.plugins[i] == plugin) {
+                    pluginIndex = i;
+                    break;
+                }
+            }
+            
+            if (pluginIndex != -1) {
+                engine.getTimelineProject().removePluginFromTrack(trackIndex, pluginIndex);
+            }
+
             embeddedEditor.reset();
             plugin.reset();
-            
-            // TODO: Remove from TimelineProject
             
             if (window != nullptr) {
                 window->closeButtonPressed();

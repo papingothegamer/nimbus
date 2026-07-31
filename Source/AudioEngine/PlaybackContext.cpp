@@ -142,6 +142,7 @@ void PlaybackContext::audioDeviceStopped()
 void PlaybackContext::trackAdded(int, const TrackModel&) { rebuildGraph(); }
 void PlaybackContext::trackRemoved(int) { rebuildGraph(); }
 void PlaybackContext::trackClipsChanged(int) { rebuildGraph(); }
+void PlaybackContext::trackPluginsChanged(int) { rebuildGraph(); }
 
 void PlaybackContext::trackMuteChanged(int trackIndex, bool isMuted) {
     if (trackIndex >= 0 && trackIndex < 128) trackMutes[trackIndex].store(isMuted, std::memory_order_relaxed);

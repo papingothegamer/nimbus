@@ -44,6 +44,7 @@ public:
     void trackRemoved(int trackIndex) override;
     void trackMuteChanged(int trackIndex, bool isMuted) override;
     void trackSoloChanged(int trackIndex, bool isSoloed) override;
+    void trackPluginsChanged(int trackIndex) override;
     void trackVolumeChanged(int trackIndex, float volume) override;
     void trackPanChanged(int trackIndex, float pan) override;
     void trackClipsChanged(int trackIndex) override;
