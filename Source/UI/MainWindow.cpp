@@ -176,9 +176,9 @@ MainWindow::MainWindow(juce::String name, NimbusEngine& engineToUse)
     centreWithSize(1280, 800);
     setVisible(true);
 
-    if (auto testPluginNode = engineToUse.getTestPluginNode()) {
-        pluginWindow = std::make_unique<PluginWindow>("Test Plugin", testPluginNode);
-    }
+    // if (auto testPluginNode = engineToUse.getTestPluginNode()) {
+    //     pluginWindow = std::make_unique<PluginWindow>("Test Plugin", nullptr);
+    // }
 }
 
 MainWindow::~MainWindow() {

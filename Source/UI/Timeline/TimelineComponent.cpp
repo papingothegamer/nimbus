@@ -45,8 +45,8 @@ void ArrangementMiniViewComponent::paint(juce::Graphics& g) {
                                           
                 g.setColour(clipColour);
                 int rectHeight = juce::jlimit(2, 6, trackHeight / 2);
-                int centerY = yPos + trackHeight / 2 - rectHeight / 2;
-                g.fillRect(startX, centerY, juce::jmax(1, clipWidth), rectHeight);
+                int clipY = yPos + 2;
+                g.fillRect(startX, clipY, juce::jmax(1, clipWidth), rectHeight);
             }
         }
         
@@ -54,10 +54,10 @@ void ArrangementMiniViewComponent::paint(juce::Graphics& g) {
         double currentSampleX = engine.getTransport().getSampleRate() > 0 ? (currentSeconds * engine.getTransport().getSampleRate() * viewPixelsPerSample) : 0;
         double visibleSampleW = engine.getTransport().getSampleRate() > 0 ? (visibleSeconds * engine.getTransport().getSampleRate() * viewPixelsPerSample) : getWidth();
         
-        g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.3f));
+        g.setColour(juce::Colours::transparentBlack);
         g.fillRect(static_cast<int>(currentSampleX), 0, static_cast<int>(visibleSampleW), getHeight());
         
-        g.setColour(DesignSystem::Colors::PrimaryAction);
+        g.setColour(juce::Colours::white);
         g.drawRect(static_cast<int>(currentSampleX), 0, static_cast<int>(visibleSampleW), getHeight(), 1);
     }
 }
@@ -185,29 +185,60 @@ void SeekingBarComponent::mouseDown(const juce::MouseEvent& event) {
     float x = event.position.x;
     float y = event.position.y;
     
+    double sr = engine.getTransport().getSampleRate();
+    if (sr <= 0) sr = 44100.0;
+    
+    int numMarkers = engine.getTimelineProject().getNumMarkers();
+    int clickedMarkerIndex = -1;
+    for (int i = 0; i < numMarkers; ++i) {
+        auto marker = engine.getTimelineProject().getMarker(i);
+        float markerX = static_cast<float>((marker.positionSamples / sr) * pixelsPerSecond - scrollOffsetX);
+        
+        if (std::abs(x - markerX) < 5.0f || (x >= markerX && x <= markerX + 10.0f && y <= 15.0f)) {
+            clickedMarkerIndex = i;
+            break;
+        }
+    }
+    
     if (event.mods.isRightButtonDown()) {
         juce::PopupMenu menu;
-        menu.addItem(1, "Add Marker Here");
-        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this).withMousePosition(),
-            [this, x](int result) {
-                if (result == 1) {
-                    double sr = engine.getTransport().getSampleRate();
-                    if (sr <= 0) sr = 44100.0;
-                    double posSeconds = (x + scrollOffsetX) / pixelsPerSecond;
-                    MarkerModel marker;
-                    marker.positionSamples = posSeconds * sr;
-                    marker.name = "Marker " + juce::String(engine.getTimelineProject().getNumMarkers() + 1);
-                    engine.getTimelineProject().addMarker(marker);
-                    repaint();
-                }
-            });
+        if (clickedMarkerIndex != -1) {
+            menu.addItem(1, "Delete Marker");
+            menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this).withMousePosition(),
+                [this, clickedMarkerIndex](int result) {
+                    if (result == 1) {
+                        engine.getTimelineProject().removeMarker(clickedMarkerIndex);
+                        repaint();
+                    }
+                });
+        } else {
+            menu.addItem(1, "Add Marker Here");
+            menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this).withMousePosition(),
+                [this, x](int result) {
+                    if (result == 1) {
+                        double sr = engine.getTransport().getSampleRate();
+                        if (sr <= 0) sr = 44100.0;
+                        double posSeconds = (x + scrollOffsetX) / pixelsPerSecond;
+                        MarkerModel marker;
+                        marker.positionSamples = posSeconds * sr;
+                        marker.name = "Marker " + juce::String(engine.getTimelineProject().getNumMarkers() + 1);
+                        engine.getTimelineProject().addMarker(marker);
+                        repaint();
+                    }
+                });
+        }
+        return;
+    }
+    
+    if (clickedMarkerIndex != -1) {
+        dragMode = DraggingMarker;
+        draggingMarkerIndex = clickedMarkerIndex;
+        lastDragX = x;
         return;
     }
     
     double loopStart = engine.getTransport().getLoopStartSamples();
     double loopEnd = engine.getTransport().getLoopEndSamples();
-    double sr = engine.getTransport().getSampleRate();
-    if (sr <= 0) sr = 44100.0;
     
     float startX = static_cast<float>((loopStart / sr) * pixelsPerSecond - scrollOffsetX);
     float endX = static_cast<float>((loopEnd / sr) * pixelsPerSecond - scrollOffsetX);
@@ -240,7 +271,11 @@ void SeekingBarComponent::mouseDrag(const juce::MouseEvent& event) {
     if (sr <= 0) sr = 44100.0;
     double currentSamples = ((x + scrollOffsetX) / pixelsPerSecond) * sr;
     
-    if (dragMode == Seeking && onSeek) {
+    if (dragMode == DraggingMarker && draggingMarkerIndex != -1) {
+        engine.getTimelineProject().moveMarker(draggingMarkerIndex, std::max(0.0, currentSamples));
+        repaint();
+    }
+    else if (dragMode == Seeking && onSeek) {
         onSeek(x);
     } else if (dragMode == DraggingLoopStart) {
         double currentEnd = engine.getTransport().getLoopEndSamples();
@@ -254,8 +289,49 @@ void SeekingBarComponent::mouseDrag(const juce::MouseEvent& event) {
     repaint();
 }
 
+void SeekingBarComponent::mouseDoubleClick(const juce::MouseEvent& event) {
+    float x = event.position.x;
+    float y = event.position.y;
+    double sr = engine.getTransport().getSampleRate();
+    if (sr <= 0) sr = 44100.0;
+    
+    int numMarkers = engine.getTimelineProject().getNumMarkers();
+    int clickedMarkerIndex = -1;
+    for (int i = 0; i < numMarkers; ++i) {
+        auto marker = engine.getTimelineProject().getMarker(i);
+        float markerX = static_cast<float>((marker.positionSamples / sr) * pixelsPerSecond - scrollOffsetX);
+        if (std::abs(x - markerX) < 5.0f || (x >= markerX && x <= markerX + 10.0f && y <= 15.0f)) {
+            clickedMarkerIndex = i;
+            break;
+        }
+    }
+    
+    if (clickedMarkerIndex != -1) {
+        auto* alert = new juce::AlertWindow("Rename Marker", "Enter new marker name:", juce::AlertWindow::NoIcon);
+        alert->addTextEditor("name", engine.getTimelineProject().getMarker(clickedMarkerIndex).name);
+        alert->addButton("OK", 1, juce::KeyPress(juce::KeyPress::returnKey));
+        alert->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+
+        alert->enterModalState(true, juce::ModalCallbackFunction::create([this, alert, clickedMarkerIndex](int result) {
+            if (result == 1) {
+                auto newName = alert->getTextEditorContents("name");
+                engine.getTimelineProject().setMarkerName(clickedMarkerIndex, newName);
+                repaint();
+            }
+            delete alert; // cleanup
+        }));
+    }
+}
+
 void SeekingBarComponent::mouseUp(const juce::MouseEvent& event) {
+    if (dragMode == CreatingLoop) {
+        double sr = engine.getTransport().getSampleRate();
+        if (sr <= 0) sr = 44100.0;
+        double currentSamples = ((event.position.x + scrollOffsetX) / pixelsPerSecond) * sr;
+        engine.getTransport().setLoopRegion(std::min((double)dragStartSamples, currentSamples), std::max((double)dragStartSamples, currentSamples));
+    }
     dragMode = None;
+    repaint();
 }
 
 TimelineComponent::TimelineComponent(NimbusEngine& e) 
@@ -396,6 +472,10 @@ void TimelineComponent::trackRemoved(int trackIndex)
 }
 
 void TimelineComponent::tracksGrouped() {
+    auto bounds = getLocalBounds();
+    
+    // Mini view above the ruler
+    miniView.setBounds(bounds.removeFromTop(20));
     trackHeaders.clear();
     trackLanes.clear();
     for (int i = 0; i < engine.getTimelineProject().getNumTracks(); ++i) {
@@ -424,6 +504,10 @@ void TimelineComponent::tracksGrouped() {
 
 void TimelineComponent::trackFoldStateChanged(int trackIndex, bool isFolded) {
     resized();
+}
+
+void TimelineComponent::trackClipsChanged(int trackIndex) {
+    miniView.repaint();
 }
 
 void TimelineComponent::resized() {

@@ -47,10 +47,7 @@ public:
         
         if (anyTrackSoloed && !isSoloed) isMuted = true;
         
-        if (!context.buffer || isMuted) {
-            if (context.buffer) context.buffer->clear();
-            return;
-        }
+        if (!context.buffer) return;
         
         // 1. Process and mix inputs (clips)
         context.buffer->clear();
@@ -64,12 +61,19 @@ public:
                 
                 input->process(subContext);
                 
-                for (int ch = 0; ch < context.buffer->getNumChannels(); ++ch) {
-                    if (ch < tempBuffer.getNumChannels()) {
-                        context.buffer->addFrom(ch, 0, tempBuffer, ch, 0, context.buffer->getNumSamples());
+                if (!isMuted) {
+                    for (int ch = 0; ch < context.buffer->getNumChannels(); ++ch) {
+                        if (ch < tempBuffer.getNumChannels()) {
+                            context.buffer->addFrom(ch, 0, tempBuffer, ch, 0, context.buffer->getNumSamples());
+                        }
                     }
                 }
             }
+        }
+        
+        if (isMuted) {
+            if (levelMeasurer) levelMeasurer->processBuffer(*context.buffer);
+            return; // Skip plugins and volume processing to save CPU
         }
         
         // 2. Process plugins in series

@@ -9,18 +9,20 @@ namespace Nimbus {
 
 class SeekingBarComponent : public juce::Component {
 public:
-    SeekingBarComponent(NimbusEngine& engine, double& pps, double& scrollX);
+    SeekingBarComponent(NimbusEngine& e, double& pps, double& scrollX);
     void paint(juce::Graphics& g) override;
     void mouseDown(const juce::MouseEvent& event) override;
     void mouseDrag(const juce::MouseEvent& event) override;
     void mouseUp(const juce::MouseEvent& event) override;
-    
+    void mouseDoubleClick(const juce::MouseEvent& event) override;
+
     std::function<void(float)> onSeek;
     
-    enum DragMode { None, Seeking, DraggingLoopStart, DraggingLoopEnd, CreatingLoop };
+    enum DragMode { None, Seeking, DraggingLoopStart, DraggingLoopEnd, CreatingLoop, DraggingMarker };
     DragMode dragMode = None;
     float dragStartSamples = 0.0f;
     float lastDragX = 0.0f;
+    int draggingMarkerIndex = -1;
     
 private:
     NimbusEngine& engine;
@@ -65,6 +67,7 @@ public:
     void trackRemoved(int trackIndex) override;
     void trackFoldStateChanged(int trackIndex, bool isFolded) override;
     void tracksGrouped() override;
+    void trackClipsChanged(int trackIndex) override;
 
     void paintOverChildren(juce::Graphics& g) override;
     void mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) override;

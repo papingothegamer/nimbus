@@ -57,7 +57,8 @@ void NimbusEngine::duplicateTrack(int trackIndex) {
 }
 
 std::pair<float, float> NimbusEngine::getMasterPeakLevel() const {
-    return {0.0f, 0.0f}; // To be implemented in lock-free node graph
+    if (playbackContext) return playbackContext->getMasterPeakLevel();
+    return {0.0f, 0.0f};
 }
 
 std::pair<float, float> NimbusEngine::getTrackPeakLevel(int trackIndex) const {

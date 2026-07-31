@@ -13,10 +13,18 @@ public:
     PluginBox(std::shared_ptr<Plugin> pPlugin, int tIndex, NimbusEngine& e) : plugin(pPlugin), trackIndex(tIndex), engine(e) {
         if (plugin) {
             name = plugin->getName();
-            embeddedEditor.reset(plugin->createEditor());
-            if (embeddedEditor) {
-                addAndMakeVisible(embeddedEditor.get());
-                editorWidth = embeddedEditor->getWidth();
+            
+            // Only stock plugins get embedded editors
+            if (dynamic_cast<ExternalPlugin*>(plugin.get()) == nullptr) {
+                embeddedEditor.reset(plugin->createEditor());
+                if (embeddedEditor) {
+                    addAndMakeVisible(embeddedEditor.get());
+                    editorWidth = embeddedEditor->getWidth();
+                } else {
+                    editorWidth = 160;
+                }
+            } else {
+                editorWidth = 160;
             }
         }
 
@@ -129,7 +137,7 @@ public:
     void resized() override {
         if (embeddedEditor) {
             auto bounds = getLocalBounds().reduced(2);
-            bounds.removeFromTop(24); // header
+            bounds.removeFromTop(26); // Match new header size
             embeddedEditor->setBounds(bounds);
         }
     }
@@ -193,9 +201,7 @@ private:
     void openPluginWindow() {
         if (auto* ext = dynamic_cast<ExternalPlugin*>(plugin.get())) {
             if (window == nullptr) {
-                // Actually ExternalPlugin creates editor, but if we wanted an external window we'd do it here.
-                // For now just pass null to keep it simple, or implement it if needed.
-                // window = new PluginWindow(name, plugin);
+                window = new PluginWindow(name, plugin);
             } else {
                 window->toFront(true);
             }

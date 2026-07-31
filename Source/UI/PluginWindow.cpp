@@ -2,17 +2,17 @@
 
 namespace Nimbus {
 
-PluginWindow::PluginWindow(const juce::String& name, PluginNode* node)
+PluginWindow::PluginWindow(const juce::String& name, std::shared_ptr<Plugin> p)
     : DocumentWindow(name,
                      juce::Desktop::getInstance().getDefaultLookAndFeel()
                                                  .findColour(juce::ResizableWindow::backgroundColourId),
                      DocumentWindow::allButtons),
-      pluginNode(node)
+      plugin(p)
 {
     setUsingNativeTitleBar(true);
 
-    if (pluginNode && pluginNode->getPluginInstance()) {
-        if (auto* editor = pluginNode->getPluginInstance()->createEditorIfNeeded()) {
+    if (plugin) {
+        if (auto* editor = plugin->createEditor()) {
             setContentOwned(editor, true);
         }
     }
@@ -23,13 +23,7 @@ PluginWindow::PluginWindow(const juce::String& name, PluginNode* node)
 }
 
 PluginWindow::~PluginWindow() {
-    // If the window is closed/destroyed, we don't destroy the node, just the UI.
-    if (pluginNode && pluginNode->getPluginInstance()) {
-        pluginNode->getPluginInstance()->editorBeingDeleted(
-            dynamic_cast<juce::AudioProcessorEditor*>(getContentComponent())
-        );
-        clearContentComponent();
-    }
+    clearContentComponent();
 }
 
 void PluginWindow::closeButtonPressed() {
