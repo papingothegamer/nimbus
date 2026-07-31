@@ -1,9 +1,8 @@
 #pragma once
 
-#include "AudioEngine/AudioGraph.h"
+#include "AudioEngine/PlaybackContext.h"
 #include "AudioEngine/AudioDeviceManagerWrapper.h"
 #include "AudioEngine/Transport.h"
-#include "AudioEngine/Mixer.h"
 #include "DataModel/TimelineProject.h"
 #include "AudioEngine/DiskStreaming/DiskStreamer.h"
 #include "PluginHost/PluginManager.h"
@@ -32,7 +31,7 @@ public:
 
     void initialise();
 
-    Mixer* getMixer() const { return mixer; }
+    PlaybackContext* getPlaybackContext() const { return playbackContext.get(); }
     Transport& getTransport() { return transport; }
     AudioDeviceManagerWrapper& getAudioDeviceManager() { return deviceManagerWrapper; }
     juce::AudioFormatManager& getFormatManager() { return formatManager; }
@@ -57,12 +56,12 @@ public:
     void addTrack(bool isMidi, bool isStereo = true);
     void duplicateTrack(int trackIndex);
     
-    float getMasterPeakLevel() const;
-    float getTrackPeakLevel(int trackIndex) const;
+    std::pair<float, float> getMasterPeakLevel() const;
+    std::pair<float, float> getTrackPeakLevel(int trackIndex) const;
 
     struct PluginClipboard {
         juce::PluginDescription description;
-        juce::MemoryBlock state;
+        juce::ValueTree state;
         bool hasData = false;
     };
     PluginClipboard& getPluginClipboard() { return clipboard; }
@@ -71,8 +70,7 @@ public:
     void stopRecording();
 
 private:
-    AudioGraph mainGraph; // The root graph executing on the audio thread
-    Mixer* mixer = nullptr; // Raw pointer to the mixer owned by mainGraph
+    std::unique_ptr<PlaybackContext> playbackContext;
     Transport transport;
     AudioDeviceManagerWrapper deviceManagerWrapper;
     bool followPlayhead = true;
@@ -86,8 +84,6 @@ private:
     juce::TimeSliceThread recorderThread { "RecorderThread" };
     std::map<int, std::unique_ptr<AudioRecorder>> trackRecorders;
     std::map<int, std::unique_ptr<MidiRecorder>> midiRecorders;
-
-    std::unique_ptr<PlaybackEngine> playbackEngine;
 
     // Temporary storage for our single disk streamer for Phase 4
     std::shared_ptr<DiskStreamer> mainStreamer;

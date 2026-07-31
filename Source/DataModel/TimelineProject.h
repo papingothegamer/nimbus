@@ -4,12 +4,15 @@
 #include "MidiClip.h"
 #include <vector>
 #include <memory>
-#include <variant>
 #include <juce_events/juce_events.h>
+#include <juce_data_structures/juce_data_structures.h>
+#include <juce_graphics/juce_graphics.h>
 
 #include "Models.h"
 
 namespace Nimbus {
+
+class Plugin;
 
 #include "Clip.h"
 
@@ -33,21 +36,28 @@ struct TrackModel {
     bool isFolded = false;
     TrackID parentGroupId;
     
-    float volume = 0.75f;
+    float volume = 1.0f; // Linear gain (0 to X)
     float pan = 0.0f;
     
     int inputChannelIndex = -1; // -1 = All active, 0 = Ch1, 1 = Ch2, etc. (Legacy)
     
     // Plugins
-    std::vector<PluginSlot> pluginSlots;
-    PluginSlot instrumentSlot;
+    std::vector<std::shared_ptr<Plugin>> plugins;
+    std::shared_ptr<Plugin> instrumentPlugin;
     bool hasInstrument = false;
+};
+
+struct MarkerModel {
+    double positionSamples = 0.0;
+    juce::String name;
+    juce::Colour color = juce::Colours::white;
 };
 
 /**
  * The data model representing the tracks and clips in the arrangement view.
+ * Now backed natively by juce::ValueTree for tracktion-style reactivity and thread safety.
  */
-class TimelineProject {
+class TimelineProject : private juce::ValueTree::Listener {
 public:
     class Listener {
     public:
@@ -71,17 +81,23 @@ public:
         virtual void trackVolumeChanged(int trackIndex, float volume) {}
         virtual void trackPanChanged(int trackIndex, float pan) {}
         virtual void trackInputChannelChanged(int trackIndex, int inputChannel) {}
+        virtual void masterVolumeChanged(float volume) {}
+        virtual void markerAdded(int markerIndex, const MarkerModel& marker) {}
+        virtual void markerRemoved(int markerIndex) {}
+        virtual void markerMoved(int markerIndex, double newPositionSamples) {}
     };
 
-    TimelineProject() = default;
-    ~TimelineProject() = default;
+    TimelineProject();
+    ~TimelineProject() override;
+
+    juce::ValueTree& getState() { return state; }
 
     void addListener(Listener* listener) { listeners.add(listener); }
     void removeListener(Listener* listener) { listeners.remove(listener); }
 
     void addTrack(const TrackModel& track);
     void insertTrack(int index, const TrackModel& track);
-    const TrackModel& getTrack(int index) const;
+    TrackModel getTrack(int index) const; // Return by value now, constructed from ValueTree
     int getNumTracks() const;
     
     void removeTrack(int index);
@@ -114,6 +130,9 @@ public:
     void setTrackInputChannel(int trackIndex, int inputChannel);
     int getTrackInputChannel(int trackIndex) const;
 
+    void setMasterVolume(float volume);
+    float getMasterVolume() const;
+
     bool isMultiArmingEnabled() const { return multiArmingEnabled; }
     void setMultiArmingEnabled(bool enabled) { multiArmingEnabled = enabled; }
 
@@ -136,26 +155,17 @@ public:
     const juce::SparseSet<int>& getTimeSelectedTracks() const { return timeSelectedTracks; }
     
     // Project Metadata
-    const juce::String& getProjectName() const { return projectName; }
-    void setProjectName(const juce::String& name) { 
-        projectName = name; 
-        listeners.call(&Listener::projectNameChanged, name);
-    }
+    juce::String getProjectName() const;
+    void setProjectName(const juce::String& name);
     
-    const juce::String& getKeySignature() const { return keySignature; }
-    void setKeySignature(const juce::String& key) { keySignature = key; }
+    juce::String getKeySignature() const;
+    void setKeySignature(const juce::String& key);
     
-    int getTimeSigNumerator() const { return timeSigNumerator; }
-    void setTimeSigNumerator(int num) { 
-        timeSigNumerator = num; 
-        listeners.call(&Listener::timeSignatureChanged, num, timeSigDenominator);
-    }
+    int getTimeSigNumerator() const;
+    void setTimeSigNumerator(int num);
     
-    int getTimeSigDenominator() const { return timeSigDenominator; }
-    void setTimeSigDenominator(int den) { 
-        timeSigDenominator = den; 
-        listeners.call(&Listener::timeSignatureChanged, timeSigNumerator, den);
-    }
+    int getTimeSigDenominator() const;
+    void setTimeSigDenominator(int den);
     
     int getLastSelectedTrack() const { return lastSelectedTrack; }
 
@@ -164,6 +174,10 @@ public:
     std::vector<AnyClipPtr> getClipsOnTrack(int trackIndex) const;
     void resolveCrossfades(int trackIndex);
     double getTotalDurationSamples() const;
+    
+    // Plugins
+    void addPluginToTrack(int trackIndex, std::shared_ptr<Plugin> plugin);
+    void setInstrumentForTrack(int trackIndex, std::shared_ptr<Plugin> plugin);
     
     // Clipboard & Duplication
     void copySelectedClips();
@@ -175,9 +189,18 @@ public:
     void setSelectedClip(AnyClipPtr clip);
     AnyClipPtr getSelectedClip() const;
 
+    // Markers
+    void addMarker(const MarkerModel& marker);
+    void removeMarker(int index);
+    int getNumMarkers() const;
+    MarkerModel getMarker(int index) const;
+    void moveMarker(int index, double newPositionSamples);
+    void setMarkerName(int index, const juce::String& newName);
+
 private:
-    std::vector<TrackModel> tracks;
-    std::vector<std::vector<AnyClipPtr>> trackClips;
+    juce::ValueTree state;
+    juce::UndoManager undoManager; // Internal for state changes, or passed in
+
     juce::ListenerList<Listener> listeners;
     juce::SparseSet<int> selectedTracks;
     int lastSelectedTrack = -1; // For shift-select logic
@@ -188,12 +211,24 @@ private:
     double timeSelectionEndSamples = -1.0;
     juce::SparseSet<int> timeSelectedTracks;
 
-    juce::String projectName = "Untitled Project";
-    juce::String keySignature = "C MAJ";
-    int timeSigNumerator = 4;
-    int timeSigDenominator = 4;
-    
     bool multiArmingEnabled = false;
+
+    // We maintain a cache of clips to avoid recreating Clip objects constantly, mimicking Tracktion's ValueTreeObjectList
+    std::vector<std::vector<AnyClipPtr>> cachedClips;
+    void refreshCachedClips();
+    
+    std::vector<std::vector<std::shared_ptr<Plugin>>> cachedPlugins;
+    std::vector<std::shared_ptr<Plugin>> cachedInstruments;
+
+    // ValueTree::Listener
+    void valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged, const juce::Identifier& property) override;
+    void valueTreeChildAdded(juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenAdded) override;
+    void valueTreeChildRemoved(juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved) override;
+    void valueTreeChildOrderChanged(juce::ValueTree& parentTreeWhoseChildrenHaveMoved, int oldIndex, int newIndex) override;
+    void valueTreeParentChanged(juce::ValueTree& treeWhoseParentHasChanged) override {}
+
+    juce::ValueTree getTrackTree(int index) const;
+    TrackModel trackModelFromTree(const juce::ValueTree& vt) const;
 };
 
 } // namespace Nimbus

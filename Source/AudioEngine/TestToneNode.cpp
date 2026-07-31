@@ -3,30 +3,29 @@
 
 namespace Nimbus {
 
-TestToneNode::TestToneNode() = default;
+TestToneNode::TestToneNode() {}
 
-void TestToneNode::prepareToPlay(double sampleRate, int /*maximumExpectedSamplesPerBlock*/) {
+void TestToneNode::prepare(double sampleRate, int /*maximumExpectedSamplesPerBlock*/) {
     currentSampleRate = sampleRate;
+    
+    // Calculate cycles per sample
     auto cyclesPerSample = frequency / currentSampleRate;
     angleDelta = cyclesPerSample * juce::MathConstants<double>::twoPi;
 }
 
-void TestToneNode::releaseResources() {
-}
-
-void TestToneNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& /*midiMessages*/) {
-    auto numSamples = buffer.getNumSamples();
-    auto numChannels = buffer.getNumChannels();
-
-    // Generate a simple sine wave and mix it into the buffer
-    for (int sample = 0; sample < numSamples; ++sample) {
-        auto currentSample = static_cast<float>(std::sin(currentAngle) * level);
+void TestToneNode::process(const ProcessContext& context) {
+    if (!context.buffer) return;
+    
+    auto* leftChannel = context.buffer->getWritePointer(0);
+    auto* rightChannel = context.buffer->getNumChannels() > 1 ? context.buffer->getWritePointer(1) : nullptr;
+    
+    for (int i = 0; i < context.buffer->getNumSamples(); ++i) {
+        auto currentSample = (float) (std::sin(currentAngle) * level);
+        
         currentAngle += angleDelta;
         
-        for (int channel = 0; channel < numChannels; ++channel) {
-            // Add to the existing buffer contents
-            buffer.addSample(channel, sample, currentSample);
-        }
+        if (leftChannel)  leftChannel[i] = currentSample;
+        if (rightChannel) rightChannel[i] = currentSample;
     }
 }
 

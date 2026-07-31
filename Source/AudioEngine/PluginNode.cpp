@@ -2,8 +2,8 @@
 
 namespace Nimbus {
 
-PluginNode::PluginNode(std::unique_ptr<juce::AudioPluginInstance> instance)
-    : pluginInstance(std::move(instance))
+PluginNode::PluginNode(juce::AudioPluginInstance* instance)
+    : pluginInstance(instance)
 {
     // A real DAW would handle latency compensation here, but we keep it simple for now.
 }
@@ -15,30 +15,25 @@ PluginNode::~PluginNode() {
     }
 }
 
-void PluginNode::prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) {
+void PluginNode::prepare(double sampleRate, int maximumExpectedSamplesPerBlock) {
+    Node::prepare(sampleRate, maximumExpectedSamplesPerBlock);
     if (pluginInstance) {
         pluginInstance->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
         isPrepared = true;
     }
 }
 
-void PluginNode::releaseResources() {
-    if (pluginInstance) {
-        pluginInstance->releaseResources();
-        isPrepared = false;
-    }
+void PluginNode::process(const ProcessContext& context) {
+    if (!pluginInstance || !isPrepared || bypassed) return;
+    if (!context.buffer || !context.midiMessages) return;
+
+    pluginInstance->processBlock(*context.buffer, *context.midiMessages);
 }
 
-void PluginNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
-    if (!pluginInstance || !isPrepared || bypassed) return;
-
-    // The JUCE processBlock expects an AudioBuffer and MidiBuffer.
-    // If the plugin acts as an instrument, it might replace the buffer.
-    // If it's an effect, it processes it in-place.
-    
-    // Some plugins expect the exact number of channels they were initialized with,
-    // but JUCE's AudioPluginInstance wrapper usually handles channel mapping inside.
-    pluginInstance->processBlock(buffer, midiMessages);
+int PluginNode::getLatencySamples() const {
+    if (pluginInstance)
+        return pluginInstance->getLatencySamples();
+    return 0;
 }
 
 } // namespace Nimbus

@@ -74,25 +74,24 @@ double Transport::getSampleRate() const {
 }
 
 double Transport::getTempo() const {
-    return tempo.load(std::memory_order_relaxed);
+    return tempoSequence.getTempo();
 }
 
 void Transport::setTempo(double newTempo) {
-    tempo.store(newTempo, std::memory_order_relaxed);
+    tempoSequence.setTempo(newTempo);
     juce::MessageManager::callAsync([this, newTempo]() { listeners.call(&Listener::transportTempoChanged, newTempo); });
 }
 
 int Transport::getTimeSignatureNumerator() const {
-    return timeSigNumerator.load(std::memory_order_relaxed);
+    return tempoSequence.getTimeSigNumerator();
 }
 
 int Transport::getTimeSignatureDenominator() const {
-    return timeSigDenominator.load(std::memory_order_relaxed);
+    return tempoSequence.getTimeSigDenominator();
 }
 
 void Transport::setTimeSignature(int numerator, int denominator) {
-    timeSigNumerator.store(numerator, std::memory_order_relaxed);
-    timeSigDenominator.store(denominator, std::memory_order_relaxed);
+    tempoSequence.setTimeSignature(numerator, denominator);
 }
 
 void Transport::advancePosition(int numSamples) {

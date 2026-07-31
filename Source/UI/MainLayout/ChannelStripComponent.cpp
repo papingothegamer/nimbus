@@ -39,11 +39,18 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
     nameLabel.setJustificationType(juce::Justification::centred);
     nameLabel.setEditable(true, false, false);
     nameLabel.addListener(this);
+    
+    if (!master) {
+        addAndMakeVisible(numberLabel);
+        numberLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(10.0f).boldened());
+        numberLabel.setColour(juce::Label::textColourId, DesignSystem::Colors::TextSecondary);
+        numberLabel.setJustificationType(juce::Justification::centred);
+    }
 
     addAndMakeVisible(inputComboBox);
     int itemIndex = 1;
     inputComboBox.addItem("No Input", itemIndex++);
-    if (auto* device = engine.getAudioDeviceManager().getJuceAudioDeviceManager().getCurrentAudioDevice()) {
+    if (auto* device = engine.getAudioDeviceManager().getDeviceManager().getCurrentAudioDevice()) {
         auto activeChannels = device->getActiveInputChannels();
         auto channelNames = device->getInputChannelNames();
         for (int i = 0; i < channelNames.size(); ++i) {
@@ -76,12 +83,9 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
     else meteredFader.setTrackType(UI::MeteredFader::TrackType::MonoAudio);
     
     addAndMakeVisible(pan);
-    pan.getProperties().set("isPan", true);
-    pan.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
-    pan.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
-    pan.setRange(-1.0, 1.0, 0.01);
-    pan.setDoubleClickReturnValue(true, 0.0);
-    pan.onValueChange = [this] { engine.getTimelineProject().setTrackPan(trackIndex, static_cast<float>(pan.getValue())); };
+    pan.setLabelsVisible(false);
+    pan.getSlider().getProperties().set("isPan", true);
+    pan.getSlider().onValueChange = [this] { engine.getTimelineProject().setTrackPan(trackIndex, static_cast<float>(pan.getSlider().getValue())); };
     
     meteredFader.getSlider().setDoubleClickReturnValue(true, 0.0);
     meteredFader.getSlider().onValueChange = [this]() {
@@ -90,9 +94,7 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
         if (trackIndex != -1) {
             engine.getTimelineProject().setTrackVolume(trackIndex, vol);
         } else if (master) {
-            if (auto* mixer = engine.getMixer()) {
-                mixer->setMasterVolume(vol);
-            }
+            engine.getTimelineProject().setMasterVolume(vol);
         }
     };
 
@@ -105,16 +107,20 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
         soloButton.setClickingTogglesState(true);
         armButton.setClickingTogglesState(true);
         
-        muteButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
-        muteButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::orange);
+        muteButton.setButtonStyle(juce::DrawableButton::ImageOnButtonBackground);
+        soloButton.setButtonStyle(juce::DrawableButton::ImageOnButtonBackground);
+        armButton.setButtonStyle(juce::DrawableButton::ImageOnButtonBackground);
+        
+        muteButton.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
+        muteButton.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colours::orange);
         applySvgToButton(muteButton, DesignSystem::Iconography::VolumeOff, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::Unmute, juce::Colours::white);
         
-        soloButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
-        soloButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::yellow);
+        soloButton.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
+        soloButton.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colour(0xfffdb913)); // Yellow
         applySvgToButton(soloButton, DesignSystem::Iconography::Solo, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::Solo, juce::Colours::black);
         
-        armButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
-        armButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::red);
+        armButton.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
+        armButton.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colours::red);
         applySvgToButton(armButton, DesignSystem::Iconography::RecordArm, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::RecordArm, juce::Colours::white);
         
         muteButton.onClick = [this] { engine.getTimelineProject().setTrackMuted(trackIndex, muteButton.getToggleState()); };
@@ -131,7 +137,8 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
             muteButton.setVisible(false);
             soloButton.setVisible(true);
             armButton.setVisible(false);
-            pan.setVisible(false);
+            // Master should have pan knob
+            pan.setVisible(true);
             inputComboBox.setVisible(false);
             meteredFader.setTrackType(UI::MeteredFader::TrackType::StereoAudio);
             meteredFader.setVisible(true);
@@ -140,8 +147,9 @@ ChannelStripComponent::ChannelStripComponent(NimbusEngine& e, const juce::String
     } else {
         addAndMakeVisible(soloButton);
         soloButton.setClickingTogglesState(true);
-        soloButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
-        soloButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::yellow);
+        soloButton.setButtonStyle(juce::DrawableButton::ImageOnButtonBackground);
+        soloButton.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
+        soloButton.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colour(0xfffdb913)); // Yellow
         applySvgToButton(soloButton, DesignSystem::Iconography::Solo, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::Solo, juce::Colours::black);
     }
 
@@ -157,6 +165,8 @@ ChannelStripComponent::~ChannelStripComponent() {
 void ChannelStripComponent::setTrackIndex(int index) {
     trackIndex = index;
     if (trackIndex != -1 && !master) {
+        numberLabel.setText(juce::String(trackIndex + 1), juce::dontSendNotification);
+        
         const auto& track = engine.getTimelineProject().getTrack(trackIndex);
         
         int inputChannel = engine.getTimelineProject().getTrackInputChannel(trackIndex);
@@ -177,7 +187,7 @@ void ChannelStripComponent::setTrackIndex(int index) {
 
         float db = juce::Decibels::gainToDecibels(track.volume, -60.0f);
         meteredFader.getSlider().setValue(db, juce::dontSendNotification);
-        pan.setValue(track.pan, juce::dontSendNotification);
+        pan.setValue(track.pan);
         
         if (track.isMidi) {
             meteredFader.setVisible(false);
@@ -211,16 +221,17 @@ void ChannelStripComponent::trackNameChanged(int track, const juce::String& newN
     if (track == trackIndex && !master && !nameLabel.isBeingEdited()) nameLabel.setText(newName, juce::dontSendNotification);
 }
 
-void ChannelStripComponent::setLevelProvider(std::function<float()> provider) { levelProvider = std::move(provider); }
-
 void ChannelStripComponent::updateMeters() {
     if (levelProvider) {
-        float currentDb = juce::Decibels::gainToDecibels(levelProvider(), -60.0f);
-        float normalized = (currentDb + 60.0f) / 70.0f;
-        normalized = juce::jlimit(0.0f, 1.0f, normalized);
+        auto levels = levelProvider();
+        float currentDbL = juce::Decibels::gainToDecibels(levels.first, -60.0f);
+        float currentDbR = juce::Decibels::gainToDecibels(levels.second, -60.0f);
         
-        if (midiMeter.isVisible()) midiMeter.setLevel(normalized);
-        else meteredFader.setLevel(normalized, normalized);
+        float normalizedL = juce::jlimit(0.0f, 1.0f, (currentDbL + 60.0f) / 70.0f);
+        float normalizedR = juce::jlimit(0.0f, 1.0f, (currentDbR + 60.0f) / 70.0f);
+        
+        if (midiMeter.isVisible()) midiMeter.setLevel(normalizedL);
+        else meteredFader.setLevel(normalizedL, normalizedR);
     }
 }
 
@@ -244,15 +255,18 @@ void ChannelStripComponent::resized() {
         if (groupIndicator.isVisible()) groupIndicator.setBounds(bounds.removeFromBottom(8));
     } else groupIndicator.setVisible(false);
     
-    nameLabel.setBounds(bounds.removeFromTop(18));
+    auto topRow = bounds.removeFromTop(18);
+    if (!master) numberLabel.setBounds(topRow.removeFromLeft(16));
+    nameLabel.setBounds(topRow);
+    
     if (!master) {
         inputComboBox.setBounds(bounds.removeFromTop(18).reduced(2, 0));
         bounds.removeFromTop(2);
     }
     routingComboBox.setBounds(bounds.removeFromBottom(18).reduced(2, 0));
     
-    pan.setBounds(bounds.removeFromTop(36).reduced(8, 0));
-    bounds.removeFromTop(8); 
+    pan.setBounds(bounds.removeFromTop(55).reduced(4, 0));
+    bounds.removeFromTop(6); 
     
     auto faderArea = bounds.removeFromRight(28).reduced(0, 4);
     if (midiMeter.isVisible()) midiMeter.setBounds(faderArea);
@@ -318,7 +332,7 @@ void ChannelStripComponent::trackVolumeChanged(int track, float volume) {
 }
 
 void ChannelStripComponent::trackPanChanged(int track, float panValue) {
-    if (track == trackIndex) pan.setValue(panValue, juce::dontSendNotification);
+    if (track == trackIndex) pan.setValue(panValue);
 }
 
 void ChannelStripComponent::trackInputChannelChanged(int track, int inputChannel) {

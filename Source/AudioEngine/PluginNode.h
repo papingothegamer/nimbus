@@ -1,32 +1,32 @@
 #pragma once
 
-#include "IAudioNode.h"
-#include <juce_audio_processors/juce_audio_processors.h>
+#include "Nodes/Node.h"
+#include <JuceHeader.h>
 #include <memory>
-#include <mutex>
+#include <atomic>
 
 namespace Nimbus {
 
 /**
- * Wraps a juce::AudioPluginInstance into our IAudioNode graph system.
+ * Wraps a juce::AudioPluginInstance into our Node graph system.
  */
-class PluginNode : public IAudioNode {
+class PluginNode : public Node {
 public:
-    // Takes ownership of the plugin instance.
-    PluginNode(std::unique_ptr<juce::AudioPluginInstance> instance);
+    PluginNode(juce::AudioPluginInstance* pluginInstance);
     ~PluginNode() override;
 
-    void prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) override;
-    void releaseResources() override;
-    void processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) override;
+    // Node
+    void prepare(double sampleRate, int maximumExpectedSamplesPerBlock) override;
+    void process(const ProcessContext& context) override;
+    int getLatencySamples() const override;
 
-    juce::AudioPluginInstance* getPluginInstance() const { return pluginInstance.get(); }
+    juce::AudioPluginInstance* getPluginInstance() const { return pluginInstance; }
     
     bool isBypassed() const { return bypassed; }
     void setBypassed(bool b) { bypassed = b; }
 
 private:
-    std::unique_ptr<juce::AudioPluginInstance> pluginInstance;
+    juce::AudioPluginInstance* pluginInstance = nullptr;
     bool isPrepared = false;
     bool bypassed = false;
 };

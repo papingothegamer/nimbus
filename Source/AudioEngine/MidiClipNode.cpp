@@ -2,17 +2,12 @@
 
 namespace Nimbus {
 
-MidiClipNode::MidiClipNode(std::shared_ptr<MidiClip> clip, ITransport& t)
-    : midiClip(std::move(clip)), transport(t) {
+MidiClipNode::MidiClipNode(std::shared_ptr<MidiClip> clip)
+    : midiClip(std::move(clip)) {
 }
 
-void MidiClipNode::prepareToPlay(double sampleRate, int /*maximumExpectedSamplesPerBlock*/) {
+void MidiClipNode::prepare(double sampleRate, int /*maximumExpectedSamplesPerBlock*/) {
     sampleRate_ = sampleRate;
-}
-
-void MidiClipNode::releaseResources() {
-    juce::MidiBuffer dummy;
-    turnOffActiveNotes(dummy, 0);
 }
 
 void MidiClipNode::turnOffActiveNotes(juce::MidiBuffer& midiMessages, int sampleOffset) {
@@ -22,22 +17,24 @@ void MidiClipNode::turnOffActiveNotes(juce::MidiBuffer& midiMessages, int sample
     activeNotes.clear();
 }
 
-void MidiClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
-    int numSamples = buffer.getNumSamples();
+void MidiClipNode::process(const ProcessContext& context) {
+    if (!context.buffer || !context.midiMessages) return;
+    
+    int numSamples = context.buffer->getNumSamples();
 
-    if (!transport.isPlaying() || !midiClip) {
+    if (!context.isPlaying || !midiClip) {
         if (!activeNotes.isEmpty()) {
-            turnOffActiveNotes(midiMessages, 0);
+            turnOffActiveNotes(*context.midiMessages, 0);
         }
-        lastTransportPos = -1.0;
+        lastProcessedTransportPos = -1.0;
         return;
     }
 
-    double currentPos = transport.getCurrentPosition();
+    double currentPos = context.currentPositionSamples;
     
     // Check if transport jumped/seeked
     if (lastTransportPos >= 0.0 && std::abs(currentPos - lastTransportPos) > numSamples + 10) {
-        turnOffActiveNotes(midiMessages, 0);
+        turnOffActiveNotes(*context.midiMessages, 0);
     }
     
     double nextPos = currentPos + numSamples;
@@ -49,7 +46,7 @@ void MidiClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuff
     // If we are completely outside the clip
     if (nextPos <= clipStart || currentPos >= clipEnd) {
         if (!activeNotes.isEmpty()) {
-            turnOffActiveNotes(midiMessages, 0);
+            turnOffActiveNotes(*context.midiMessages, 0);
         }
         return;
     }
@@ -69,7 +66,7 @@ void MidiClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuff
             int sampleOffset = juce::roundToInt(absoluteTime - currentPos);
             sampleOffset = juce::jlimit(0, numSamples - 1, sampleOffset);
             
-            midiMessages.addEvent(msg, sampleOffset);
+            context.midiMessages->addEvent(msg, sampleOffset);
             
             if (msg.isNoteOn()) {
                 activeNotes.addIfNotAlreadyThere(msg.getNoteNumber());
@@ -83,7 +80,7 @@ void MidiClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuff
     if (nextPos >= clipEnd && currentPos < clipEnd) {
         int offset = juce::roundToInt(clipEnd - currentPos);
         offset = juce::jlimit(0, numSamples - 1, offset);
-        turnOffActiveNotes(midiMessages, offset);
+        turnOffActiveNotes(*context.midiMessages, offset);
     }
 }
 

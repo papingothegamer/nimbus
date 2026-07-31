@@ -10,15 +10,10 @@ FetchContent_MakeAvailable(catch2)
 # Create the test executable
 add_executable(NimbusTests
     Main.cpp
-    AudioEngine/AudioGraphTests.cpp
-    AudioEngine/MixerTests.cpp
     AudioEngine/AudioRingBufferTests.cpp
     Concurrency/LockFreeQueueTests.cpp
-    ../Source/AudioEngine/AudioGraph.cpp
-    ../Source/AudioEngine/Track.cpp
     ../Source/AudioEngine/AudioRecorder.cpp
     ../Source/AudioEngine/MidiRecorder.cpp
-    ../Source/AudioEngine/Mixer.cpp
     ../Source/AudioEngine/AudioClipNode.cpp
     ../Source/AudioEngine/DiskStreaming/DiskStreamer.cpp
     ../Source/AudioEngine/Transport.cpp
@@ -27,6 +22,7 @@ add_executable(NimbusTests
     ../Source/DataModel/AudioClip.cpp
     ../Source/DataModel/MidiClip.cpp
     ../Source/DataModel/TimelineProject.cpp
+    ../Source/DataModel/TempoSequence.cpp
 )
 
 # Link Catch2 and JUCE modules

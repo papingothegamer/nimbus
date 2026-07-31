@@ -6,7 +6,8 @@ AudioClipNode::AudioClipNode(std::shared_ptr<AudioClip> clip, std::shared_ptr<Di
     : clipModel(std::move(clip)), diskStreamer(std::move(streamer)), globalTransport(transport) {
 }
 
-void AudioClipNode::prepareToPlay(double /*sampleRate*/, int /*maximumExpectedSamplesPerBlock*/) {
+void AudioClipNode::prepare(double sampleRate, int blockSize) {
+    Node::prepare(sampleRate, blockSize);
     if (diskStreamer && !diskStreamer->isThreadRunning()) {
         diskStreamer->requestSeek(clipModel->sourceOffsetSamples.get());
         diskStreamer->startStreaming();
@@ -19,7 +20,11 @@ void AudioClipNode::releaseResources() {
     }
 }
 
-void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& /*midiMessages*/) {
+void AudioClipNode::process(const ProcessContext& context) {
+    auto* bufferPtr = context.buffer;
+    if (!bufferPtr) return;
+    auto& buffer = *bufferPtr;
+    
     if (!diskStreamer || !diskStreamer->isReady() || !globalTransport.isPlaying()) {
         buffer.clear();
         lastProcessedTransportPos = -1;
@@ -71,7 +76,7 @@ void AudioClipNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuf
             }
         }
         
-        double pitchRatio = std::pow(2.0, clipModel->pitchShiftSemitones.get() / 12.0);
+        double pitchRatio = std::pow(2.0, static_cast<double>(clipModel->pitchShiftSemitones.get()) / 12.0);
         
         // The position inside the audio file corresponding to the first sample we need to render
         double timeIntoClip = (currentTransportPos + renderStartOffset) - clipStart;

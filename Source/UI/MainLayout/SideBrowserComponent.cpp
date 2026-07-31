@@ -4,6 +4,7 @@
 #include "UI/DesignSystem/Iconography.h"
 #include <algorithm>
 #include "Core/Plugins/StockPluginFactory.h"
+#include "Core/Plugins/Plugin.h"
 
 namespace Nimbus::MainLayout {
 
@@ -143,15 +144,8 @@ public:
             juce::String err;
             auto instance = engine.getPluginManager().loadPlugin(desc.fileOrIdentifier, err);
             if (instance != nullptr) {
-                auto node = std::make_unique<PluginNode>(std::move(instance));
-                auto track = engine.getMixer()->getTrack(trackIndex);
-                if (track) {
-                    if (desc.isInstrument) {
-                        track->setInstrumentPlugin(std::move(node));
-                    } else {
-                        track->addInsertPlugin(std::move(node));
-                    }
-                }
+                auto plugin = std::make_unique<ExternalPlugin>(std::move(instance), desc);
+                engine.getTimelineProject().addPluginToTrack(trackIndex, std::move(plugin));
             } else {
                 juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::WarningIcon, "Plugin Load Error", err);
             }
@@ -410,14 +404,11 @@ public:
         auto selectedTracks = engine.getTimelineProject().getSelectedTracks();
         if (!selectedTracks.isEmpty()) {
             int trackIndex = selectedTracks.getRange(0).getStart();
-            auto track = engine.getMixer()->getTrack(trackIndex);
-            if (track) {
-                auto node = StockPluginFactory::createPlugin(item.pluginName);
-                if (node) {
-                    if (node->isMidiEffect()) track->addMidiInsertPlugin(std::move(node));
-                    else track->addInsertPlugin(std::move(node));
-                }
-            }
+            auto stockPlugin = std::make_unique<InternalPlugin>(
+                StockPluginFactory::createPlugin(item.pluginName), 
+                juce::PluginDescription()
+            );
+            engine.getTimelineProject().addPluginToTrack(trackIndex, std::move(stockPlugin));
         }
     }
 
@@ -433,7 +424,7 @@ PreviewPlayerComponent::PreviewPlayerComponent(NimbusEngine& e)
     : engine(e), thumbnail(512, engine.getFormatManager(), engine.getThumbnailCache()) {
     
     audioSourcePlayer.setSource(&transportSource);
-    engine.getAudioDeviceManager().getJuceAudioDeviceManager().addAudioCallback(&audioSourcePlayer);
+    engine.getAudioDeviceManager().getDeviceManager().addAudioCallback(&audioSourcePlayer);
     
     // Use solo (headphones) icon for the preview button
     int size = 0;
@@ -459,7 +450,7 @@ PreviewPlayerComponent::PreviewPlayerComponent(NimbusEngine& e)
 }
 
 PreviewPlayerComponent::~PreviewPlayerComponent() {
-    engine.getAudioDeviceManager().getJuceAudioDeviceManager().removeAudioCallback(&audioSourcePlayer);
+    engine.getAudioDeviceManager().getDeviceManager().removeAudioCallback(&audioSourcePlayer);
     audioSourcePlayer.setSource(nullptr);
     transportSource.setSource(nullptr);
 }

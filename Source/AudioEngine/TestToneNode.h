@@ -1,18 +1,17 @@
 #pragma once
 
-#include "IAudioNode.h"
+#include "Nodes/Node.h"
 #include <cmath>
 
 namespace Nimbus {
 
-class TestToneNode : public IAudioNode {
+class TestToneNode : public Node {
 public:
     TestToneNode();
     ~TestToneNode() override = default;
 
-    void prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) override;
-    void releaseResources() override;
-    void processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) override;
+    void prepare(double sampleRate, int maximumExpectedSamplesPerBlock) override;
+    void process(const ProcessContext& context) override;
 
 private:
     double currentSampleRate = 44100.0;

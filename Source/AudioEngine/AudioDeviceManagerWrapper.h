@@ -1,33 +1,20 @@
 #pragma once
 
 #include <juce_audio_devices/juce_audio_devices.h>
-#include "AudioGraph.h"
 #include "Transport.h"
 
 namespace Nimbus {
 
 /**
- * Wraps juce::AudioDeviceManager and feeds the AudioGraph.
+ * Wraps juce::AudioDeviceManager and handles MIDI inputs.
  */
-class AudioDeviceManagerWrapper : public juce::AudioIODeviceCallback,
-                                  public juce::MidiInputCallback,
+class AudioDeviceManagerWrapper : public juce::MidiInputCallback,
                                   public juce::ChangeListener {
 public:
-    AudioDeviceManagerWrapper(AudioGraph& mainGraph, Transport& transport);
+    AudioDeviceManagerWrapper();
     ~AudioDeviceManagerWrapper() override;
 
     void initialise();
-
-    // juce::AudioIODeviceCallback
-    void audioDeviceIOCallbackWithContext(const float* const* inputChannelData,
-                                          int numInputChannels,
-                                          float* const* outputChannelData,
-                                          int numOutputChannels,
-                                          int numSamples,
-                                          const juce::AudioIODeviceCallbackContext& context) override;
-    
-    void audioDeviceAboutToStart(juce::AudioIODevice* device) override;
-    void audioDeviceStopped() override;
 
     // juce::MidiInputCallback
     void handleIncomingMidiMessage(juce::MidiInput* source, const juce::MidiMessage& message) override;
@@ -37,14 +24,10 @@ public:
     // juce::ChangeListener
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
 
-    juce::AudioDeviceManager& getJuceAudioDeviceManager() { return deviceManager; }
+    juce::AudioDeviceManager& getDeviceManager() { return deviceManager; }
 
 private:
-    AudioGraph& graph;
-    Transport& globalTransport;
     juce::AudioDeviceManager deviceManager;
-    juce::AudioBuffer<float> processBuffer;
-    juce::MidiBuffer liveMidiBuffer;
     juce::MidiMessageCollector midiCollector;
 };
 

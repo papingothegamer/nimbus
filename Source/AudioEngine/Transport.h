@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ITransport.h"
+#include "../DataModel/TempoSequence.h"
 #include <atomic>
 #include <juce_events/juce_events.h>
 
@@ -56,14 +57,15 @@ public:
     // Called by the Audio Engine on sample rate change
     void setSampleRate(double newSampleRate);
 
+    TempoSequence& getTempoSequence() { return tempoSequence; }
+    const TempoSequence& getTempoSequence() const { return tempoSequence; }
+
 private:
+    TempoSequence tempoSequence;
     std::atomic<bool> playing{false};
     std::atomic<bool> recording{false};
     std::atomic<double> currentPosition{0.0};
     std::atomic<double> sampleRate{44100.0};
-    std::atomic<double> tempo{120.0};
-    std::atomic<int> timeSigNumerator{4};
-    std::atomic<int> timeSigDenominator{4};
     
     std::atomic<bool> looping{false};
     std::atomic<double> loopStartSamples{0.0};

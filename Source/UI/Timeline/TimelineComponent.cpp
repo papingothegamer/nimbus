@@ -92,6 +92,34 @@ void SeekingBarComponent::paint(juce::Graphics& g) {
             }
         }
     }
+
+    // Draw Markers
+    double sampleRate = engine.getTransport().getSampleRate();
+    if (sampleRate <= 0.0) sampleRate = 48000.0;
+    
+    int numMarkers = engine.getTimelineProject().getNumMarkers();
+    for (int i = 0; i < numMarkers; ++i) {
+        auto marker = engine.getTimelineProject().getMarker(i);
+        double posSeconds = marker.positionSamples / sampleRate;
+        float x = static_cast<float>(posSeconds * pixelsPerSecond - scrollOffsetX);
+        
+        if (x >= 0 && x < getWidth()) {
+            g.setColour(marker.color);
+            // Draw marker flag
+            juce::Path p;
+            p.addTriangle(x, 0.0f, x + 8.0f, 0.0f, x, 8.0f);
+            g.fillPath(p);
+            
+            g.drawLine(x, 0.0f, x, static_cast<float>(getHeight()), 1.5f);
+            
+            // Draw marker name
+            if (pixelsPerBar > 30.0) { // Only if not too zoomed out
+                g.setFont(juce::Font(10.0f).boldened());
+                g.drawText(marker.name.isEmpty() ? juce::String(i + 1) : marker.name, 
+                           static_cast<int>(x) + 4, 1, 100, 10, juce::Justification::topLeft, false);
+            }
+        }
+    }
 }
 
 void SeekingBarComponent::mouseDown(const juce::MouseEvent& event) {

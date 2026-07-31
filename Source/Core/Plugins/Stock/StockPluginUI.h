@@ -147,17 +147,27 @@ public:
     }
     
     void paint(juce::Graphics& g) override {
-        g.setColour(DesignSystem::Colors::TextSecondary);
-        g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(11.0f));
-        g.drawText(paramName, getLocalBounds().removeFromTop(16), juce::Justification::centred, false);
+        if (labelsVisible) {
+            g.setColour(DesignSystem::Colors::TextSecondary);
+            g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(11.0f));
+            g.drawText(paramName, getLocalBounds().removeFromTop(16), juce::Justification::centred, false);
+        }
     }
     
     void resized() override {
         auto bounds = getLocalBounds();
-        bounds.removeFromTop(16); // label space
+        if (labelsVisible) bounds.removeFromTop(16); // label space
         int size = juce::jmin(bounds.getWidth(), bounds.getHeight());
-        if (size > 80) size = 80;
+        // Max size bound removed so pan knob can fill space
         slider.setBounds(bounds.getCentreX() - size/2, bounds.getY() + (bounds.getHeight() - size)/2, size, size);
+    }
+    
+    void setLabelsVisible(bool visible) {
+        labelsVisible = visible;
+        if (!visible) slider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+        else slider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 16);
+        resized();
+        repaint();
     }
     
 private:
@@ -165,6 +175,7 @@ private:
     juce::String paramName;
     juce::Slider slider;
     std::function<void(float)> callback;
+    bool labelsVisible = true;
 };
 
 class PluginHeader : public juce::Component {

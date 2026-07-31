@@ -5,6 +5,7 @@
 #include "UI/Mixer/GroupIndicatorComponent.h"
 #include "UI/Mixer/MeteredFader.h"
 #include "UI/Mixer/MidiActivityMeter.h"
+#include "Core/Plugins/Stock/StockPluginUI.h"
 
 namespace Nimbus::MainLayout {
 
@@ -17,7 +18,7 @@ public:
     void resized() override;
     void mouseDown(const juce::MouseEvent& event) override;
 
-    void setLevelProvider(std::function<float()> provider);
+    void setLevelProvider(std::function<std::pair<float, float>()> provider) { levelProvider = provider; }
     void updateMeters();
 
     void trackVolumeChanged(int track, float volume) override;
@@ -43,10 +44,11 @@ private:
     bool selected = false;
 
     juce::Label nameLabel;
+    juce::Label numberLabel;
     juce::ComboBox inputComboBox;
     juce::ComboBox routingComboBox;
     
-    juce::Slider pan;
+    Nimbus::PluginDial pan{"Pan", -1.0, 1.0, 0.0, "", nullptr};
     UI::MeteredFader meteredFader;
     UI::MidiActivityMeter midiMeter;
     
@@ -56,8 +58,9 @@ private:
 
     // FIX: Removed the incorrect 'Timeline::' namespace prefix
     UI::GroupIndicatorComponent groupIndicator;
+    juce::Label inputLabel;
 
-    std::function<float()> levelProvider;
+    std::function<std::pair<float, float>()> levelProvider;
     float currentLevel = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChannelStripComponent)

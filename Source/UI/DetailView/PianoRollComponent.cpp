@@ -726,10 +726,13 @@ void PianoRollContent::mouseUp(const juce::MouseEvent& event) {
     }
     if (draggedEventIndex != -1 && !isResizing && !isDraggingVelocity) {
         int trackIndex = engine.getTimelineProject().getSelectedTracks().getRange(0).getStart();
+        // TODO: Phase 4
+        /*
         if (auto* track = engine.getMixer()->getTrack(trackIndex)) {
             juce::MidiMessage shortOff = juce::MidiMessage::noteOff(1, dragStartNoteNumber, (juce::uint8)0);
             track->addLiveMidiMessage(shortOff);
         }
+        */
     }
     isDraggingVelocity = false;
     draggedEventIndex = -1;

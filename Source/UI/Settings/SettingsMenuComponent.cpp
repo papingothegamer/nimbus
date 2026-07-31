@@ -54,13 +54,20 @@ GeneralSettingsComponent::GeneralSettingsComponent(NimbusEngine& e) : engine(e) 
     pluginsDirEditor.setText("C:\\Program Files\\Common Files\\VST3");
     addAndMakeVisible(pluginsDirBrowseBtn);
     pluginsDirBrowseBtn.onClick = [this] {
-        // Mock browse logic
+        static std::unique_ptr<juce::FileChooser> chooser;
+        chooser = std::make_unique<juce::FileChooser>("Select Plugins Directory", juce::File::getSpecialLocation(juce::File::userHomeDirectory), "");
+        chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories, [this](const juce::FileChooser& fc) {
+            auto result = fc.getResult();
+            if (result.exists() && result.isDirectory()) {
+                pluginsDirEditor.setText(result.getFullPathName());
+            }
+        });
     };
 
     addAndMakeVisible(scanPluginsBtn);
     scanPluginsBtn.onClick = [this] {
         if (!engine.getPluginManager().isScanning()) {
-            engine.getPluginManager().startScanning();
+            engine.getPluginManager().startScanning(pluginsDirEditor.getText());
         }
     };
 }
@@ -198,7 +205,7 @@ void CustomMidiSettingsComponent::refreshDeviceList() {
         headerLabel.setText("MIDI Input Devices:", juce::dontSendNotification);
     }
 
-    auto& adm = engine.getAudioDeviceManager().getJuceAudioDeviceManager();
+    auto& adm = engine.getAudioDeviceManager().getDeviceManager();
 
     for (int i = 0; i < devices.size(); ++i) {
         auto dev = devices[i];
@@ -210,7 +217,7 @@ void CustomMidiSettingsComponent::refreshDeviceList() {
         juce::String id = dev.identifier;
         toggle->onClick = [this, id, i]() {
             bool newState = deviceToggles[i]->getToggleState();
-            engine.getAudioDeviceManager().getJuceAudioDeviceManager().setMidiInputDeviceEnabled(id, newState);
+            engine.getAudioDeviceManager().getDeviceManager().setMidiInputDeviceEnabled(id, newState);
         };
 
         addAndMakeVisible(toggle.get());
@@ -244,7 +251,7 @@ SettingsMenuComponent::SettingsMenuComponent(NimbusEngine& engineToUse)
     : engine(engineToUse),
       categoryList("SettingsCategories", this),
       // Audio Setup: hide midi options
-      audioSetupComp(engine.getAudioDeviceManager().getJuceAudioDeviceManager(),
+      audioSetupComp(engine.getAudioDeviceManager().getDeviceManager(),
                      0, 256, 0, 256, false, false, true, false),
       midiSetupComp(engine),
       generalComp(engine),

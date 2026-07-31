@@ -36,10 +36,15 @@ void PluginManager::ScannerThread::run() {
         
         auto* format = owner.formatManager.getFormat(i);
         if (format) {
+            juce::FileSearchPath searchPath = format->getDefaultLocationsToSearch();
+            if (customPath.isNotEmpty()) {
+                searchPath.add(juce::File(customPath));
+            }
+            
             juce::PluginDirectoryScanner scanner(
                 owner.knownPluginList, 
                 *format,
-                format->getDefaultLocationsToSearch(),
+                searchPath,
                 true,
                 juce::File(),
                 true
@@ -62,9 +67,10 @@ void PluginManager::ScannerThread::run() {
     }
 }
 
-void PluginManager::startScanning() {
+void PluginManager::startScanning(const juce::String& customPath) {
     if (scannerThread != nullptr && scannerThread->isThreadRunning()) return;
     scannerThread = std::make_unique<ScannerThread>(*this);
+    scannerThread->customPath = customPath;
     scannerThread->startThread();
 }
 

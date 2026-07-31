@@ -143,8 +143,8 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
 
     addAndMakeVisible(muteButton);
     muteButton.setClickingTogglesState(true);
-    muteButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
-    muteButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::orange);
+    muteButton.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
+    muteButton.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colours::orange);
     loadSvgIcon(muteButton, DesignSystem::Iconography::VolumeOff, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::Unmute, juce::Colours::white);
     muteButton.onClick = [this] {
         engine.getTimelineProject().setTrackSelected(trackIndex, true);
@@ -153,8 +153,8 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
 
     addAndMakeVisible(soloButton);
     soloButton.setClickingTogglesState(true);
-    soloButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
-    soloButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::yellow);
+    soloButton.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
+    soloButton.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colours::yellow);
     loadSvgIcon(soloButton, DesignSystem::Iconography::Solo, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::Solo, juce::Colours::black);
     soloButton.onClick = [this] {
         engine.getTimelineProject().setTrackSelected(trackIndex, true);
@@ -163,8 +163,8 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
 
     addAndMakeVisible(armButton);
     armButton.setClickingTogglesState(true);
-    armButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
-    armButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::red);
+    armButton.setColour(juce::DrawableButton::backgroundColourId, juce::Colours::transparentBlack);
+    armButton.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colours::red);
     loadSvgIcon(armButton, DesignSystem::Iconography::RecordArm, juce::Colours::white.withAlpha(0.6f), DesignSystem::Iconography::RecordArm, juce::Colours::white);
     armButton.onClick = [this] {
         engine.getTimelineProject().setTrackSelected(trackIndex, true);
@@ -176,7 +176,7 @@ TrackHeaderComponent::TrackHeaderComponent(NimbusEngine& e, int tIndex) : engine
 
 TrackHeaderComponent::~TrackHeaderComponent() {
     engine.getTimelineProject().removeListener(this);
-    engine.getAudioDeviceManager().getJuceAudioDeviceManager().removeChangeListener(this);
+    engine.getAudioDeviceManager().getDeviceManager().removeChangeListener(this);
 }
 
 void TrackHeaderComponent::labelTextChanged(juce::Label* labelThatHasChanged) {
@@ -415,7 +415,8 @@ void TrackHeaderComponent::paint(juce::Graphics& g) {
 }
 
 void TrackHeaderComponent::updateMeters() {
-    float newLevel = engine.getTrackPeakLevel(trackIndex);
+    auto levels = engine.getTrackPeakLevel(trackIndex);
+    float newLevel = std::max(levels.first, levels.second);
     if (std::abs(newLevel - currentLevel) > 0.01f) {
         currentLevel = newLevel;
         repaint();

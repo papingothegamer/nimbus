@@ -156,10 +156,18 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e), menuBar(t
 
     loadSvgIcon(playButton, DesignSystem::Iconography::Play);
     loadSvgIcon(stopButton, DesignSystem::Iconography::Stop);
-    loadToggleSvgIcon(recordButton, DesignSystem::Iconography::RecordGlobal, juce::Colours::white, juce::Colours::red);
+    
+    // Fix record button colors: transparent off, red on, white icon always
+    recordButton.setColour(juce::DrawableButton::backgroundOnColourId, juce::Colours::red);
+    loadSvgIcon(recordButton, DesignSystem::Iconography::RecordGlobal, juce::Colours::white);
+    
     loadSvgIcon(jumpStartButton, DesignSystem::Iconography::JumpStart);
     loadSvgIcon(jumpEndButton, DesignSystem::Iconography::FastForward);
-    loadToggleSvgIcon(loopButton, DesignSystem::Iconography::Loop, DesignSystem::Colors::TextSecondary, juce::Colours::white);
+    
+    // Fix loop button colors: Primary action background when ON
+    loopButton.setColour(juce::DrawableButton::backgroundOnColourId, DesignSystem::Colors::PrimaryAction);
+    loadSvgIcon(loopButton, DesignSystem::Iconography::Loop, juce::Colours::white);
+    
     loadToggleSvgIcon(metronomeToggle, DesignSystem::Iconography::Metronome, DesignSystem::Colors::TextSecondary, juce::Colours::white);
 
     transportGroupContainer.addAndMakeVisible(playButton);
@@ -412,7 +420,7 @@ void TopToolbarComponent::timerCallback() {
     followButton.setToggleState(engine.isFollowPlayheadEnabled(), juce::dontSendNotification);
 
     // Real CPU meter from JUCE AudioDeviceManager
-    cpuLoad = static_cast<float>(engine.getAudioDeviceManager().getJuceAudioDeviceManager().getCpuUsage()) * 100.0f;
+    cpuLoad = static_cast<float>(engine.getAudioDeviceManager().getDeviceManager().getCpuUsage()) * 100.0f;
     cpuMeter.updateLoad(cpuLoad);
 }
 

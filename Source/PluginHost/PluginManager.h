@@ -20,7 +20,7 @@ public:
     juce::AudioPluginFormatManager& getFormatManager() { return formatManager; }
     juce::KnownPluginList& getKnownPluginList() { return knownPluginList; }
 
-    void startScanning();
+    void startScanning(const juce::String& customPath = "");
     void stopScanning();
     bool isScanning() const;
 
@@ -30,6 +30,7 @@ private:
         ScannerThread(PluginManager& owner);
         ~ScannerThread() override;
         void run() override;
+        juce::String customPath;
     private:
         PluginManager& owner;
         std::unique_ptr<juce::PluginDirectoryScanner> scanner;

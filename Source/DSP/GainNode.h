@@ -1,7 +1,9 @@
 #pragma once
 
-#include "AudioEngine/IAudioNode.h"
+#include "AudioEngine/Nodes/Node.h"
 #include <juce_audio_basics/juce_audio_basics.h>
+#include <memory>
+#include <atomic>
 
 namespace Nimbus {
 
@@ -9,15 +11,14 @@ namespace Nimbus {
  * A basic DSP node that applies a linear gain to the audio signal.
  * Uses juce::SmoothedValue to prevent zipper noise when the gain changes.
  */
-class GainNode : public IAudioNode {
+class GainNode : public Node {
 public:
     GainNode();
     ~GainNode() override = default;
 
-    // IAudioNode
-    void prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) override;
-    void releaseResources() override;
-    void processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) override;
+    // Node
+    void prepare(double sampleRate, int maximumExpectedSamplesPerBlock) override;
+    void process(const ProcessContext& context) override;
 
     /**
      * Sets the target linear gain multiplier (e.g. 1.0 = 0dB, 0.5 = -6dB).

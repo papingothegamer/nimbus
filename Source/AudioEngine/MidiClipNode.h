@@ -1,27 +1,29 @@
 #pragma once
 
-#include "AudioEngine/IAudioNode.h"
-#include "AudioEngine/ITransport.h"
+#include "Nodes/Node.h"
 #include "DataModel/MidiClip.h"
+#include "Transport.h"
+#include <JuceHeader.h>
 #include <memory>
 
 namespace Nimbus {
 
 /**
- * Reads a MidiClip, outputs MIDI buffers, and optionally bounces to audio.
+ * An audio node that renders a MidiClip by generating MIDI messages.
+ * Position-aware via the global Transport.
  */
-class MidiClipNode : public IAudioNode {
+class MidiClipNode : public Node {
 public:
-    MidiClipNode(std::shared_ptr<MidiClip> clip, ITransport& transport);
+    MidiClipNode(std::shared_ptr<MidiClip> clip);
     ~MidiClipNode() override = default;
 
-    void prepareToPlay(double sampleRate, int maximumExpectedSamplesPerBlock) override;
-    void releaseResources() override;
-    void processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) override;
+    // Node
+    void prepare(double sampleRate, int maximumExpectedSamplesPerBlock) override;
+    void process(const ProcessContext& context) override;
 
 private:
     std::shared_ptr<MidiClip> midiClip;
-    ITransport& transport;
+    int lastProcessedTransportPos = -1;
     double sampleRate_{44100.0};
     float currentPeak{0.0f};
 

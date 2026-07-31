@@ -4,19 +4,16 @@
 #include "UI/DesignSystem/Iconography.h"
 #include "Core/Plugins/IStockPlugin.h"
 #include "Core/Plugins/StockPluginFactory.h"
+#include "../../Core/Plugins/Plugin.h"
 
 namespace Nimbus::MainLayout {
 
 class DeviceChainComponent::PluginBox : public juce::Component {
 public:
-    PluginBox(IAudioNode* pNode, Track* pTrack, NimbusEngine& e) : node(pNode), track(pTrack), engine(e) {
-        if (auto* vst = dynamic_cast<PluginNode*>(node)) {
-            if (vst->getPluginInstance()) {
-                name = vst->getPluginInstance()->getName();
-            }
-        } else if (auto* stock = dynamic_cast<IStockPlugin*>(node)) {
-            name = stock->getName();
-            embeddedEditor.reset(stock->createEditor());
+    PluginBox(std::shared_ptr<Plugin> pPlugin, int tIndex, NimbusEngine& e) : plugin(pPlugin), trackIndex(tIndex), engine(e) {
+        if (plugin) {
+            name = plugin->getName();
+            embeddedEditor.reset(plugin->createEditor());
             if (embeddedEditor) {
                 addAndMakeVisible(embeddedEditor.get());
                 editorWidth = embeddedEditor->getWidth();
@@ -42,12 +39,9 @@ public:
     }
     
     void paint(juce::Graphics& g) override {
-        if (node == nullptr) return;
+        if (!plugin) return;
         auto bounds = getLocalBounds().toFloat();
-        bool isBypassed = false;
-        
-        if (auto* vst = dynamic_cast<PluginNode*>(node)) isBypassed = vst->isBypassed();
-        else if (auto* stock = dynamic_cast<IStockPlugin*>(node)) isBypassed = stock->isBypassed();
+        bool isBypassed = plugin->isBypassed();
         
         // Sleek Main Background
         g.setColour(isBypassed ? DesignSystem::Colors::AppBackground.brighter(0.02f) 
@@ -141,7 +135,7 @@ public:
     }
     
     void mouseDown(const juce::MouseEvent& e) override {
-        if (node == nullptr) return;
+        if (!plugin) return;
         auto bounds = getLocalBounds().reduced(2);
         auto headerBounds = bounds.removeFromTop(26); // Match new header size
         
@@ -150,8 +144,7 @@ public:
         juce::Rectangle<int> settingsRect(headerBounds.getRight() - 40, headerBounds.getY() + 6, 14, 14);
         juce::Rectangle<int> deleteRect(headerBounds.getRight() - 22, headerBounds.getY() + 6, 14, 14);
         if (bypassRect.contains(e.getPosition())) {
-            if (auto* vst = dynamic_cast<PluginNode*>(node)) vst->setBypassed(!vst->isBypassed());
-            else if (auto* stock = dynamic_cast<IStockPlugin*>(node)) stock->setBypassed(!stock->isBypassed());
+            plugin->setBypassed(!plugin->isBypassed());
             repaint();
             return;
         }
@@ -176,39 +169,12 @@ public:
             
             menu.showMenuAsync(juce::PopupMenu::Options(), [this](int result) {
                 if (result == 1) { // Copy
-                    if (auto* vst = dynamic_cast<PluginNode*>(node)) {
-                        if (vst->getPluginInstance()) {
-                            auto& cb = engine.getPluginClipboard();
-                            cb.description = vst->getPluginInstance()->getPluginDescription();
-                            vst->getPluginInstance()->getStateInformation(cb.state);
-                            cb.hasData = true;
-                        }
-                    }
-                } else if (result == 2) { // Paste
                     auto& cb = engine.getPluginClipboard();
-                    if (cb.hasData && track) {
-                        juce::String err;
-                        auto newInstance = engine.getPluginManager().loadPlugin(cb.description.fileOrIdentifier, err);
-                        if (newInstance) {
-                            newInstance->setStateInformation(cb.state.getData(), (int)cb.state.getSize());
-                            auto newNode = std::make_unique<PluginNode>(std::move(newInstance));
-                            track->addInsertPlugin(std::move(newNode));
-                        }
-                    }
+                    cb.description = plugin->getDescription();
+                    cb.state = plugin->state;
+                    cb.hasData = true;
                 } else if (result == 3) { // Duplicate
-                    if (auto* vst = dynamic_cast<PluginNode*>(node)) {
-                        if (vst->getPluginInstance() && track) {
-                            juce::MemoryBlock state;
-                            vst->getPluginInstance()->getStateInformation(state);
-                            juce::String err;
-                            auto newInstance = engine.getPluginManager().loadPlugin(vst->getPluginInstance()->getPluginDescription().fileOrIdentifier, err);
-                            if (newInstance) {
-                                newInstance->setStateInformation(state.getData(), (int)state.getSize());
-                                auto newNode = std::make_unique<PluginNode>(std::move(newInstance));
-                                track->addInsertPlugin(std::move(newNode));
-                            }
-                        }
-                    }
+                    // TODO: Duplicate logic
                 } else if (result == 4) {
                     deletePlugin();
                 }
@@ -225,9 +191,11 @@ public:
 
 private:
     void openPluginWindow() {
-        if (auto* vst = dynamic_cast<PluginNode*>(node)) {
+        if (auto* ext = dynamic_cast<ExternalPlugin*>(plugin.get())) {
             if (window == nullptr) {
-                window = new PluginWindow(name, vst);
+                // Actually ExternalPlugin creates editor, but if we wanted an external window we'd do it here.
+                // For now just pass null to keep it simple, or implement it if needed.
+                // window = new PluginWindow(name, plugin);
             } else {
                 window->toFront(true);
             }
@@ -235,30 +203,20 @@ private:
     }
     
     void deletePlugin() {
-        if (track != nullptr && node != nullptr) {
-            // CRITICAL: Destroy the editor synchronously BEFORE destroying the plugin node.
-            // This stops any timers in the editor from firing and accessing a freed plugin.
+        if (trackIndex != -1 && plugin != nullptr) {
             embeddedEditor.reset();
+            plugin.reset();
             
-            auto* nodeToDelete = node;
-            node = nullptr; // PREVENT DANGLING POINTER ACCESS!
+            // TODO: Remove from TimelineProject
             
-            if (track->getInstrumentPlugin() == nodeToDelete) {
-                track->setInstrumentPlugin(nullptr);
-            } else if (auto* stock = dynamic_cast<IStockPlugin*>(nodeToDelete)) {
-                if (stock->isMidiEffect()) track->removeMidiInsertPlugin(nodeToDelete);
-                else track->removeInsertPlugin(nodeToDelete);
-            } else {
-                track->removeInsertPlugin(nodeToDelete); // fallback for VST audio effects
-            }
             if (window != nullptr) {
                 window->closeButtonPressed();
             }
         }
     }
 
-    IAudioNode* node = nullptr;
-    Track* track;
+    std::shared_ptr<Plugin> plugin;
+    int trackIndex = -1;
     NimbusEngine& engine;
     juce::String name;
     std::unique_ptr<juce::Component> embeddedEditor;
@@ -330,16 +288,8 @@ void DeviceChainComponent::mouseDown(const juce::MouseEvent& e) {
             if (result == 1) {
                 auto& cb = engine.getPluginClipboard();
                 if (cb.hasData) {
-                    auto track = engine.getMixer()->getTrack(currentTrackIndex);
-                    if (track) {
-                        juce::String err;
-                        auto newInstance = engine.getPluginManager().loadPlugin(cb.description.fileOrIdentifier, err);
-                        if (newInstance) {
-                            newInstance->setStateInformation(cb.state.getData(), (int)cb.state.getSize());
-                            auto newNode = std::make_unique<PluginNode>(std::move(newInstance));
-                            track->addInsertPlugin(std::move(newNode));
-                        }
-                    }
+                    auto track = engine.getTimelineProject().getTrack(currentTrackIndex);
+                    // TODO: Phase 4
                 }
             } else if (result >= 1000) {
                 // Find which stock plugin was selected
@@ -357,17 +307,11 @@ void DeviceChainComponent::mouseDown(const juce::MouseEvent& e) {
                 }
                 
                 if (selectedPlugin.isNotEmpty()) {
-                    auto track = engine.getMixer()->getTrack(currentTrackIndex);
-                    if (track) {
-                        auto stockPlug = StockPluginFactory::createPlugin(selectedPlugin);
-                        if (stockPlug) {
-                            if (stockPlug->isMidiEffect()) {
-                                track->addMidiInsertPlugin(std::move(stockPlug));
-                            } else {
-                                track->addInsertPlugin(std::move(stockPlug));
-                            }
-                        }
-                    }
+                    auto stockPlugin = std::make_unique<InternalPlugin>(
+                        StockPluginFactory::createPlugin(selectedPlugin), 
+                        juce::PluginDescription()
+                    );
+                    engine.getTimelineProject().addPluginToTrack(currentTrackIndex, std::move(stockPlugin));
                 }
             }
         });
@@ -400,22 +344,10 @@ void DeviceChainComponent::updateChain() {
     }
     
     int trackIndex = selectedTracks.getRange(0).getStart();
-    auto track = engine.getMixer()->getTrack(trackIndex);
-    if (!track) {
-        if (currentTrackIndex != -1) {
-            currentTrackIndex = -1;
-            pluginBoxes.clear();
-            repaint();
-        }
-        return;
-    }
-    
+    auto track = engine.getTimelineProject().getTrack(trackIndex);
     // Count total expected nodes
-    int expectedNodes = track->getMidiInsertGraph().getNodes().size() + 
-                        (track->getInstrumentPlugin() != nullptr ? 1 : 0) + 
-                        track->getInsertGraph().getNodes().size();
+    int expectedNodes = track.plugins.size() + (track.instrumentPlugin != nullptr ? 1 : 0);
     
-    // Quick check if it's the same
     if (currentTrackIndex == trackIndex && pluginBoxes.size() == expectedNodes) {
         return; // Assume no change for now to avoid flickering
     }
@@ -423,24 +355,16 @@ void DeviceChainComponent::updateChain() {
     currentTrackIndex = trackIndex;
     pluginBoxes.clear();
     
-    // 1. Add MIDI Effects
-    for (auto& n : track->getMidiInsertGraph().getNodes()) {
-        auto box = std::make_unique<PluginBox>(n.get(), track, engine);
+    // 1. Add instrument
+    if (track.instrumentPlugin) {
+        auto box = std::make_unique<PluginBox>(track.instrumentPlugin, trackIndex, engine);
         content.addAndMakeVisible(box.get());
         pluginBoxes.push_back(std::move(box));
     }
     
-    // 2. Add instrument
-    if (auto* instr = dynamic_cast<PluginNode*>(track->getInstrumentPlugin())) {
-        auto box = std::make_unique<PluginBox>(instr, track, engine);
-        content.addAndMakeVisible(box.get());
-        pluginBoxes.push_back(std::move(box));
-    }
-    
-    // 3. Add Audio Effects
-    const auto& nodes = track->getInsertGraph().getNodes();
-    for (auto& n : nodes) {
-        auto box = std::make_unique<PluginBox>(n.get(), track, engine);
+    // 2. Add Audio Effects
+    for (auto& plugin : track.plugins) {
+        auto box = std::make_unique<PluginBox>(plugin, trackIndex, engine);
         content.addAndMakeVisible(box.get());
         pluginBoxes.push_back(std::move(box));
     }

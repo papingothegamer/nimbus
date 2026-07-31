@@ -9,16 +9,15 @@ GainNode::GainNode() {
     pan.setCurrentAndTargetValue(0.0f);
 }
 
-void GainNode::prepareToPlay(double sampleRate, int /*maximumExpectedSamplesPerBlock*/) {
+void GainNode::prepare(double sampleRate, int /*maximumExpectedSamplesPerBlock*/) {
     // 20ms ramp time prevents zipper noise
     gain.reset(sampleRate, 0.02);
     pan.reset(sampleRate, 0.02);
 }
 
-void GainNode::releaseResources() {
-}
-
-void GainNode::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& /*midiMessages*/) {
+void GainNode::process(const ProcessContext& context) {
+    if (!context.buffer) return;
+    auto& buffer = *context.buffer;
     if (buffer.getNumChannels() == 0) return;
 
     int numSamples = buffer.getNumSamples();

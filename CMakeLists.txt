@@ -172,16 +172,15 @@ target_sources(Nimbus PRIVATE
     Source/UI/PluginWindow.h
     Source/Core/NimbusEngine.cpp
     Source/AudioEngine/ComputerMidiController.cpp
-    Source/AudioEngine/AudioGraph.cpp
     Source/AudioEngine/AudioDeviceManagerWrapper.cpp
     Source/AudioEngine/Transport.cpp
+    Source/AudioEngine/PlaybackContext.cpp
     Source/AudioEngine/TestToneNode.cpp
-    Source/AudioEngine/Track.cpp
     Source/AudioEngine/AudioRecorder.cpp
     Source/AudioEngine/MidiRecorder.cpp
-    Source/AudioEngine/Mixer.cpp
     Source/AudioEngine/AudioClipNode.cpp
     Source/AudioEngine/DiskStreaming/DiskStreamer.cpp
+    Source/DataModel/TempoSequence.cpp
     Source/DSP/GainNode.cpp
     Source/DSP/DelayLine.cpp
     Source/DataModel/AudioClip.cpp
@@ -190,8 +189,6 @@ target_sources(Nimbus PRIVATE
     Source/DataModel/TimelineProject.cpp
     Source/PluginHost/PluginManager.cpp
     Source/AudioEngine/PluginNode.cpp
-    Source/AudioEngine/PlaybackEngine.cpp
-    Source/AudioEngine/TrackSourceNode.cpp
     Source/Core/Plugins/StockPluginFactory.cpp
     Source/Core/Plugins/Stock/GainPlugin.cpp
     Source/Core/Plugins/Stock/FilterPlugin.cpp
