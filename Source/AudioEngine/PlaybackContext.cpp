@@ -4,11 +4,18 @@
 #include "../Core/Plugins/Plugin.h"
 #include <juce_core/juce_core.h>
 
+#include "../Core/NimbusEngine.h"
+#include "AudioClipNode.h"
+
 namespace Nimbus {
 
-PlaybackContext::PlaybackContext(TimelineProject& project, Transport& t)
-    : timelineProject(project), transport(t)
+PlaybackContext::PlaybackContext(NimbusEngine& e)
+    : engine(e), timelineProject(e.getTimelineProject()), transport(e.getTransport())
 {
+    for (int i = 0; i < 128; ++i) {
+        trackPeaksL[i].store(0.0f);
+        trackPeaksR[i].store(0.0f);
+    }
     timelineProject.addListener(this);
     rebuildGraph();
 }
@@ -42,6 +49,10 @@ std::shared_ptr<Node> PlaybackContext::createGraphFromProject()
         trackNode->setPan(track.pan);
         trackNode->setMuted(track.isMuted || (!track.isSoloed && hasAnySolo(timelineProject)));
         
+        if (i < 128) {
+            trackNode->setPeakPointers(&trackPeaksL[i], &trackPeaksR[i]);
+        }
+        
         // Add plugins
         if (track.instrumentPlugin) {
             trackNode->addPlugin(track.instrumentPlugin->createNode());
@@ -49,6 +60,15 @@ std::shared_ptr<Node> PlaybackContext::createGraphFromProject()
         for (auto& plugin : track.plugins) {
             if (plugin) {
                 trackNode->addPlugin(plugin->createNode());
+            }
+        }
+        
+        // Add Audio Clips
+        for (auto& clipPtr : timelineProject.getClipsOnTrack(i)) {
+            if (auto audioClip = std::dynamic_pointer_cast<AudioClip>(clipPtr)) {
+                auto streamer = std::make_shared<DiskStreamer>(audioClip->getSourceFile(), engine.getFormatManager());
+                auto clipNode = std::make_unique<AudioClipNode>(audioClip, streamer, transport);
+                trackNode->addInput(std::move(clipNode));
             }
         }
         
@@ -111,12 +131,22 @@ void PlaybackContext::trackMuteChanged(int, bool) { rebuildGraph(); }
 void PlaybackContext::trackSoloChanged(int, bool) { rebuildGraph(); }
 void PlaybackContext::trackVolumeChanged(int, float) { rebuildGraph(); }
 void PlaybackContext::trackPanChanged(int, float) { rebuildGraph(); }
+void PlaybackContext::trackClipsChanged(int) { rebuildGraph(); }
 
 bool PlaybackContext::hasAnySolo(const TimelineProject& project) const {
     for (int i = 0; i < project.getNumTracks(); ++i) {
         if (project.getTrack(i).isSoloed) return true;
     }
     return false;
+}
+
+std::pair<float, float> PlaybackContext::getTrackPeakLevel(int trackIndex) const {
+    if (trackIndex >= 0 && trackIndex < 128) {
+        float l = trackPeaksL[trackIndex].exchange(0.0f, std::memory_order_relaxed);
+        float r = trackPeaksR[trackIndex].exchange(0.0f, std::memory_order_relaxed);
+        return {l, r};
+    }
+    return {0.0f, 0.0f};
 }
 
 } // namespace Nimbus

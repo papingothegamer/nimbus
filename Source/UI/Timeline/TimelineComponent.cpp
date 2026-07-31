@@ -7,6 +7,63 @@
 
 namespace Nimbus {
 
+// ==============================================================================
+// ArrangementMiniViewComponent
+// ==============================================================================
+
+ArrangementMiniViewComponent::ArrangementMiniViewComponent(NimbusEngine& e, double& pps, double& scrollX)
+    : engine(e), pixelsPerSecond(pps), scrollOffsetX(scrollX) {}
+
+void ArrangementMiniViewComponent::paint(juce::Graphics& g) {
+    g.fillAll(DesignSystem::Colors::PanelBackground.darker(0.1f));
+    g.setColour(DesignSystem::Colors::Divider);
+    g.fillRect(0, getHeight() - 1, getWidth(), 1);
+    
+    double totalSamples = engine.getTimelineProject().getTotalDurationSamples();
+    if (totalSamples > 0) {
+        double visibleSeconds = getWidth() / pixelsPerSecond;
+        double currentSeconds = scrollOffsetX / pixelsPerSecond;
+        
+        // Calculate zoom-independent pixels per sample for the mini view
+        double viewPixelsPerSample = static_cast<double>(getWidth()) / totalSamples;
+        
+        // Draw clips
+        auto& project = engine.getTimelineProject();
+        int numTracks = project.getNumTracks();
+        int trackHeight = (numTracks > 0) ? (getHeight() / numTracks) : 10;
+        
+        for (int i = 0; i < numTracks; ++i) {
+            auto clips = project.getClipsOnTrack(i);
+            int yPos = i * trackHeight;
+            for (auto& clip : clips) {
+                if (!clip) continue;
+                int startX = static_cast<int>(clip->startSample.get() * viewPixelsPerSample);
+                int clipWidth = static_cast<int>(clip->lengthSamples.get() * viewPixelsPerSample);
+                
+                // Track colour mapping
+                juce::Colour clipColour = Timeline::ClipComponent::getClipColor(clip->colorIndex.get()).withAlpha(0.6f);
+                                          
+                g.setColour(clipColour);
+                g.fillRect(startX, yPos, juce::jmax(1, clipWidth), trackHeight - 1);
+            }
+        }
+        
+        // Draw a bounding box for the current viewport
+        double currentSampleX = engine.getTransport().getSampleRate() > 0 ? (currentSeconds * engine.getTransport().getSampleRate() * viewPixelsPerSample) : 0;
+        double visibleSampleW = engine.getTransport().getSampleRate() > 0 ? (visibleSeconds * engine.getTransport().getSampleRate() * viewPixelsPerSample) : getWidth();
+        
+        g.setColour(DesignSystem::Colors::PrimaryAction.withAlpha(0.3f));
+        g.fillRect(static_cast<int>(currentSampleX), 0, static_cast<int>(visibleSampleW), getHeight());
+        
+        g.setColour(DesignSystem::Colors::PrimaryAction);
+        g.drawRect(static_cast<int>(currentSampleX), 0, static_cast<int>(visibleSampleW), getHeight(), 1);
+    }
+}
+
+void ArrangementMiniViewComponent::mouseDown(const juce::MouseEvent& event) {}
+void ArrangementMiniViewComponent::mouseDrag(const juce::MouseEvent& event) {}
+void ArrangementMiniViewComponent::mouseUp(const juce::MouseEvent& event) {}
+
 SeekingBarComponent::SeekingBarComponent(NimbusEngine& e, double& pps, double& scrollX) 
     : engine(e), pixelsPerSecond(pps), scrollOffsetX(scrollX) {}
 
@@ -125,6 +182,26 @@ void SeekingBarComponent::paint(juce::Graphics& g) {
 void SeekingBarComponent::mouseDown(const juce::MouseEvent& event) {
     float x = event.position.x;
     float y = event.position.y;
+    
+    if (event.mods.isRightButtonDown()) {
+        juce::PopupMenu menu;
+        menu.addItem(1, "Add Marker Here");
+        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this).withMousePosition(),
+            [this, x](int result) {
+                if (result == 1) {
+                    double sr = engine.getTransport().getSampleRate();
+                    if (sr <= 0) sr = 44100.0;
+                    double posSeconds = (x + scrollOffsetX) / pixelsPerSecond;
+                    MarkerModel marker;
+                    marker.positionSamples = posSeconds * sr;
+                    marker.name = "Marker " + juce::String(engine.getTimelineProject().getNumMarkers() + 1);
+                    engine.getTimelineProject().addMarker(marker);
+                    repaint();
+                }
+            });
+        return;
+    }
+    
     double loopStart = engine.getTransport().getLoopStartSamples();
     double loopEnd = engine.getTransport().getLoopEndSamples();
     double sr = engine.getTransport().getSampleRate();
@@ -182,6 +259,7 @@ void SeekingBarComponent::mouseUp(const juce::MouseEvent& event) {
 TimelineComponent::TimelineComponent(NimbusEngine& e) 
     : engine(e)
 {
+    addAndMakeVisible(miniView);
     addAndMakeVisible(seekingBar);
     addAndMakeVisible(viewport);
     viewport.setViewedComponent(&trackContainer, false);
@@ -248,27 +326,21 @@ void TimelineComponent::paintOverChildren(juce::Graphics& g) {
     // Draw Playhead
     double positionSamples = engine.getTransport().getCurrentPosition();
     double sampleRate = engine.getTransport().getSampleRate();
-    if (sampleRate <= 0.0) sampleRate = 48000.0;
-    
-    double positionSeconds = positionSamples / sampleRate;
-    int playheadX = static_cast<int>(positionSeconds * pixelsPerSecond) - scrollOffsetX + headerWidth;
-    
-    if (playheadX >= headerWidth && playheadX < headerWidth + lanesWidth) {
-        // Draw inside a clipped region
-        g.saveState();
-        g.reduceClipRegion(headerWidth, 0, lanesWidth, getHeight());
+    if (sampleRate <= 0) sampleRate = 48000.0;
+    float playheadX = static_cast<float>((positionSamples / sampleRate) * pixelsPerSecond - scrollOffsetX);
 
+    if (playheadX >= 0 && playheadX < lanesWidth) {
+        float x = playheadX + headerWidth;
         g.setColour(juce::Colours::white);
-        g.drawLine(playheadX, 0, playheadX, getHeight(), 2.0f);
+        g.drawLine(x, 24, x, getHeight(), 2.0f);
         
-        // Playhead triangle
+        // Playhead triangle in ruler
         juce::Path p;
-        p.addTriangle(playheadX - 5, 0, playheadX + 5, 0, playheadX, 10);
+        p.addTriangle(x - 5.0f, 24.0f, x + 5.0f, 24.0f, x, 34.0f);
         g.fillPath(p);
-        
-        g.restoreState();
     }
 }
+
 
 void TimelineComponent::trackAdded(int trackIndex, const TrackModel& track) {
     if (track.isGroup) {
@@ -354,6 +426,9 @@ void TimelineComponent::trackFoldStateChanged(int trackIndex, bool isFolded) {
 
 void TimelineComponent::resized() {
     auto bounds = getLocalBounds();
+    
+    // Mini view above the ruler
+    miniView.setBounds(bounds.removeFromTop(20));
     
     int headerWidth = 150;
     int standardTrackHeight = 65; // Shrunk to Audacity proportions
@@ -490,7 +565,7 @@ void TimelineComponent::zoom(double factor) {
     double playheadAbsoluteXBefore = positionSeconds * pixelsPerSecond;
     double playheadScreenX = playheadAbsoluteXBefore - scrollOffsetX;
     
-    pixelsPerSecond = juce::jlimit(10.0, 200.0, pixelsPerSecond * factor);
+    pixelsPerSecond = juce::jlimit(1.0, 10000.0, pixelsPerSecond * factor);
     
     if (onZoomLevelChanged) onZoomLevelChanged(static_cast<int>(pixelsPerSecond));
     
@@ -512,7 +587,7 @@ void TimelineComponent::setZoomLevel(int percentage) {
         playheadScreenX = (positionSeconds * pixelsPerSecond) - scrollOffsetX;
     }
     
-    pixelsPerSecond = juce::jlimit(10.0, 200.0, static_cast<double>(percentage));
+    pixelsPerSecond = juce::jlimit(1.0, 10000.0, static_cast<double>(percentage));
     
     if (positionSeconds > 0) {
         double playheadAbsoluteXAfter = positionSeconds * pixelsPerSecond;
@@ -618,28 +693,34 @@ void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int 
                    .withButton("Keep Original");
                    
             juce::AlertWindow::showAsync(options, [this, file, droppedSample, sampleRate, targetTrackIndex](int result) {
-                int lengthSamples = static_cast<int>(sampleRate * 4.0);
-                if (auto* reader = engine.getFormatManager().createReaderFor(file)) {
-                    lengthSamples = static_cast<int>(reader->lengthInSamples);
-                    delete reader;
-                }
-                auto clip = std::make_shared<AudioClip>(file, static_cast<int>(droppedSample), lengthSamples);
-                clip->name = file.getFileNameWithoutExtension();
-                
-                if (result == 1 || result == 2) { 
-                    clip->preservePitch = true;
-                    clip->matchDawTempo = true;
-                    clip->originalBpm = 120.0;
-                } else {
-                    clip->preservePitch = false;
-                    clip->matchDawTempo = false;
-                }
-                
-                engine.getTimelineProject().addClipToTrack(targetTrackIndex, clip);
-                
-                if (result == 2) {
-                    // Specify tempo: auto-select the clip to open the clip properties
-                    engine.getTimelineProject().setSelectedClip(clip);
+                try {
+                    int lengthSamples = static_cast<int>(sampleRate * 4.0);
+                    if (auto* reader = engine.getFormatManager().createReaderFor(file)) {
+                        lengthSamples = static_cast<int>(reader->lengthInSamples);
+                        delete reader;
+                    }
+                    auto clip = std::make_shared<AudioClip>(file, static_cast<int>(droppedSample), lengthSamples);
+                    clip->name = file.getFileNameWithoutExtension();
+                    
+                    if (result == 1 || result == 2) { 
+                        clip->preservePitch = true;
+                        clip->matchDawTempo = true;
+                        clip->originalBpm = 120.0;
+                    } else {
+                        clip->preservePitch = false;
+                        clip->matchDawTempo = false;
+                    }
+                    
+                    engine.getTimelineProject().addClipToTrack(targetTrackIndex, clip);
+                    
+                    if (result == 2) {
+                        // Specify tempo: auto-select the clip to open the clip properties
+                        engine.getTimelineProject().setSelectedClip(clip);
+                    }
+                } catch (const std::exception& e) {
+                    juce::Logger::writeToLog("Exception in filesDropped tempo match: " + juce::String(e.what()));
+                } catch (...) {
+                    juce::Logger::writeToLog("Unknown exception in filesDropped tempo match");
                 }
             });
         } else if (isMidi) {

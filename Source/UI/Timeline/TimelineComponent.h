@@ -28,6 +28,22 @@ private:
     double& scrollOffsetX;
 };
 
+class ArrangementMiniViewComponent : public juce::Component {
+public:
+    ArrangementMiniViewComponent(NimbusEngine& engine, double& pps, double& scrollX);
+    void paint(juce::Graphics& g) override;
+    void mouseDown(const juce::MouseEvent& event) override;
+    void mouseDrag(const juce::MouseEvent& event) override;
+    void mouseUp(const juce::MouseEvent& event) override;
+
+private:
+    NimbusEngine& engine;
+    double& pixelsPerSecond;
+    double& scrollOffsetX;
+    
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArrangementMiniViewComponent)
+};
+
 class TimelineComponent : public juce::Component, 
                         public juce::FileDragAndDropTarget,
                         public juce::DragAndDropTarget,
@@ -88,6 +104,7 @@ private:
     int selectionStartTrackIndex = -1;
     
     SeekingBarComponent seekingBar{engine, pixelsPerSecond, scrollOffsetX};
+    ArrangementMiniViewComponent miniView{engine, pixelsPerSecond, scrollOffsetX};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TimelineComponent)
 };

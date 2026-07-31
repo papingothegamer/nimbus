@@ -14,15 +14,19 @@ namespace Nimbus {
  * Compiles and manages the lock-free audio graph for playback.
  * Mirrors Tracktion's te::EditPlaybackContext methodology natively.
  */
+class NimbusEngine;
+
 class PlaybackContext : public TimelineProject::Listener, 
                         public juce::AudioIODeviceCallback
 {
 public:
-    PlaybackContext(TimelineProject& project, Transport& transport);
+    PlaybackContext(NimbusEngine& engine);
     ~PlaybackContext() override;
 
     // Triggered when the graph needs to be rebuilt (e.g. tracks added/removed)
     void rebuildGraph();
+    
+    std::pair<float, float> getTrackPeakLevel(int trackIndex) const;
 
     // juce::AudioIODeviceCallback
     void audioDeviceIOCallbackWithContext(const float* const* inputChannelData, int numInputChannels,
@@ -39,8 +43,10 @@ public:
     void trackSoloChanged(int trackIndex, bool isSoloed) override;
     void trackVolumeChanged(int trackIndex, float volume) override;
     void trackPanChanged(int trackIndex, float pan) override;
+    void trackClipsChanged(int trackIndex) override;
 
 private:
+    NimbusEngine& engine;
     TimelineProject& timelineProject;
     Transport& transport;
     
@@ -53,6 +59,9 @@ private:
     
     double sampleRate = 44100.0;
     int blockSize = 512;
+    // Max 128 tracks for simplicity, can be dynamic later
+    mutable std::array<std::atomic<float>, 128> trackPeaksL;
+    mutable std::array<std::atomic<float>, 128> trackPeaksR;
     
     bool hasAnySolo(const TimelineProject& project) const;
     std::shared_ptr<Node> createGraphFromProject();

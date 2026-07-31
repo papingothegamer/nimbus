@@ -31,7 +31,7 @@ void NimbusEngine::initialise() {
     formatManager.registerBasicFormats();
 
     juce::Logger::writeToLog("Engine: Creating Playback Context");
-    playbackContext = std::make_unique<PlaybackContext>(timelineProject, transport);
+    playbackContext = std::make_unique<PlaybackContext>(*this);
 
     juce::Logger::writeToLog("Engine: Initialising Device Manager");
     // Initialize the audio device manager, and set it to call into our PlaybackContext
@@ -61,7 +61,8 @@ std::pair<float, float> NimbusEngine::getMasterPeakLevel() const {
 }
 
 std::pair<float, float> NimbusEngine::getTrackPeakLevel(int trackIndex) const {
-    return {0.0f, 0.0f}; // To be implemented in lock-free node graph
+    if (playbackContext) return playbackContext->getTrackPeakLevel(trackIndex);
+    return {0.0f, 0.0f};
 }
 
 void NimbusEngine::startRecording() {

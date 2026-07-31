@@ -26,11 +26,6 @@ private:
     juce::TextEditor projectSaveDirEditor;
     juce::TextButton projectSaveDirBrowseBtn { "Browse..." };
 
-    juce::Label pluginsDirLabel { {}, "Plugins Directory:" };
-    juce::TextEditor pluginsDirEditor;
-    juce::TextButton pluginsDirBrowseBtn { "Browse..." };
-    juce::TextButton scanPluginsBtn { "Scan for Plugins" };
-
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GeneralSettingsComponent)
 };
 
@@ -48,6 +43,9 @@ private:
     juce::Label zoomLabel { {}, "Viewport Zoom (Global Scale):" };
     juce::TextEditor zoomInput;
     
+    juce::Label timelineZoomLabel;
+    juce::TextEditor timelineZoomInput;
+
     juce::Label locationLabel { {}, "Sidebar Location:" };
     juce::ComboBox locationCombo;
     
@@ -75,6 +73,65 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CustomMidiSettingsComponent)
 };
 
+class PlaybackSettingsComponent : public juce::Component {
+public:
+    PlaybackSettingsComponent(NimbusEngine& engine);
+    ~PlaybackSettingsComponent() override;
+    void paint(juce::Graphics& g) override;
+    void resized() override;
+private:
+    NimbusEngine& engine;
+    juce::Label dummyLabel { {}, "Playback options (e.g. buffering, preroll) will go here." };
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PlaybackSettingsComponent)
+};
+
+class PluginsSettingsComponent : public juce::Component, public juce::ListBoxModel {
+public:
+    PluginsSettingsComponent(NimbusEngine& engine);
+    ~PluginsSettingsComponent() override;
+    void paint(juce::Graphics& g) override;
+    void resized() override;
+    
+    int getNumRows() override;
+    void paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected) override;
+
+private:
+    NimbusEngine& engine;
+    juce::Label pluginsDirLabel { {}, "VST3 Plugins Directory:" };
+    juce::TextEditor pluginsDirEditor;
+    juce::TextButton pluginsDirBrowseBtn { "Browse..." };
+    juce::TextButton scanPluginsBtn { "Scan for new or updated VST3 plug-ins" };
+    
+    juce::Label listLabel { {}, "Installed Plugins:" };
+    juce::ListBox pluginsList;
+    
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginsSettingsComponent)
+};
+
+class ShortcutsSettingsComponent : public juce::Component {
+public:
+    ShortcutsSettingsComponent(NimbusEngine& engine);
+    ~ShortcutsSettingsComponent() override;
+    void paint(juce::Graphics& g) override;
+    void resized() override;
+private:
+    NimbusEngine& engine;
+    juce::Label dummyLabel { {}, "Keyboard shortcuts customization will go here." };
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ShortcutsSettingsComponent)
+};
+
+class AdvancedSettingsComponent : public juce::Component {
+public:
+    AdvancedSettingsComponent(NimbusEngine& engine);
+    ~AdvancedSettingsComponent() override;
+    void paint(juce::Graphics& g) override;
+    void resized() override;
+private:
+    NimbusEngine& engine;
+    juce::Label dummyLabel { {}, "Advanced settings (e.g. threading, engine stats) will go here." };
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AdvancedSettingsComponent)
+};
+
 class SettingsMenuComponent : public juce::Component, public juce::ListBoxModel {
 public:
     SettingsMenuComponent(NimbusEngine& engine);
@@ -100,10 +157,10 @@ private:
     CustomMidiSettingsComponent midiSetupComp;
     
     // Placeholder components for new Audacity-like tabs
-    juce::Component playbackComp;
-    juce::Component pluginsComp;
-    juce::Component shortcutsComp;
-    juce::Component advancedComp;
+    PlaybackSettingsComponent playbackComp;
+    PluginsSettingsComponent pluginsComp;
+    ShortcutsSettingsComponent shortcutsComp;
+    AdvancedSettingsComponent advancedComp;
     
     GeneralSettingsComponent generalComp;
     DisplaySettingsComponent displayComp;

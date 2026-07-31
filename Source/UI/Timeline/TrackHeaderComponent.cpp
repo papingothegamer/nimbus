@@ -240,18 +240,21 @@ void TrackHeaderComponent::trackMuteChanged(int track, bool isMuted) {
     if (track == trackIndex) {
         powerToggle.setToggleState(!isMuted, juce::dontSendNotification);
         muteButton.setToggleState(isMuted, juce::dontSendNotification);
+        muteButton.setColour(juce::DrawableButton::backgroundColourId, isMuted ? juce::Colours::orange : juce::Colours::transparentBlack);
     }
 }
 
 void TrackHeaderComponent::trackSoloChanged(int track, bool isSoloed) {
     if (track == trackIndex) {
         soloButton.setToggleState(isSoloed, juce::dontSendNotification);
+        soloButton.setColour(juce::DrawableButton::backgroundColourId, isSoloed ? juce::Colour(0xfffdb913) : juce::Colours::transparentBlack);
     }
 }
 
 void TrackHeaderComponent::trackArmChanged(int track, bool isArmed) {
     if (track == trackIndex) {
         armButton.setToggleState(isArmed, juce::dontSendNotification);
+        armButton.setColour(juce::DrawableButton::backgroundColourId, isArmed ? juce::Colours::red : juce::Colours::transparentBlack);
     }
 }
 
@@ -416,8 +419,10 @@ void TrackHeaderComponent::paint(juce::Graphics& g) {
 
 void TrackHeaderComponent::updateMeters() {
     auto levels = engine.getTrackPeakLevel(trackIndex);
-    float newLevel = std::max(levels.first, levels.second);
-    if (std::abs(newLevel - currentLevel) > 0.01f) {
+    float currentDb = juce::Decibels::gainToDecibels(std::max(levels.first, levels.second), -60.0f);
+    float newLevel = juce::jlimit(0.0f, 1.0f, (currentDb + 60.0f) / 70.0f);
+    
+    if (std::abs(newLevel - currentLevel) > 0.005f || (newLevel == 0.0f && currentLevel > 0.0f)) {
         currentLevel = newLevel;
         repaint();
     }

@@ -48,7 +48,7 @@ void DiskStreamer::processBlock(juce::AudioBuffer<float>& buffer, int startSampl
         // We are out of sync. Request a seek.
         int currentSeek = seekRequest.load(std::memory_order_relaxed);
         // Only request if we haven't recently requested a seek near this position
-        if (std::abs(currentSeek - startSampleInFile) > 8192) {
+        if (currentSeek < 0 || std::abs(currentSeek - startSampleInFile) > 8192) {
             seekRequest.store(startSampleInFile, std::memory_order_release);
             notify(); // Wake up the disk thread
         }

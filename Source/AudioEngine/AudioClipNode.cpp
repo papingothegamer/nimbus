@@ -71,12 +71,16 @@ void AudioClipNode::process(const ProcessContext& context) {
         if (clipModel->matchDawTempo.get()) {
             double dawTempo = globalTransport.getTempo();
             double originalTempo = clipModel->originalBpm.get();
-            if (originalTempo > 0.0 && dawTempo > 0.0) {
+            if (originalTempo <= 0.0) originalTempo = 120.0;
+            if (dawTempo > 0.0) {
                 speedRatio = dawTempo / originalTempo;
             }
         }
         
+        speedRatio = juce::jlimit(0.1, 10.0, speedRatio);
+        
         double pitchRatio = std::pow(2.0, static_cast<double>(clipModel->pitchShiftSemitones.get()) / 12.0);
+        pitchRatio = juce::jlimit(0.1, 10.0, pitchRatio);
         
         // The position inside the audio file corresponding to the first sample we need to render
         double timeIntoClip = (currentTransportPos + renderStartOffset) - clipStart;
@@ -99,14 +103,11 @@ void AudioClipNode::process(const ProcessContext& context) {
             // Note: If clipModel->getPreservePitch() is true, we ideally want Granular Time Stretching here.
             // For now, we fall back to standard resampling, which will shift pitch when speed changes.
             // The architecture is now ready to swap this interpolator block for a Granular Stretcher class.
-            double playbackRatio = speedRatio;
-            if (!clipModel->preservePitch.get()) {
-                // If not preserving pitch, speed is dictated strictly by the ratio.
-                playbackRatio = speedRatio * pitchRatio;
-            } else {
-                // Even if preserving pitch, without a granular engine, it will currently shift pitch.
-                // A future GranularTimeStretcher would process 'speedRatio' and 'pitchRatio' independently here.
-                playbackRatio = speedRatio * pitchRatio;
+            double playbackRatio = speedRatio * pitchRatio;
+            
+            if (playbackRatio <= 0.0) {
+                buffer.clear(renderStartOffset, renderLength);
+                return;
             }
             
             int samplesToRead = static_cast<int>(std::ceil(renderLength * playbackRatio)) + 4; // Add padding for interpolation
@@ -122,8 +123,12 @@ void AudioClipNode::process(const ProcessContext& context) {
                 auto* outPtr = buffer.getWritePointer(ch) + renderStartOffset;
                 auto* inPtr = readBuffer.getReadPointer(ch);
                 
-                if (ch == 0) interpolatorLeft.process(playbackRatio, inPtr, outPtr, renderLength);
-                else if (ch == 1) interpolatorRight.process(playbackRatio, inPtr, outPtr, renderLength);
+                if (playbackRatio > 0.0) {
+                    if (ch == 0) interpolatorLeft.process(playbackRatio, inPtr, outPtr, renderLength);
+                    else if (ch == 1) interpolatorRight.process(playbackRatio, inPtr, outPtr, renderLength);
+                } else {
+                    juce::FloatVectorOperations::clear(outPtr, renderLength);
+                }
             }
         }
 

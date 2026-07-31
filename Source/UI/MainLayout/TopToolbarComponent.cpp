@@ -138,8 +138,8 @@ TopToolbarComponent::TopToolbarComponent(NimbusEngine& e) : engine(e), menuBar(t
     zoomLevelLabel.onTextChange = [this]() {
         juce::String text = zoomLevelLabel.getText().retainCharacters("0123456789");
         int zoom = text.getIntValue();
-        if (zoom < 10) zoom = 10;
-        if (zoom > 200) zoom = 200;
+        if (zoom < 1) zoom = 1;
+        if (zoom > 10000) zoom = 10000;
         
         if (onZoomLevelRequested) onZoomLevelRequested(zoom);
     };

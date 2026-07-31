@@ -265,7 +265,7 @@ void ChannelStripComponent::resized() {
     }
     routingComboBox.setBounds(bounds.removeFromBottom(18).reduced(2, 0));
     
-    pan.setBounds(bounds.removeFromTop(55).reduced(4, 0));
+    pan.setBounds(bounds.removeFromTop(30).reduced(4, 0));
     bounds.removeFromTop(6); 
     
     auto faderArea = bounds.removeFromRight(28).reduced(0, 4);
@@ -309,18 +309,21 @@ void ChannelStripComponent::mouseDown(const juce::MouseEvent& event) {
 void ChannelStripComponent::trackMuteChanged(int track, bool isMuted) {
     if (track == trackIndex && !master) {
         muteButton.setToggleState(isMuted, juce::dontSendNotification);
+        muteButton.setColour(juce::DrawableButton::backgroundColourId, isMuted ? juce::Colours::orange : juce::Colours::transparentBlack);
     }
 }
 
 void ChannelStripComponent::trackArmChanged(int track, bool isArmed) {
     if (track == trackIndex) {
         armButton.setToggleState(isArmed, juce::dontSendNotification);
+        armButton.setColour(juce::DrawableButton::backgroundColourId, isArmed ? juce::Colours::red : juce::Colours::transparentBlack);
     }
 }
 
 void ChannelStripComponent::trackSoloChanged(int track, bool isSoloed) {
     if (track == trackIndex) {
         soloButton.setToggleState(isSoloed, juce::dontSendNotification);
+        soloButton.setColour(juce::DrawableButton::backgroundColourId, isSoloed ? juce::Colour(0xfffdb913) : juce::Colours::transparentBlack);
     }
 }
 

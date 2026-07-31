@@ -48,28 +48,6 @@ GeneralSettingsComponent::GeneralSettingsComponent(NimbusEngine& e) : engine(e) 
         // Mock browse logic
     };
 
-    addAndMakeVisible(pluginsDirLabel);
-    pluginsDirLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
-    addAndMakeVisible(pluginsDirEditor);
-    pluginsDirEditor.setText("C:\\Program Files\\Common Files\\VST3");
-    addAndMakeVisible(pluginsDirBrowseBtn);
-    pluginsDirBrowseBtn.onClick = [this] {
-        static std::unique_ptr<juce::FileChooser> chooser;
-        chooser = std::make_unique<juce::FileChooser>("Select Plugins Directory", juce::File::getSpecialLocation(juce::File::userHomeDirectory), "");
-        chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories, [this](const juce::FileChooser& fc) {
-            auto result = fc.getResult();
-            if (result.exists() && result.isDirectory()) {
-                pluginsDirEditor.setText(result.getFullPathName());
-            }
-        });
-    };
-
-    addAndMakeVisible(scanPluginsBtn);
-    scanPluginsBtn.onClick = [this] {
-        if (!engine.getPluginManager().isScanning()) {
-            engine.getPluginManager().startScanning(pluginsDirEditor.getText());
-        }
-    };
 }
 
 GeneralSettingsComponent::~GeneralSettingsComponent() {}
@@ -100,14 +78,6 @@ void GeneralSettingsComponent::resized() {
     projectSaveDirEditor.setBounds(projDirRect);
     bounds.removeFromTop(10);
     
-    auto plugDirRect = bounds.removeFromTop(30);
-    pluginsDirLabel.setBounds(plugDirRect.removeFromLeft(150));
-    pluginsDirBrowseBtn.setBounds(plugDirRect.removeFromRight(80));
-    plugDirRect.removeFromRight(10);
-    pluginsDirEditor.setBounds(plugDirRect);
-    bounds.removeFromTop(10);
-    
-    scanPluginsBtn.setBounds(bounds.removeFromTop(30).withWidth(200));
 }
 
 // ==============================================================================
@@ -134,6 +104,21 @@ DisplaySettingsComponent::DisplaySettingsComponent(NimbusEngine& e) : engine(e) 
         if (val >= 50.0f && val <= 250.0f) {
             juce::Desktop::getInstance().setGlobalScaleFactor(val / 100.0f);
             zoomInput.setText(juce::String(val, 0) + "%");
+        }
+    };
+    
+    addAndMakeVisible(timelineZoomLabel);
+    timelineZoomLabel.setText("Timeline Zoom:", juce::dontSendNotification);
+    timelineZoomLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
+    
+    addAndMakeVisible(timelineZoomInput);
+    timelineZoomInput.setText("100%"); // This needs to be synced
+    timelineZoomInput.onReturnKey = [this] {
+        float val = timelineZoomInput.getText().retainCharacters("0123456789.").getFloatValue();
+        if (val >= 1.0f && val <= 10000.0f) {
+            timelineZoomInput.setText(juce::String(val, 0) + "%");
+            // Need a way to communicate this back to the TimelineComponent...
+            // the main component usually wires it. For now, it's just a setting placeholder here.
         }
     };
     
@@ -170,6 +155,12 @@ void DisplaySettingsComponent::resized() {
     auto zoomRect = bounds.removeFromTop(30);
     zoomLabel.setBounds(zoomRect.removeFromLeft(200));
     zoomInput.setBounds(zoomRect.removeFromLeft(80));
+    
+    bounds.removeFromTop(10);
+    
+    auto tZoomRect = bounds.removeFromTop(30);
+    timelineZoomLabel.setBounds(tZoomRect.removeFromLeft(200));
+    timelineZoomInput.setBounds(tZoomRect.removeFromLeft(80));
     
     bounds.removeFromTop(10);
     
@@ -244,6 +235,141 @@ void CustomMidiSettingsComponent::resized() {
 }
 
 // ==============================================================================
+// PlaybackSettingsComponent
+// ==============================================================================
+
+PlaybackSettingsComponent::PlaybackSettingsComponent(NimbusEngine& e) : engine(e) {
+    addAndMakeVisible(dummyLabel);
+    dummyLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
+}
+
+PlaybackSettingsComponent::~PlaybackSettingsComponent() {}
+
+void PlaybackSettingsComponent::paint(juce::Graphics& g) {
+    g.fillAll(DesignSystem::Colors::PanelBackground);
+}
+
+void PlaybackSettingsComponent::resized() {
+    dummyLabel.setBounds(getLocalBounds().reduced(20));
+}
+
+// ==============================================================================
+// PluginsSettingsComponent
+// ==============================================================================
+
+PluginsSettingsComponent::PluginsSettingsComponent(NimbusEngine& e) : engine(e) {
+    addAndMakeVisible(pluginsDirLabel);
+    pluginsDirLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
+    
+    addAndMakeVisible(pluginsDirEditor);
+    pluginsDirEditor.setText("C:\\Program Files\\Common Files\\VST3");
+    
+    addAndMakeVisible(pluginsDirBrowseBtn);
+    pluginsDirBrowseBtn.onClick = [this] {
+        static std::unique_ptr<juce::FileChooser> chooser;
+        chooser = std::make_unique<juce::FileChooser>("Select Plugins Directory", juce::File::getSpecialLocation(juce::File::userHomeDirectory), "");
+        chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories, [this](const juce::FileChooser& fc) {
+            auto result = fc.getResult();
+            if (result.exists() && result.isDirectory()) {
+                pluginsDirEditor.setText(result.getFullPathName());
+            }
+        });
+    };
+
+    addAndMakeVisible(scanPluginsBtn);
+    scanPluginsBtn.onClick = [this] {
+        if (!engine.getPluginManager().isScanning()) {
+            engine.getPluginManager().startScanning(pluginsDirEditor.getText());
+            pluginsList.updateContent();
+        }
+    };
+    
+    addAndMakeVisible(listLabel);
+    listLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
+    
+    addAndMakeVisible(pluginsList);
+    pluginsList.setModel(this);
+}
+
+PluginsSettingsComponent::~PluginsSettingsComponent() {
+    pluginsList.setModel(nullptr);
+}
+
+void PluginsSettingsComponent::paint(juce::Graphics& g) {
+    g.fillAll(DesignSystem::Colors::PanelBackground);
+}
+
+void PluginsSettingsComponent::resized() {
+    auto bounds = getLocalBounds().reduced(20);
+    
+    auto plugDirRect = bounds.removeFromTop(30);
+    pluginsDirLabel.setBounds(plugDirRect.removeFromLeft(150));
+    pluginsDirBrowseBtn.setBounds(plugDirRect.removeFromRight(80));
+    plugDirRect.removeFromRight(10);
+    pluginsDirEditor.setBounds(plugDirRect);
+    bounds.removeFromTop(10);
+    
+    scanPluginsBtn.setBounds(bounds.removeFromTop(30).withWidth(250));
+    bounds.removeFromTop(10);
+    
+    listLabel.setBounds(bounds.removeFromTop(20));
+    pluginsList.setBounds(bounds);
+}
+
+int PluginsSettingsComponent::getNumRows() {
+    return engine.getPluginManager().getKnownPluginList().getTypes().size();
+}
+
+void PluginsSettingsComponent::paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected) {
+    auto plugins = engine.getPluginManager().getKnownPluginList().getTypes();
+    if (rowNumber < 0 || rowNumber >= plugins.size()) return;
+    
+    if (rowIsSelected) g.fillAll(DesignSystem::Colors::AppBackground.withAlpha(0.2f));
+    
+    g.setColour(DesignSystem::Colors::TextPrimary);
+    g.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
+    g.drawText(plugins[rowNumber].name + " (" + plugins[rowNumber].manufacturerName + ")", 10, 0, width - 20, height, juce::Justification::centredLeft, true);
+}
+
+// ==============================================================================
+// ShortcutsSettingsComponent
+// ==============================================================================
+
+ShortcutsSettingsComponent::ShortcutsSettingsComponent(NimbusEngine& e) : engine(e) {
+    addAndMakeVisible(dummyLabel);
+    dummyLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
+}
+
+ShortcutsSettingsComponent::~ShortcutsSettingsComponent() {}
+
+void ShortcutsSettingsComponent::paint(juce::Graphics& g) {
+    g.fillAll(DesignSystem::Colors::PanelBackground);
+}
+
+void ShortcutsSettingsComponent::resized() {
+    dummyLabel.setBounds(getLocalBounds().reduced(20));
+}
+
+// ==============================================================================
+// AdvancedSettingsComponent
+// ==============================================================================
+
+AdvancedSettingsComponent::AdvancedSettingsComponent(NimbusEngine& e) : engine(e) {
+    addAndMakeVisible(dummyLabel);
+    dummyLabel.setFont(DesignSystem::Typography::getPrimaryFont().withHeight(14.0f));
+}
+
+AdvancedSettingsComponent::~AdvancedSettingsComponent() {}
+
+void AdvancedSettingsComponent::paint(juce::Graphics& g) {
+    g.fillAll(DesignSystem::Colors::PanelBackground);
+}
+
+void AdvancedSettingsComponent::resized() {
+    dummyLabel.setBounds(getLocalBounds().reduced(20));
+}
+
+// ==============================================================================
 // SettingsMenuComponent
 // ==============================================================================
 
@@ -254,8 +380,12 @@ SettingsMenuComponent::SettingsMenuComponent(NimbusEngine& engineToUse)
       audioSetupComp(engine.getAudioDeviceManager().getDeviceManager(),
                      0, 256, 0, 256, false, false, true, false),
       midiSetupComp(engine),
+      playbackComp(engine),
+      pluginsComp(engine),
+      shortcutsComp(engine),
       generalComp(engine),
-      displayComp(engine)
+      displayComp(engine),
+      advancedComp(engine)
 {
     setSize(700, 500);
     
