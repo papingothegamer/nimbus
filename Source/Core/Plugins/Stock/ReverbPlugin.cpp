@@ -49,9 +49,9 @@ void ReverbPlugin::loadPreset(int index) {
     }
 }
 
-class PresetCarousel : public juce::Component {
+class ReverbPresetCarousel : public juce::Component {
 public:
-    PresetCarousel() {
+    ReverbPresetCarousel() {
         auto prevDrawable = juce::Drawable::createFromImageData(BinaryData::chevronleft_svg, BinaryData::chevronleft_svgSize);
         if (prevDrawable) prevDrawable->replaceColour(juce::Colours::black, DesignSystem::Colors::TextSecondary);
         btnPrev.setImages(prevDrawable.get());
@@ -243,8 +243,8 @@ public:
 
 private:
     ReverbPlugin& plugin;
-    PresetCarousel carousel;
-
+    ReverbPresetCarousel carousel;
+    
     std::unique_ptr<PluginDial> roomSizeDial;
     std::unique_ptr<PluginDial> widthDial;
     std::unique_ptr<PluginDial> preDelayDial;

@@ -244,6 +244,7 @@ void TrackLaneComponent::filesDropped(const juce::StringArray& files, int x, int
                 auto audioClip = std::make_shared<AudioClip>(file, static_cast<int>(startSamples), numSamples);
                 audioClip->setNumChannels(numChannels);
                 audioClip->name = file.getFileNameWithoutExtension();
+                audioClip->colorIndex = juce::Random::getSystemRandom().nextInt(10);
                 engine.getTimelineProject().setTrackName(trackIndex, file.getFileNameWithoutExtension());
                 engine.getTimelineProject().addClipToTrack(trackIndex, audioClip);
                 return; // Only process the first valid file
@@ -267,6 +268,7 @@ void TrackLaneComponent::filesDropped(const juce::StringArray& files, int x, int
                 
                 auto midiClip = std::make_shared<MidiClip>(static_cast<int>(startSamples), numSamples);
                 midiClip->name = file.getFileNameWithoutExtension();
+                midiClip->colorIndex = juce::Random::getSystemRandom().nextInt(10);
                 engine.getTimelineProject().setTrackName(trackIndex, file.getFileNameWithoutExtension());
                 
                 for (int i = 0; i < midiFile.getNumTracks(); ++i) {

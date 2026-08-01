@@ -7,6 +7,7 @@
 #include <atomic>
 #include <memory>
 #include <array>
+#include <map>
 
 #include "Transport.h"
 
@@ -60,6 +61,9 @@ private:
     // Pending graph to be swapped in
     std::shared_ptr<Node> pendingGraph;
     std::atomic<bool> graphNeedsSwap { false };
+    
+    // Cache for clip nodes to prevent dropping stream states during graph rebuilds
+    std::map<AnyClipPtr, std::shared_ptr<Node>> cachedClipNodes;
     
     double sampleRate = 44100.0;
     int blockSize = 512;

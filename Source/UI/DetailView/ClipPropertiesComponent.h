@@ -57,8 +57,9 @@ private:
     
     // === Audio Panel ===
     UI::AbletonPanel audioPanel{"Audio"};
-    UI::AbletonToggleButton matchTempoButton{"Match Tempo"}; // Shortened to fit panel
+    UI::AbletonToggleButton warpButton{"Warp"};
     UI::AbletonToggleButton followButton{"Follow"};
+    juce::ComboBox warpModeBox;
     juce::ComboBox algorithmBox;
     UI::AbletonToggleButton preservePitchButton{"Preserve Pitch"};
     
@@ -73,9 +74,9 @@ private:
     UI::AbletonVerticalGainSlider gainSlider;
     juce::Label gainLabel{"", "0.00 dB"};
     
-    Nimbus::PluginDial pitchSlider{"Pitch", -24.0, 24.0, 0.0, " st", nullptr};
-    juce::Label pitchLabel{"", "st"};
-    juce::Label pitchBox{"", "0"};
+    juce::Slider pitchSlider;
+    juce::Label pitchLabel{"", "Pitch"};
+    juce::Label pitchBox{"", "0 st"};
     
     Nimbus::PluginDial panSlider{"Pan", -1.0, 1.0, 0.0, "", nullptr};
     

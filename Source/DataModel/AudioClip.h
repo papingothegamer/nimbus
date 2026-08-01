@@ -11,6 +11,12 @@ public:
         Percussive = 0,
         Melodic = 1
     };
+    
+    enum class WarpMode {
+        Beats = 0,
+        Time = 1,
+        Advanced = 2
+    };
 
     AudioClip(const juce::File& file, double startSample, double lengthSamples, double sourceOffsetSamples = 0.0);
     ~AudioClip() override = default;
@@ -40,9 +46,15 @@ public:
     juce::CachedValue<double> originalBpm;
     juce::CachedValue<bool> preservePitch;
     juce::CachedValue<int> algorithmInt; // Cast to/from StretchAlgorithm
+    
+    juce::CachedValue<bool> isWarped;
+    juce::CachedValue<int> warpModeInt;
 
     StretchAlgorithm getAlgorithm() const { return static_cast<StretchAlgorithm>(algorithmInt.get()); }
     void setAlgorithm(StretchAlgorithm a) { algorithmInt = static_cast<int>(a); }
+    
+    WarpMode getWarpMode() const { return static_cast<WarpMode>(warpModeInt.get()); }
+    void setWarpMode(WarpMode m) { warpModeInt = static_cast<int>(m); }
 
 private:
     juce::File sourceFile;

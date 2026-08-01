@@ -787,14 +787,16 @@ void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int 
                     }
                     auto clip = std::make_shared<AudioClip>(file, static_cast<int>(droppedSample), lengthSamples);
                     clip->name = file.getFileNameWithoutExtension();
+                    clip->colorIndex = juce::Random::getSystemRandom().nextInt(10);
                     
                     if (result == 1 || result == 2) { 
                         clip->preservePitch = true;
-                        clip->matchDawTempo = true;
+                        clip->isWarped = true;
+                        clip->setWarpMode(AudioClip::WarpMode::Beats); // Default warp mode for imported clips
                         clip->originalBpm = 120.0;
                     } else {
                         clip->preservePitch = false;
-                        clip->matchDawTempo = false;
+                        clip->isWarped = false;
                     }
                     
                     engine.getTimelineProject().addClipToTrack(targetTrackIndex, clip);
@@ -812,6 +814,7 @@ void TimelineComponent::filesDropped(const juce::StringArray& files, int x, int 
         } else if (isMidi) {
             auto clip = std::make_shared<MidiClip>(static_cast<int>(droppedSample), static_cast<int>(sampleRate * 4.0));
             clip->name = file.getFileNameWithoutExtension();
+            clip->colorIndex = juce::Random::getSystemRandom().nextInt(10);
             engine.getTimelineProject().addClipToTrack(targetTrackIndex, clip);
         }
         

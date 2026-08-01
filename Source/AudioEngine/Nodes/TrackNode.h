@@ -15,7 +15,7 @@ public:
         smoothedPan.setCurrentAndTargetValue(0.0f);
     }
 
-    void addInput(std::unique_ptr<Node> input) {
+    void addInput(std::shared_ptr<Node> input) {
         inputs.push_back(std::move(input));
     }
     
@@ -134,7 +134,7 @@ public:
     }
 
 private:
-    std::vector<std::unique_ptr<Node>> inputs;
+    std::vector<std::shared_ptr<Node>> inputs;
     std::vector<std::unique_ptr<Node>> plugins;
     juce::AudioBuffer<float> tempBuffer;
     

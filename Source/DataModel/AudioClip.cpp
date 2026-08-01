@@ -20,7 +20,9 @@ AudioClip::AudioClip(const juce::File& file, double startSampleValue, double len
       matchDawTempo(state, "matchDawTempo", nullptr, false),
       originalBpm(state, "originalBpm", nullptr, 120.0),
       preservePitch(state, "preservePitch", nullptr, false),
-      algorithmInt(state, "algorithm", nullptr, static_cast<int>(StretchAlgorithm::Melodic))
+      algorithmInt(state, "algorithm", nullptr, static_cast<int>(StretchAlgorithm::Melodic)),
+      isWarped(state, "isWarped", nullptr, false),
+      warpModeInt(state, "warpMode", nullptr, static_cast<int>(WarpMode::Beats))
 {
     this->sourceOffsetSamples = sourceOffsetSamplesValue;
 }
@@ -44,6 +46,8 @@ std::shared_ptr<Clip> AudioClip::clone() const {
     c->originalBpm = originalBpm.get();
     c->preservePitch = preservePitch.get();
     c->algorithmInt = algorithmInt.get();
+    c->isWarped = isWarped.get();
+    c->warpModeInt = warpModeInt.get();
     return c;
 }
 

@@ -46,7 +46,7 @@ std::shared_ptr<Node> PlaybackContext::createGraphFromProject()
     int numTracks = timelineProject.getNumTracks();
     for (int i = 0; i < numTracks; ++i) {
         auto track = timelineProject.getTrack(i);
-        auto trackNode = std::make_unique<TrackNode>();
+        auto trackNode = std::make_shared<TrackNode>();
         
         if (i < 128) {
             trackVolumes[i].store(track.volume, std::memory_order_relaxed);
@@ -69,15 +69,44 @@ std::shared_ptr<Node> PlaybackContext::createGraphFromProject()
         }
         
         // Add Audio Clips
+        // Add Audio Clips
         for (auto& clipPtr : timelineProject.getClipsOnTrack(i)) {
             if (auto audioClip = std::dynamic_pointer_cast<AudioClip>(clipPtr)) {
-                auto streamer = std::make_shared<DiskStreamer>(audioClip->getSourceFile(), engine.getFormatManager());
-                auto clipNode = std::make_unique<AudioClipNode>(audioClip, streamer, transport);
-                trackNode->addInput(std::move(clipNode));
+                std::shared_ptr<Node> clipNode;
+                auto it = cachedClipNodes.find(clipPtr);
+                if (it != cachedClipNodes.end()) {
+                    clipNode = it->second;
+                } else {
+                    auto streamer = std::make_shared<DiskStreamer>(audioClip->getSourceFile(), engine.getFormatManager());
+                    clipNode = std::make_shared<AudioClipNode>(audioClip, streamer, transport);
+                    cachedClipNodes[clipPtr] = clipNode;
+                }
+                
+                // TrackNode takes unique_ptr usually, but we need shared_ptr here if we are caching.
+                // Wait! `addInput` takes a unique_ptr. I need to change TrackNode's addInput or clone it? 
+                // Ah, TrackNode takes unique_ptr! Let me check how to pass it.
+                trackNode->addInput(clipNode);
             }
         }
         
-        rootMixer->addInput(std::move(trackNode));
+        rootMixer->addInput(trackNode);
+    }
+    
+    // Prune cache: remove entries for clips that are no longer in the project
+    for (auto it = cachedClipNodes.begin(); it != cachedClipNodes.end(); ) {
+        bool found = false;
+        for (int i = 0; i < numTracks; ++i) {
+            auto trackClips = timelineProject.getClipsOnTrack(i);
+            if (std::find(trackClips.begin(), trackClips.end(), it->first) != trackClips.end()) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            it = cachedClipNodes.erase(it);
+        } else {
+            ++it;
+        }
     }
     
     return rootMixer;
@@ -103,6 +132,9 @@ void PlaybackContext::audioDeviceIOCallbackWithContext(const float* const* input
     if (activeGraph) {
         juce::AudioBuffer<float> buffer(outputChannelData, numOutputChannels, numSamples);
         juce::MidiBuffer midiMessages;
+        
+        // Fetch incoming MIDI messages (both hardware and computer keyboard)
+        engine.getAudioDeviceManager().getMidiCollector().removeNextBlockOfMessages(midiMessages, numSamples);
         
         ProcessContext processContext;
         processContext.buffer = &buffer;

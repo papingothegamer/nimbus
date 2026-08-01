@@ -25,6 +25,7 @@ public:
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
 
     juce::AudioDeviceManager& getDeviceManager() { return deviceManager; }
+    juce::MidiMessageCollector& getMidiCollector() { return midiCollector; }
 
 private:
     juce::AudioDeviceManager deviceManager;

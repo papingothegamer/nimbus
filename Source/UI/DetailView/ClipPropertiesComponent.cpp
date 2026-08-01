@@ -76,12 +76,26 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
     
     // --- Audio Panel ---
     contentContainer.addAndMakeVisible(audioPanel);
-    audioPanel.addContent(&matchTempoButton);
-    matchTempoButton.setButtonText("Match"); // Shortened
+    audioPanel.addContent(&warpButton);
     audioPanel.addContent(&followButton);
+    audioPanel.addContent(&warpModeBox);
     audioPanel.addContent(&algorithmBox);
     preservePitchButton.setButtonText("Preserve"); // Shortened
     audioPanel.addContent(&preservePitchButton);
+    
+    warpModeBox.addItem("Beats", 1);
+    warpModeBox.addItem("Time", 2);
+    warpModeBox.addItem("Advanced", 3);
+    warpModeBox.setSelectedId(1);
+    warpModeBox.setColour(juce::ComboBox::backgroundColourId, juce::Colours::transparentBlack);
+    warpModeBox.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+    warpModeBox.onChange = [this] {
+        if (currentAudioClip) {
+            auto newMode = static_cast<AudioClip::WarpMode>(warpModeBox.getSelectedId() - 1);
+            currentAudioClip->setWarpMode(newMode);
+            engine.getTimelineProject().notifyClipModified();
+        }
+    };
     
     algorithmBox.addItem("Beats", 1);
     algorithmBox.addItem("Tones", 2);
@@ -129,14 +143,19 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
     };
     
     audioPanel.addContent(&pitchSlider);
-    setupBox(pitchBox, "0");
-    pitchSlider.getSlider().onValueChange = [this] {
+    pitchSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    pitchSlider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+    pitchSlider.setRange(-24.0, 24.0, 1.0);
+    pitchSlider.setValue(0.0);
+    setupBox(pitchBox, "0 st");
+    pitchSlider.onValueChange = [this] {
         if (currentAudioClip) {
-            currentAudioClip->pitchShiftSemitones = static_cast<int>(pitchSlider.getSlider().getValue());
-            pitchBox.setText(juce::String(currentAudioClip->pitchShiftSemitones.get()), juce::dontSendNotification);
+            currentAudioClip->pitchShiftSemitones = static_cast<int>(pitchSlider.getValue());
+            pitchBox.setText(juce::String(currentAudioClip->pitchShiftSemitones.get()) + " st", juce::dontSendNotification);
             engine.getTimelineProject().notifyClipModified();
         }
     };
+    setupLabel(pitchLabel, "Pitch");
     audioPanel.addContent(&pitchLabel);
     audioPanel.addContent(&pitchBox);
     
@@ -144,9 +163,9 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
     editButton.setColour(juce::TextButton::buttonColourId, DesignSystem::Colors::ComponentBackground);
     audioPanel.addContent(&editButton);
     
-    matchTempoButton.onClick = [this] {
+    warpButton.onClick = [this] {
         if (currentAudioClip) {
-            currentAudioClip->matchDawTempo = matchTempoButton.getToggleState();
+            currentAudioClip->isWarped = warpButton.getToggleState();
             engine.getTimelineProject().notifyClipModified();
         }
     };
@@ -270,8 +289,11 @@ void ClipPropertiesComponent::layoutPanels() {
             
             // Left Col Setup
             auto lRow1 = leftCol.removeFromTop(18);
-            matchTempoButton.setBounds(lRow1.removeFromLeft(48).reduced(1,0));
+            warpButton.setBounds(lRow1.removeFromLeft(48).reduced(1,0));
             followButton.setBounds(lRow1.reduced(1,0));
+            
+            leftCol.removeFromTop(spacing);
+            warpModeBox.setBounds(leftCol.removeFromTop(18));
             
             leftCol.removeFromTop(spacing);
             
@@ -364,12 +386,13 @@ void ClipPropertiesComponent::setMidiClip(std::shared_ptr<MidiClip> clip) {
 void ClipPropertiesComponent::setAudioClip(std::shared_ptr<AudioClip> clip) {
     currentAudioClip = clip;
     if (clip) {
-        matchTempoButton.setToggleState(clip->matchDawTempo.get(), juce::dontSendNotification);
+        warpButton.setToggleState(clip->isWarped.get(), juce::dontSendNotification);
+        warpModeBox.setSelectedId(static_cast<int>(clip->getWarpMode()) + 1, juce::dontSendNotification);
         preservePitchButton.setToggleState(clip->preservePitch.get(), juce::dontSendNotification);
         reverseButton.setToggleState(clip->reverse.get(), juce::dontSendNotification);
         algorithmBox.setSelectedId(static_cast<int>(clip->getAlgorithm()) + 1, juce::dontSendNotification);
-        pitchSlider.setValue((float)clip->pitchShiftSemitones.get());
-        pitchBox.setText(juce::String(clip->pitchShiftSemitones.get()), juce::dontSendNotification);
+        pitchSlider.setValue((double)clip->pitchShiftSemitones.get(), juce::dontSendNotification);
+        pitchBox.setText(juce::String(clip->pitchShiftSemitones.get()) + " st", juce::dontSendNotification);
         panSlider.setValue((float)clip->pan.get());
         gainSlider.setValue(clip->gain.get(), juce::dontSendNotification);
         gainLabel.setText(juce::String(clip->gain.get(), 2) + " dB", juce::dontSendNotification);

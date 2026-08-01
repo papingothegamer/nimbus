@@ -4,12 +4,9 @@
 namespace Nimbus {
 
 ComputerMidiController::ComputerMidiController(NimbusEngine& e) : engine(e) {
-    // Run a high-frequency timer for smooth modulation and key polling
-    startTimerHz(60);
 }
 
 ComputerMidiController::~ComputerMidiController() {
-    stopTimer();
 }
 
 void ComputerMidiController::setEnabled(bool shouldBeEnabled) {
@@ -56,43 +53,44 @@ int ComputerMidiController::getNoteFromKeyCode(int keyCode) {
     }
 }
 
-bool ComputerMidiController::isKeyCurrentlyDown(int keyCode) {
-    return juce::KeyPress::isKeyCurrentlyDown(keyCode) || 
-           juce::KeyPress::isKeyCurrentlyDown(std::tolower(keyCode));
+bool ComputerMidiController::keyPressed(const juce::KeyPress& key, juce::Component* originatingComponent) {
+    return false; // We handle everything in keyStateChanged
 }
 
-void ComputerMidiController::timerCallback() {
-    if (!enabled) return;
+bool ComputerMidiController::keyStateChanged(bool isKeyDown, juce::Component* originatingComponent) {
+    if (!enabled) return false;
 
-    // Do not capture keypresses if the app is not in the foreground
-    if (!juce::Process::isForegroundProcess()) return;
-    
     // Do not capture keypresses if the user is typing in a text editor
-    if (juce::Component::getCurrentlyFocusedComponent() != nullptr &&
-        dynamic_cast<juce::TextEditor*>(juce::Component::getCurrentlyFocusedComponent()) != nullptr) {
-        return;
+    if (dynamic_cast<juce::TextEditor*>(originatingComponent) != nullptr) {
+        return false;
     }
 
+    bool handled = false;
+
     // --- Octave / Velocity Controls (Edge Detection) ---
-    bool zDown = isKeyCurrentlyDown('Z');
+    bool zDown = juce::KeyPress::isKeyCurrentlyDown('Z') || juce::KeyPress::isKeyCurrentlyDown('z');
     if (zDown && !zWasDown) currentOctave = juce::jmax(0, currentOctave - 1);
     zWasDown = zDown;
+    if (zDown) handled = true;
 
-    bool xDown = isKeyCurrentlyDown('X');
+    bool xDown = juce::KeyPress::isKeyCurrentlyDown('X') || juce::KeyPress::isKeyCurrentlyDown('x');
     if (xDown && !xWasDown) currentOctave = juce::jmin(8, currentOctave + 1);
     xWasDown = xDown;
+    if (xDown) handled = true;
 
-    bool cDown = isKeyCurrentlyDown('C');
+    bool cDown = juce::KeyPress::isKeyCurrentlyDown('C') || juce::KeyPress::isKeyCurrentlyDown('c');
     if (cDown && !cWasDown) currentVelocity = juce::jmax(1, currentVelocity - 20);
     cWasDown = cDown;
+    if (cDown) handled = true;
 
-    bool vDown = isKeyCurrentlyDown('V');
+    bool vDown = juce::KeyPress::isKeyCurrentlyDown('V') || juce::KeyPress::isKeyCurrentlyDown('v');
     if (vDown && !vWasDown) currentVelocity = juce::jmin(127, currentVelocity + 20);
     vWasDown = vDown;
+    if (vDown) handled = true;
 
     // --- Note Input ---
     for (int kc : mappedKeys) {
-        bool isDown = isKeyCurrentlyDown(kc);
+        bool isDown = juce::KeyPress::isKeyCurrentlyDown(kc) || juce::KeyPress::isKeyCurrentlyDown(std::tolower(kc));
         bool wasDown = (activeKeyCodesToNotes.find(kc) != activeKeyCodesToNotes.end());
 
         if (isDown && !wasDown) {
@@ -105,12 +103,16 @@ void ComputerMidiController::timerCallback() {
                 auto msg = juce::MidiMessage::noteOn(1, midiNote, (juce::uint8)currentVelocity);
                 msg.setTimeStamp(juce::Time::getMillisecondCounterHiRes() * 0.001);
                 engine.getAudioDeviceManager().injectMidiMessage(msg);
+                handled = true;
             }
         } else if (!isDown && wasDown) {
             auto msg = juce::MidiMessage::noteOff(1, activeKeyCodesToNotes[kc], (juce::uint8)0);
             msg.setTimeStamp(juce::Time::getMillisecondCounterHiRes() * 0.001);
             engine.getAudioDeviceManager().injectMidiMessage(msg);
             activeKeyCodesToNotes.erase(kc);
+            handled = true;
+        } else if (isDown) {
+            handled = true; // Consumed
         }
     }
 
@@ -127,6 +129,9 @@ void ComputerMidiController::timerCallback() {
         else if (downArrowDown && !upArrowDown) pitchBendVal = 0; // Min
         
         sendPitchBend(pitchBendVal);
+        handled = true;
+    } else if (newUp || newDown) {
+        handled = true;
     }
 
     // --- Modulation ---
@@ -137,14 +142,18 @@ void ComputerMidiController::timerCallback() {
     if (rightArrowDown) {
         currentModulation = juce::jmin(127.0f, currentModulation + 2.5f);
         modChanged = true;
+        handled = true;
     } else if (leftArrowDown) {
         currentModulation = juce::jmax(0.0f, currentModulation - 2.5f);
         modChanged = true;
+        handled = true;
     }
 
     if (modChanged) {
         sendModulation(juce::roundToInt(currentModulation));
     }
+
+    return handled;
 }
 
 void ComputerMidiController::sendPitchBend(int value) {

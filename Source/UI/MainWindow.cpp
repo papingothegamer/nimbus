@@ -176,6 +176,10 @@ MainWindow::MainWindow(juce::String name, NimbusEngine& engineToUse)
     centreWithSize(1280, 800);
     setVisible(true);
 
+    if (auto* ctrl = engineToUse.getComputerMidiController()) {
+        addKeyListener(ctrl);
+    }
+
     // if (auto testPluginNode = engineToUse.getTestPluginNode()) {
     //     pluginWindow = std::make_unique<PluginWindow>("Test Plugin", nullptr);
     // }

@@ -18,7 +18,7 @@ public:
           lengthSamples(state, "lengthSamples", nullptr, length),
           sourceOffsetSamples(state, "sourceOffsetSamples", nullptr, 0.0),
           name(state, "name", nullptr, type == Type::Audio ? "Audio Clip" : "MIDI Clip"),
-          colorIndex(state, "colorIndex", nullptr, -1),
+          colorIndex(state, "colorIndex", nullptr, juce::Random::getSystemRandom().nextInt(10)),
           muted(state, "muted", nullptr, false)
     {
     }

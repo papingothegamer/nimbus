@@ -68,7 +68,7 @@ void AudioClipNode::process(const ProcessContext& context) {
         }
 
         double speedRatio = clipModel->speedMultiplier.get();
-        if (clipModel->matchDawTempo.get()) {
+        if (clipModel->isWarped.get()) {
             double dawTempo = globalTransport.getTempo();
             double originalTempo = clipModel->originalBpm.get();
             if (originalTempo <= 0.0) originalTempo = 120.0;
@@ -79,8 +79,12 @@ void AudioClipNode::process(const ProcessContext& context) {
         
         speedRatio = juce::jlimit(0.1, 10.0, speedRatio);
         
-        double pitchRatio = std::pow(2.0, static_cast<double>(clipModel->pitchShiftSemitones.get()) / 12.0);
-        pitchRatio = juce::jlimit(0.1, 10.0, pitchRatio);
+        double pitchRatio = 1.0;
+        // Advanced warp MUST only affect clip BPM, NOT clip pitch
+        if (!clipModel->isWarped.get() || clipModel->getWarpMode() != AudioClip::WarpMode::Advanced) {
+            pitchRatio = std::pow(2.0, static_cast<double>(clipModel->pitchShiftSemitones.get()) / 12.0);
+            pitchRatio = juce::jlimit(0.1, 10.0, pitchRatio);
+        }
         
         // The position inside the audio file corresponding to the first sample we need to render
         double timeIntoClip = (currentTransportPos + renderStartOffset) - clipStart;

@@ -7,7 +7,7 @@ namespace Nimbus {
 
 class NimbusEngine;
 
-class ComputerMidiController : public juce::Timer {
+class ComputerMidiController : public juce::KeyListener {
 public:
     ComputerMidiController(NimbusEngine& engine);
     ~ComputerMidiController() override;
@@ -15,7 +15,8 @@ public:
     void setEnabled(bool shouldBeEnabled);
     bool isEnabled() const { return enabled; }
 
-    void timerCallback() override;
+    bool keyPressed(const juce::KeyPress& key, juce::Component* originatingComponent) override;
+    bool keyStateChanged(bool isKeyDown, juce::Component* originatingComponent) override;
 
 private:
     NimbusEngine& engine;
@@ -44,7 +45,6 @@ private:
     int getNoteFromKeyCode(int keyCode);
     void sendPitchBend(int value);
     void sendModulation(int value);
-    bool isKeyCurrentlyDown(int keyCode);
     
     const std::vector<int> mappedKeys = {
         'A', 'W', 'S', 'E', 'D', 'F', 'T', 'G', 'Y', 'H', 'U', 'J', 'K', 'L', 'P', ';', '\''

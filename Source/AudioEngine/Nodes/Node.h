@@ -47,7 +47,7 @@ class MixerNode : public Node {
 public:
     MixerNode() = default;
     
-    void addInput(std::unique_ptr<Node> input) {
+    void addInput(std::shared_ptr<Node> input) {
         inputs.push_back(std::move(input));
     }
 
@@ -82,7 +82,7 @@ public:
     }
 
 private:
-    std::vector<std::unique_ptr<Node>> inputs;
+    std::vector<std::shared_ptr<Node>> inputs;
     juce::AudioBuffer<float> tempBuffer;
 };
 
