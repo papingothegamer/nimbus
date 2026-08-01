@@ -86,6 +86,12 @@ void DetailViewComponent::resized() {
 void DetailViewComponent::trackAdded(int trackIndex, const TrackModel& track) {}
 void DetailViewComponent::trackRemoved(int trackIndex) {}
 
+void DetailViewComponent::trackClipsChanged(int trackIndex) {
+    // If the currently selected clip is on this track, or if no clip is selected,
+    // we should refresh the UI to show the new clip bounds or properties.
+    selectedClipChanged();
+}
+
 void DetailViewComponent::timerCallback() {
     if (!showDeviceView && engine.getTransport().isPlaying() && engine.isFollowPlayheadEnabled()) {
         pianoRollTimeline.repaint();

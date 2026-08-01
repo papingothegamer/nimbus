@@ -5,6 +5,7 @@
 #include <memory>
 #include <atomic>
 #include "../LevelMeasurer.h"
+#include "../MidiRecorder.h"
 
 namespace Nimbus {
 
@@ -17,6 +18,10 @@ public:
 
     void addInput(std::shared_ptr<Node> input) {
         inputs.push_back(std::move(input));
+    }
+    
+    void setMidiRecorder(MidiRecorder* recorder) {
+        midiRecorder = recorder;
     }
     
     void addPlugin(std::unique_ptr<Node> plugin) {
@@ -48,6 +53,10 @@ public:
         if (anyTrackSoloed && !isSoloed) isMuted = true;
         
         if (!context.buffer) return;
+        
+        if (midiRecorder && context.midiMessages) {
+            midiRecorder->pushEvents(*context.midiMessages, context.buffer->getNumSamples(), context.currentPositionSamples);
+        }
         
         // 1. Process and mix inputs (clips)
         context.buffer->clear();
@@ -144,9 +153,10 @@ private:
     std::atomic<bool>* targetSolo = nullptr;
     std::atomic<bool>* anySolo = nullptr;
     
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedVolume;
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedPan;
+    juce::LinearSmoothedValue<float> smoothedVolume;
+    juce::LinearSmoothedValue<float> smoothedPan;
     
+    MidiRecorder* midiRecorder = nullptr;
     LevelMeasurer* levelMeasurer = nullptr;
 };
 

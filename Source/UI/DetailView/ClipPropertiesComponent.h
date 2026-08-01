@@ -12,7 +12,7 @@ namespace Nimbus::DetailView {
 class ClipPropertiesComponent : public juce::Component {
 public:
     ClipPropertiesComponent(NimbusEngine& engine);
-    ~ClipPropertiesComponent() override = default;
+    ~ClipPropertiesComponent() override;
 
     void paint(juce::Graphics& g) override;
     void resized() override;
@@ -73,6 +73,13 @@ private:
     // Gain & Pitch sub-column
     UI::AbletonVerticalGainSlider gainSlider;
     juce::Label gainLabel{"", "0.00 dB"};
+    
+    class PitchSliderLookAndFeel : public juce::LookAndFeel_V4 {
+    public:
+        void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
+                              float sliderPos, float minSliderPos, float maxSliderPos,
+                              const juce::Slider::SliderStyle style, juce::Slider& slider) override;
+    } pitchLaf;
     
     juce::Slider pitchSlider;
     juce::Label pitchLabel{"", "Pitch"};

@@ -56,6 +56,9 @@ std::shared_ptr<Node> PlaybackContext::createGraphFromProject()
             anySolo.store(hasAnySolo(timelineProject), std::memory_order_relaxed);
             
             trackNode->bindState(&trackVolumes[i], &trackPans[i], &trackMutes[i], &trackSolos[i], &anySolo, &trackLevelMeasurers[i]);
+            if (track.isArmed) {
+                trackNode->setMidiRecorder(engine.getMidiRecorder(i));
+            }
         }
         
         // Add plugins
@@ -175,6 +178,7 @@ void PlaybackContext::trackAdded(int, const TrackModel&) { rebuildGraph(); }
 void PlaybackContext::trackRemoved(int) { rebuildGraph(); }
 void PlaybackContext::trackClipsChanged(int) { rebuildGraph(); }
 void PlaybackContext::trackPluginsChanged(int) { rebuildGraph(); }
+void PlaybackContext::trackArmChanged(int, bool) { rebuildGraph(); }
 
 void PlaybackContext::trackMuteChanged(int trackIndex, bool isMuted) {
     if (trackIndex >= 0 && trackIndex < 128) trackMutes[trackIndex].store(isMuted, std::memory_order_relaxed);

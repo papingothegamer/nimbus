@@ -9,16 +9,16 @@ PluginNode::PluginNode(juce::AudioPluginInstance* instance)
 }
 
 PluginNode::~PluginNode() {
-    // Release resources on destruction if needed
-    if (isPrepared && pluginInstance) {
-        pluginInstance->releaseResources();
-    }
+    // We no longer own pluginInstance, so we shouldn't call releaseResources() here.
+    // Doing so would break the instance for the new graph that just swapped in.
 }
 
 void PluginNode::prepare(double sampleRate, int maximumExpectedSamplesPerBlock) {
     Node::prepare(sampleRate, maximumExpectedSamplesPerBlock);
     if (pluginInstance) {
-        pluginInstance->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
+        if (pluginInstance->getSampleRate() != sampleRate || pluginInstance->getBlockSize() != maximumExpectedSamplesPerBlock) {
+            pluginInstance->prepareToPlay(sampleRate, maximumExpectedSamplesPerBlock);
+        }
         isPrepared = true;
     }
 }

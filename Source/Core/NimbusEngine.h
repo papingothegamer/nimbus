@@ -58,6 +58,8 @@ public:
     
     std::pair<float, float> getMasterPeakLevel() const;
     std::pair<float, float> getTrackPeakLevel(int trackIndex) const;
+    
+    MidiRecorder* getMidiRecorder(int trackIndex);
 
     struct PluginClipboard {
         juce::PluginDescription description;

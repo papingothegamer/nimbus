@@ -1,8 +1,38 @@
 #include "ClipPropertiesComponent.h"
 #include "UI/DesignSystem/Colors.h"
 #include "UI/DesignSystem/Typography.h"
+#include "UI/DesignSystem/Typography.h"
 
 namespace Nimbus::DetailView {
+
+void ClipPropertiesComponent::PitchSliderLookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
+                                                                       float sliderPos, float minSliderPos, float maxSliderPos,
+                                                                       const juce::Slider::SliderStyle style, juce::Slider& slider) {
+    float meterHeight = height - 12.0f;
+    
+    // Draw background track
+    g.setColour(juce::Colour(0xff222222));
+    juce::Rectangle<float> trackBounds(x, y, width, meterHeight);
+    g.fillRect(trackBounds);
+    
+    // Horizontal line overlaid perfectly on top
+    g.setColour(juce::Colours::white.withAlpha(0.8f));
+    g.fillRect(sliderPos - 1.0f, (float)y, 2.0f, meterHeight);
+
+    // Triangle pointer thumb on the bottom
+    juce::Path p;
+    float pW = 8.0f;
+    float pH = 6.0f;
+    float pY = meterHeight + 1.0f; 
+    
+    p.addTriangle(sliderPos - pW * 0.5f, pY + pH, sliderPos + pW * 0.5f, pY + pH, sliderPos, pY);
+    g.setColour(juce::Colour(0xff888888));
+    g.fillPath(p);
+    g.setColour(juce::Colour(0xff111111));
+    g.strokePath(p, juce::PathStrokeType(1.0f));
+}
+
+ClipPropertiesComponent::~ClipPropertiesComponent() = default;
 
 ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
     // --- Viewport & Container ---
@@ -112,6 +142,13 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
         }
     };
     
+    bpmBox.onTextChange = [this] {
+        if (currentAudioClip) {
+            currentAudioClip->originalBpm = bpmBox.getText().getDoubleValue();
+            engine.getTimelineProject().notifyClipModified();
+        }
+    };
+    
     audioPanel.addContent(&transientBox);
     transientBox.addItem("Trans.", 1);
     transientBox.setSelectedId(1);
@@ -143,6 +180,7 @@ ClipPropertiesComponent::ClipPropertiesComponent(NimbusEngine& e) : engine(e) {
     };
     
     audioPanel.addContent(&pitchSlider);
+    pitchSlider.setLookAndFeel(&pitchLaf);
     pitchSlider.setSliderStyle(juce::Slider::LinearHorizontal);
     pitchSlider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
     pitchSlider.setRange(-24.0, 24.0, 1.0);
@@ -322,7 +360,7 @@ void ClipPropertiesComponent::layoutPanels() {
             gainLabel.setJustificationType(juce::Justification::centred);
             
             rightCol.removeFromTop(spacing);
-            pitchSlider.setBounds(rightCol.removeFromTop(50));
+            pitchSlider.setBounds(rightCol.removeFromTop(20));
             pitchBox.setBounds(rightCol.removeFromTop(18));
         }
     }
@@ -375,8 +413,6 @@ void ClipPropertiesComponent::updateClipInfo(const juce::String& name, double st
     
     positionBox.setValue(getBars(startSamples), juce::dontSendNotification);
     lengthBox.setValue(getBars(lengthSamples), juce::dontSendNotification);
-    
-    bpmBox.setText(juce::String(tempo, 2), juce::dontSendNotification);
 }
 
 void ClipPropertiesComponent::setMidiClip(std::shared_ptr<MidiClip> clip) {
@@ -396,6 +432,10 @@ void ClipPropertiesComponent::setAudioClip(std::shared_ptr<AudioClip> clip) {
         panSlider.setValue((float)clip->pan.get());
         gainSlider.setValue(clip->gain.get(), juce::dontSendNotification);
         gainLabel.setText(juce::String(clip->gain.get(), 2) + " dB", juce::dontSendNotification);
+        
+        double originalBpm = clip->originalBpm.get();
+        if (originalBpm <= 0.0) originalBpm = 120.0;
+        bpmBox.setText(juce::String(originalBpm, 2), juce::dontSendNotification);
     }
 }
 

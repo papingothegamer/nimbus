@@ -289,7 +289,27 @@ void TimelineProject::addClipToTrack(int trackIndex, AnyClipPtr clip)
     listeners.call(&Listener::trackClipsChanged, trackIndex);
 }
 
-void TimelineProject::removeClip(AnyClipPtr clip) {}
+void TimelineProject::removeClip(AnyClipPtr clip) {
+    if (!clip) return;
+    
+    int trackIndex = -1;
+    for (size_t t = 0; t < cachedClips.size(); ++t) {
+        auto& trackClips = cachedClips[t];
+        auto it = std::find(trackClips.begin(), trackClips.end(), clip);
+        if (it != trackClips.end()) {
+            trackClips.erase(it);
+            trackIndex = static_cast<int>(t);
+            break;
+        }
+    }
+    
+    if (trackIndex != -1) {
+        if (currentSelectedClip == clip) {
+            setSelectedClip(AnyClipPtr{});
+        }
+        listeners.call(&Listener::trackClipsChanged, trackIndex);
+    }
+}
 std::vector<AnyClipPtr> TimelineProject::getClipsOnTrack(int trackIndex) const
 {
     if (trackIndex < cachedClips.size()) return cachedClips[trackIndex];

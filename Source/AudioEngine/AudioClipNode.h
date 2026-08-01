@@ -3,6 +3,7 @@
 #include "Nodes/Node.h"
 #include "DataModel/AudioClip.h"
 #include "DiskStreaming/DiskStreamer.h"
+#include "DiskStreaming/TimeStretchReader.h"
 #include "Transport.h"
 #include "DataModel/TimelineProject.h"
 #include <JuceHeader.h>
@@ -27,6 +28,7 @@ public:
 private:
     std::shared_ptr<AudioClip> clipModel;
     std::shared_ptr<DiskStreamer> diskStreamer;
+    std::unique_ptr<TimeStretchReader> timeStretchReader;
 
     int lastProcessedTransportPos = -1;
 

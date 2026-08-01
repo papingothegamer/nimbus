@@ -23,6 +23,7 @@ public:
     void trackRemoved(int trackIndex) override;
     void trackSelectionChanged() override;
     void selectedClipChanged() override;
+    void trackClipsChanged(int trackIndex) override;
     
     void timerCallback() override;
 

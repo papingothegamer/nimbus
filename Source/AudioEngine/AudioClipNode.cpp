@@ -4,6 +4,9 @@ namespace Nimbus {
 
 AudioClipNode::AudioClipNode(std::shared_ptr<AudioClip> clip, std::shared_ptr<DiskStreamer> streamer, Transport& transport)
     : clipModel(std::move(clip)), diskStreamer(std::move(streamer)), globalTransport(transport) {
+    if (diskStreamer) {
+        timeStretchReader = std::make_unique<TimeStretchReader>(diskStreamer);
+    }
 }
 
 void AudioClipNode::prepare(double sampleRate, int blockSize) {
@@ -11,6 +14,9 @@ void AudioClipNode::prepare(double sampleRate, int blockSize) {
     if (diskStreamer && !diskStreamer->isThreadRunning()) {
         diskStreamer->requestSeek(clipModel->sourceOffsetSamples.get());
         diskStreamer->startStreaming();
+    }
+    if (timeStretchReader) {
+        timeStretchReader->prepare(sampleRate, blockSize);
     }
 }
 
@@ -36,9 +42,21 @@ void AudioClipNode::process(const ProcessContext& context) {
 
     // Did the transport jump or just start?
     if (lastProcessedTransportPos == -1 || currentTransportPos != lastProcessedTransportPos) {
+        // Calculate speed ratio to determine correct seek position in file
+        double tempSpeedRatio = clipModel->speedMultiplier.get();
+        if (clipModel->isWarped.get()) {
+            double dawTempo = globalTransport.getTempo();
+            double originalTempo = clipModel->originalBpm.get();
+            if (originalTempo <= 0.0) originalTempo = 120.0;
+            if (dawTempo > 0.0) {
+                tempSpeedRatio = dawTempo / originalTempo;
+            }
+        }
+        tempSpeedRatio = juce::jlimit(0.1, 10.0, tempSpeedRatio);
+        
         // Transport seeked!
-        int relativeFilePos = currentTransportPos - clipModel->startSample.get() + clipModel->sourceOffsetSamples.get();
-        if (relativeFilePos >= 0) {
+        if (currentTransportPos >= clipModel->startSample.get()) {
+            int relativeFilePos = static_cast<int>(clipModel->sourceOffsetSamples.get() + ((currentTransportPos - clipModel->startSample.get()) * tempSpeedRatio));
             diskStreamer->requestSeek(relativeFilePos);
         } else {
             // If we seeked before the clip, prime the disk streamer to the clip's start
@@ -103,35 +121,48 @@ void AudioClipNode::process(const ProcessContext& context) {
             juce::AudioBuffer<float> subBuffer(buffer.getArrayOfWritePointers(), buffer.getNumChannels(), renderStartOffset, renderLength);
             diskStreamer->processBlock(subBuffer, filePosition, renderLength);
         } else {
-            // Combine speed and pitch into a single resampling ratio.
-            // Note: If clipModel->getPreservePitch() is true, we ideally want Granular Time Stretching here.
-            // For now, we fall back to standard resampling, which will shift pitch when speed changes.
-            // The architecture is now ready to swap this interpolator block for a Granular Stretcher class.
-            double playbackRatio = speedRatio * pitchRatio;
-            
-            if (playbackRatio <= 0.0) {
-                buffer.clear(renderStartOffset, renderLength);
-                return;
+            bool useStretcher = false;
+            if (clipModel->isWarped.get()) {
+                if (clipModel->preservePitch.get() || clipModel->getWarpMode() == AudioClip::WarpMode::Advanced) {
+                    useStretcher = true;
+                }
             }
             
-            int samplesToRead = static_cast<int>(std::ceil(renderLength * playbackRatio)) + 4; // Add padding for interpolation
-            if (readBuffer.getNumSamples() < samplesToRead || readBuffer.getNumChannels() < buffer.getNumChannels()) {
-                readBuffer.setSize(buffer.getNumChannels(), samplesToRead, false, false, true);
-            }
-            readBuffer.clear();
+            juce::AudioBuffer<float> subBuffer(buffer.getArrayOfWritePointers(), buffer.getNumChannels(), renderStartOffset, renderLength);
             
-            juce::AudioBuffer<float> subReadBuffer(readBuffer.getArrayOfWritePointers(), readBuffer.getNumChannels(), 0, samplesToRead);
-            diskStreamer->processBlock(subReadBuffer, filePosition, samplesToRead);
-            
-            for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
-                auto* outPtr = buffer.getWritePointer(ch) + renderStartOffset;
-                auto* inPtr = readBuffer.getReadPointer(ch);
+            if (useStretcher && timeStretchReader) {
+                timeStretchReader->setTimeStretchRatio(speedRatio);
                 
-                if (playbackRatio > 0.0) {
-                    if (ch == 0) interpolatorLeft.process(playbackRatio, inPtr, outPtr, renderLength);
-                    else if (ch == 1) interpolatorRight.process(playbackRatio, inPtr, outPtr, renderLength);
+                double pitchSemis = 0.0;
+                if (clipModel->getWarpMode() != AudioClip::WarpMode::Advanced) {
+                    pitchSemis = clipModel->pitchShiftSemitones.get();
+                }
+                timeStretchReader->setPitchShift(pitchSemis);
+                
+                timeStretchReader->readBlock(subBuffer, filePosition, renderLength, false, 0.0, 0.0);
+            } else {
+                // Fall back to standard resampling
+                double playbackRatio = speedRatio * pitchRatio;
+                
+                if (playbackRatio <= 0.0) {
+                    subBuffer.clear();
                 } else {
-                    juce::FloatVectorOperations::clear(outPtr, renderLength);
+                    int samplesToRead = static_cast<int>(std::ceil(renderLength * playbackRatio)) + 4; // Add padding for interpolation
+                    if (readBuffer.getNumSamples() < samplesToRead || readBuffer.getNumChannels() < buffer.getNumChannels()) {
+                        readBuffer.setSize(buffer.getNumChannels(), samplesToRead, false, false, true);
+                    }
+                    readBuffer.clear();
+                    
+                    juce::AudioBuffer<float> subReadBuffer(readBuffer.getArrayOfWritePointers(), readBuffer.getNumChannels(), 0, samplesToRead);
+                    diskStreamer->processBlock(subReadBuffer, filePosition, samplesToRead);
+                    
+                    for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
+                        auto* outPtr = subBuffer.getWritePointer(ch);
+                        auto* inPtr = readBuffer.getReadPointer(ch);
+                        
+                        if (ch == 0) interpolatorLeft.process(playbackRatio, inPtr, outPtr, renderLength);
+                        else if (ch == 1) interpolatorRight.process(playbackRatio, inPtr, outPtr, renderLength);
+                    }
                 }
             }
         }

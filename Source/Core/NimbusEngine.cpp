@@ -66,12 +66,34 @@ std::pair<float, float> NimbusEngine::getTrackPeakLevel(int trackIndex) const {
     return {0.0f, 0.0f};
 }
 
+MidiRecorder* NimbusEngine::getMidiRecorder(int trackIndex) {
+    if (midiRecorders.find(trackIndex) == midiRecorders.end()) {
+        midiRecorders[trackIndex] = std::make_unique<MidiRecorder>();
+    }
+    return midiRecorders[trackIndex].get();
+}
+
 void NimbusEngine::startRecording() {
+    double currentPos = transport.getCurrentPosition();
+    for (int i = 0; i < timelineProject.getNumTracks(); ++i) {
+        if (timelineProject.getTrack(i).isArmed) {
+            getMidiRecorder(i)->startRecording(currentPos);
+        }
+    }
     transport.record();
 }
 
 void NimbusEngine::stopRecording() {
     transport.stop();
+    double currentPos = transport.getCurrentPosition();
+    for (int i = 0; i < timelineProject.getNumTracks(); ++i) {
+        if (timelineProject.getTrack(i).isArmed) {
+            auto clip = getMidiRecorder(i)->stopRecordingAndGetClip(currentPos);
+            if (clip) {
+                timelineProject.addClipToTrack(i, clip);
+            }
+        }
+    }
 }
 
 } // namespace Nimbus
