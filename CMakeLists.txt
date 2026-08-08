@@ -225,5 +225,12 @@ target_link_libraries(Nimbus PRIVATE
 # Include directories
 target_include_directories(Nimbus PRIVATE Source)
 
+if (MSVC)
+    set_source_files_properties(
+        Source/AudioEngine/DiskStreaming/TimeStretchReader.cpp
+        PROPERTIES COMPILE_FLAGS "/O2"
+    )
+endif()
+
 # Tests
 add_subdirectory(Tests)

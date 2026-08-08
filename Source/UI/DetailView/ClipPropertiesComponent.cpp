@@ -421,6 +421,7 @@ void ClipPropertiesComponent::setMidiClip(std::shared_ptr<MidiClip> clip) {
 
 void ClipPropertiesComponent::setAudioClip(std::shared_ptr<AudioClip> clip) {
     currentAudioClip = clip;
+    audioPanel.setEnabled(clip != nullptr);
     if (clip) {
         warpButton.setToggleState(clip->isWarped.get(), juce::dontSendNotification);
         warpModeBox.setSelectedId(static_cast<int>(clip->getWarpMode()) + 1, juce::dontSendNotification);

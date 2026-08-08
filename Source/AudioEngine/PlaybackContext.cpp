@@ -6,6 +6,7 @@
 
 #include "../Core/NimbusEngine.h"
 #include "AudioClipNode.h"
+#include "MidiClipNode.h"
 
 namespace Nimbus {
 
@@ -71,8 +72,7 @@ std::shared_ptr<Node> PlaybackContext::createGraphFromProject()
             }
         }
         
-        // Add Audio Clips
-        // Add Audio Clips
+        // Add Audio and MIDI Clips
         for (auto& clipPtr : timelineProject.getClipsOnTrack(i)) {
             if (auto audioClip = std::dynamic_pointer_cast<AudioClip>(clipPtr)) {
                 std::shared_ptr<Node> clipNode;
@@ -84,10 +84,17 @@ std::shared_ptr<Node> PlaybackContext::createGraphFromProject()
                     clipNode = std::make_shared<AudioClipNode>(audioClip, streamer, transport);
                     cachedClipNodes[clipPtr] = clipNode;
                 }
-                
-                // TrackNode takes unique_ptr usually, but we need shared_ptr here if we are caching.
-                // Wait! `addInput` takes a unique_ptr. I need to change TrackNode's addInput or clone it? 
-                // Ah, TrackNode takes unique_ptr! Let me check how to pass it.
+                trackNode->addInput(clipNode);
+            }
+            else if (auto midiClip = std::dynamic_pointer_cast<MidiClip>(clipPtr)) {
+                std::shared_ptr<Node> clipNode;
+                auto it = cachedClipNodes.find(clipPtr);
+                if (it != cachedClipNodes.end()) {
+                    clipNode = it->second;
+                } else {
+                    clipNode = std::make_shared<MidiClipNode>(midiClip);
+                    cachedClipNodes[clipPtr] = clipNode;
+                }
                 trackNode->addInput(clipNode);
             }
         }
